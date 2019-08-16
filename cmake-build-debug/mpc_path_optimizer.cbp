@@ -416,6 +416,9 @@
 		<Unit filename="/home/ljn/catkin_ws/src/mpc_path_optimizer/MpcPathOptimizer.hpp">
 			<Option target="mpc_path_optimizer"/>
 		</Unit>
+		<Unit filename="/home/ljn/catkin_ws/src/mpc_path_optimizer/mpc_path_optimizer_demo.cpp">
+			<Option target="mpc_path_optimizer"/>
+		</Unit>
 		<Unit filename="/usr/src/gmock/src/gmock-all.cc">
 			<Option target="gmock_main"/>
 			<Option target="gmock"/>

@@ -1,5 +1,6 @@
 file(REMOVE_RECURSE
   "CMakeFiles/mpc_path_optimizer.dir/MpcPathOptimizer.cpp.o"
+  "CMakeFiles/mpc_path_optimizer.dir/mpc_path_optimizer_demo.cpp.o"
   "devel/lib/mpc_path_optimizer/mpc_path_optimizer.pdb"
   "devel/lib/mpc_path_optimizer/mpc_path_optimizer"
 )

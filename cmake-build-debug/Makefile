@@ -337,6 +337,33 @@ MpcPathOptimizer.cpp.s:
 	$(MAKE) -f CMakeFiles/mpc_path_optimizer.dir/build.make CMakeFiles/mpc_path_optimizer.dir/MpcPathOptimizer.cpp.s
 .PHONY : MpcPathOptimizer.cpp.s
 
+mpc_path_optimizer_demo.o: mpc_path_optimizer_demo.cpp.o
+
+.PHONY : mpc_path_optimizer_demo.o
+
+# target to build an object file
+mpc_path_optimizer_demo.cpp.o:
+	$(MAKE) -f CMakeFiles/mpc_path_optimizer.dir/build.make CMakeFiles/mpc_path_optimizer.dir/mpc_path_optimizer_demo.cpp.o
+.PHONY : mpc_path_optimizer_demo.cpp.o
+
+mpc_path_optimizer_demo.i: mpc_path_optimizer_demo.cpp.i
+
+.PHONY : mpc_path_optimizer_demo.i
+
+# target to preprocess a source file
+mpc_path_optimizer_demo.cpp.i:
+	$(MAKE) -f CMakeFiles/mpc_path_optimizer.dir/build.make CMakeFiles/mpc_path_optimizer.dir/mpc_path_optimizer_demo.cpp.i
+.PHONY : mpc_path_optimizer_demo.cpp.i
+
+mpc_path_optimizer_demo.s: mpc_path_optimizer_demo.cpp.s
+
+.PHONY : mpc_path_optimizer_demo.s
+
+# target to generate assembly for a file
+mpc_path_optimizer_demo.cpp.s:
+	$(MAKE) -f CMakeFiles/mpc_path_optimizer.dir/build.make CMakeFiles/mpc_path_optimizer.dir/mpc_path_optimizer_demo.cpp.s
+.PHONY : mpc_path_optimizer_demo.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -364,6 +391,9 @@ help:
 	@echo "... MpcPathOptimizer.o"
 	@echo "... MpcPathOptimizer.i"
 	@echo "... MpcPathOptimizer.s"
+	@echo "... mpc_path_optimizer_demo.o"
+	@echo "... mpc_path_optimizer_demo.i"
+	@echo "... mpc_path_optimizer_demo.s"
 .PHONY : help
 
 

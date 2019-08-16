@@ -1,1 +1,1 @@
-/usr/bin/c++  -g  -rdynamic CMakeFiles/mpc_path_optimizer.dir/MpcPathOptimizer.cpp.o  -o devel/lib/mpc_path_optimizer/mpc_path_optimizer 
+/usr/bin/c++  -g  -rdynamic CMakeFiles/mpc_path_optimizer.dir/MpcPathOptimizer.cpp.o CMakeFiles/mpc_path_optimizer.dir/mpc_path_optimizer_demo.cpp.o  -o devel/lib/mpc_path_optimizer/mpc_path_optimizer -lglog -lipopt -llapack -lblas -lm -ldl -lcoinmumps -lblas -lgfortran -lm -lquadmath -lcoinmetis -lblas -ldl -lcoinmumps -lgfortran -lquadmath -lcoinmetis 

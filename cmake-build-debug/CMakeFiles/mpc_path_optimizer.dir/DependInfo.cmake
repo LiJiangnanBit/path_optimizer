@@ -5,6 +5,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_CXX
   "/home/ljn/catkin_ws/src/mpc_path_optimizer/MpcPathOptimizer.cpp" "/home/ljn/catkin_ws/src/mpc_path_optimizer/cmake-build-debug/CMakeFiles/mpc_path_optimizer.dir/MpcPathOptimizer.cpp.o"
+  "/home/ljn/catkin_ws/src/mpc_path_optimizer/mpc_path_optimizer_demo.cpp" "/home/ljn/catkin_ws/src/mpc_path_optimizer/cmake-build-debug/CMakeFiles/mpc_path_optimizer.dir/mpc_path_optimizer_demo.cpp.o"
   )
 set(CMAKE_CXX_COMPILER_ID "GNU")
 
