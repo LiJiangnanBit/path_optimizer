@@ -1,0 +1,21 @@
+/home/ljn/workspace/software/clion-2019.1.2/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - Unix Makefiles" /home/ljn/catkin_ws/src/mpc_path_optimizer
+-- Using CATKIN_DEVEL_PREFIX: /home/ljn/catkin_ws/src/mpc_path_optimizer/cmake-build-debug/devel
+-- Using CMAKE_PREFIX_PATH: /home/ljn/catkin_ws/devel;/opt/ros/kinetic
+-- This workspace overlays: /home/ljn/catkin_ws/devel;/opt/ros/kinetic
+-- Using PYTHON_EXECUTABLE: /usr/bin/python
+-- Using Debian Python package layout
+-- Using empy: /usr/bin/empy
+-- Using CATKIN_ENABLE_TESTING: ON
+-- Call enable_testing()
+-- Using CATKIN_TEST_RESULTS_DIR: /home/ljn/catkin_ws/src/mpc_path_optimizer/cmake-build-debug/test_results
+-- Found gmock sources under '/usr/src/gmock': gmock will be built
+-- Found gtest sources under '/usr/src/gmock': gtests will be built
+-- Using Python nosetests: /usr/bin/nosetests-2.7
+-- catkin 0.7.14
+-- CMAKE SOURCE DIR:/home/ljn/catkin_ws/src/mpc_path_optimizer/cmake
+-- Found IPOPT version: 3.12.4 installed in: /usr/local
+-- IPOPT INCLUDE: /usr/local/include/coin/usr/local/include/coin/ThirdParty
+-- IPOPT LIB: ipoptlapackblasmdlcoinmumpsblasgfortranmquadmathcoinmetis
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/ljn/catkin_ws/src/mpc_path_optimizer/cmake-build-debug

@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/ljn/catkin_ws/src/mpc_path_optimizer/cmake-build-debug/devel/setup.sh
