@@ -2,7 +2,7 @@
 // Created by ljn on 19-8-16.
 //
 
-#include "MpcPathOptimizer.hpp"
+#include "../include/MpcPathOptimizer.hpp"
 namespace MpcSmoother {
 
 MpcPathOptimizer::MpcPathOptimizer(const std::vector<double> &x_list,
@@ -203,11 +203,13 @@ void MpcPathOptimizer::solve() {
                                                constraints_lowerbound, constraints_upperbound,
                                                fg_eval_frenet, solution);
 
+    size_t nan_num = 0;
     for (int i = 0; i < N; i++) {
         double tmp[3] = {solution.x[ps_range_begin + i], solution.x[pq_range_begin + i], double(i)};
         std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
         this->predicted_path_in_frenet.push_back(v);
     }
+
 
     size_t num = 0;
     for (const auto &point_in_frenet : predicted_path_in_frenet) {
@@ -217,12 +219,18 @@ void MpcPathOptimizer::solve() {
                 double new_angle = angle + M_PI_2;
                 double x = x_list[num] + point_in_frenet[1] * cos(new_angle);
                 double y = y_list[num] + point_in_frenet[1] * sin(new_angle);
+                if (std::isnan(x) || std::isnan(y)) {
+                    ++nan_num;
+                    std::cout << "not a number; " << x_list[num + 1] - x_list[num] << std::endl;
+                }
+                std::cout << "mpc smoothing: x: " << x << ", y: " << y << std::endl;
                 predicted_path_x.push_back(x);
                 predicted_path_y.push_back(y);
                 break;
             }
         }
     }
+    std::cout << "nan num: " << nan_num << std::endl;
 }
 
 std::vector<double> &MpcPathOptimizer::getXList() {

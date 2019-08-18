@@ -3,9 +3,9 @@
 //
 
 #include <iostream>
-#include "MpcPathOptimizer.hpp"
+#include "../include/MpcPathOptimizer.hpp"
 
 int main() {
-    
+
     return 0;
 }
