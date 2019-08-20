@@ -8,7 +8,8 @@ set(CMAKE_CXX_FLAGS "-Wall -Wextra ${CMAKE_CXX_FLAGS}")
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED)
+find_package(catkin REQUIRED
+        tinyspline_ros)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
@@ -29,7 +30,7 @@ find_package(IPOPT REQUIRED)
 catkin_package(
         INCLUDE_DIRS include
         LIBRARIES ${PROJECT_NAME}
-        #  CATKIN_DEPENDS other_catkin_pkg
+        CATKIN_DEPENDS tinyspline_ros
         # DEPENDS IPOPT
 )
 
@@ -41,7 +42,7 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
          include
-         # ${catkin_INCLUDE_DIRS}
+         ${catkin_INCLUDE_DIRS}
 )
 
 # Declare a C++ library
@@ -55,4 +56,4 @@ target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES})
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 add_executable(mpc_path_optimizer_demo src/mpc_path_optimizer_demo.cpp)
-target_link_libraries(mpc_path_optimizer_demo glog ${IPOPT_LIBRARIES})
+target_link_libraries(mpc_path_optimizer_demo glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES})

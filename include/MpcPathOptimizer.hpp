@@ -15,6 +15,10 @@
 #include <chrono>
 #include "spline.h"
 #include "FgEvalFrenet.hpp"
+#include <tinyspline_ros/tinysplinecpp.h>
+#include "eigen3/Eigen/Core"
+#include "eigen3/Eigen/QR"
+
 
 namespace MpcSmoother {
 
@@ -50,18 +54,35 @@ private:
     double getPointCurvature(const double &x1, const double &y1,
                              const double &x2, const double &y2,
                              const double &x3, const double &y3);
+    void transformToLocal(const std::vector<double> &x_before, const std::vector<double> &y_before,
+                          std::vector<double> *x_after, std::vector<double> *y_after);
     std::vector<double> x_list;
     std::vector<double> y_list;
+    std::vector<double> x_local;
+    std::vector<double> y_local;
     std::vector<double> k_list;
     std::vector<double> s_list;
+
+    std::vector<double> x_list_for_test;
+    std::vector<double> y_list_for_test;
+    std::vector<double> k_list_for_test;
+    std::vector<double> s_list_for_test;
+
     double cte;  // lateral error
     double epsi; // navigable error
     size_t point_num;
     State start_state;
     State end_state;
+    // x_spline and y_spline are in global frame
     tk::spline x_spline;
     tk::spline y_spline;
     tk::spline k_spline;
+
+    tk::spline k_spline_for_test;
+
+    //    tk::spline x_spline_local;
+//    tk::spline y_spline_local;
+//    tk::spline k_spline_local;
     std::vector<std::vector<double> > predicted_path_in_frenet;
     std::vector<double> predicted_path_x;
     std::vector<double> predicted_path_y;
