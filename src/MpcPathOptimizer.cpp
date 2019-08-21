@@ -94,29 +94,6 @@ void MpcPathOptimizer::solve() {
     point_num = x_list.size();
     std::cout << "start state: " << start_state.x << ", " << start_state.y << std::endl;
 
-//    double first_dis = sqrt(pow(y_list[1]-y_list[0],2) + pow(x_list[1]-x_list[0],2));
-//    std::cout << "old first distance:  " << first_dis << std::endl;
-//
-//    tinyspline::BSpline bSpline(point_num);
-//    std::vector<tinyspline::real> ctrlp = bSpline.controlPoints();
-//    for (size_t i = 0; i != point_num; ++i) {
-//        ctrlp[2 * i] = x_list[i];
-//        ctrlp[2 * i+1] = y_list[i];
-//    }
-//    bSpline.setControlPoints(ctrlp);
-//
-//    x_list.clear();
-//    y_list.clear();
-//    for (double t = 0; t <= 1; t += 0.01) {
-//        std::vector<tinyspline::real> result = bSpline.eval(t).result();
-//        x_list.push_back(result[0]);
-//        y_list.push_back(result[1]);
-//    }
-//    std::cout << "b spline num: " << x_list.size() << std::endl;
-//    point_num = x_list.size();
-//
-//    double first_dis_new = sqrt(pow(y_list[1]-y_list[2],2) + pow(x_list[1]-x_list[2],2));
-//    std::cout << "first distance:  " << first_dis_new << std::endl;
     double s = 0;
     s_list.push_back(0);
     for (size_t i = 1; i != point_num; ++i) {
@@ -143,27 +120,10 @@ void MpcPathOptimizer::solve() {
     }
     point_num = x_list.size();
 
-//    transformToLocal(x_list, y_list, &x_local, &y_local);
-
     // todo: consider the condition where the initial state is not on the path.
-//    double s = 0;
-//    s_list.push_back(0);
-//    std::cout << "s list: ----" << std::endl;
-//    for (size_t i = 1; i != point_num; ++i) {
-//        double ds = sqrt(pow(x_local[i] - x_local[i - 1], 2)
-//                             + pow(y_local[i] - y_local[i - 1], 2));
-//        s += ds;
-//        std::cout << "s: " << s << std::endl;
-//        s_list.push_back(s);
-//    }
-//    x_spline.set_points(s_list, x_local);
-//    y_spline.set_points(s_list, y_local);
-
     getCurvature(x_list, y_list, &k_list);
-//    for (size_t n = 0; n != s_list.size(); ++n) {
-//        std::cout << n << ", " << s_list[n] << " " << k_list[n] << std::endl;
-//    }
     k_spline.set_points(s_list, k_list);
+
     // initial states
     cte = 0;
 //    double start_ref_angle = atan((y_list[5] - y_list[0]) / (x_list[5] - x_list[0]));
@@ -173,7 +133,6 @@ void MpcPathOptimizer::solve() {
     } else {
         start_ref_angle = atan(y_spline.deriv(1, 0) / x_spline.deriv(1, 0));
     }
-
     if (x_spline.deriv(1, 0) < 0) {
         if (start_ref_angle > 0) {
             start_ref_angle -= M_PI;
@@ -182,9 +141,6 @@ void MpcPathOptimizer::solve() {
         }
     }
 
-
-//    start_ref_angle = start_ref_angle > M_PI ? start_ref_angle - M_PI : start_ref_angle;
-//    start_ref_angle = start_ref_angle < -M_PI ? start_ref_angle + M_PI : start_ref_angle;
     epsi = start_state.z - start_ref_angle;
     if (epsi > M_PI) {
         epsi -= 2 * M_PI;
@@ -192,9 +148,6 @@ void MpcPathOptimizer::solve() {
         epsi += 2 * M_PI;
     }
 
-//    std::cout << "y1y0x1x0: " << y_list[5] << " " << y_list[0] << " " << x_list[5] << " " << x_list[0] << std::endl;
-//    std::cout << "end point y x: " << y_list.back() << " " << x_list.back() << std::endl;
-//    epsi = start_state.z - start_ref_angle;
     std::cout<< "start state angle: " << start_state.z*180/M_PI << ",  initial ref angle: " << start_ref_angle*180/M_PI << ",  initial epsi: " << epsi*180/M_PI << std::endl;
     double curvature = start_state.k;
     // todo: delta_s should be changeable.
@@ -225,17 +178,6 @@ void MpcPathOptimizer::solve() {
         end_psi += 2 * M_PI;
     }
     std::cout << "end ref: " << end_ref_angle*180/M_PI << ", end z: " << end_state.z*180/M_PI <<  ", end psi: " << end_psi*180/M_PI << std::endl;
-
-    // only for test----------------------
-//    x_list_for_test = {-0.364482, -0.162103, 0.0402473, 0.242524, 0.444687, 0.646697, 0.848519, 1.05012, 1.25148, 1.45256, 1.65335, 1.85383, 2.05399, 2.25382, 2.45331, 2.65246, 2.85127, 3.04975, 3.2479, 3.44575, 3.64329, 3.84055, 4.03755, 4.2343, 4.43082, 4.62715, 4.8233, 5.01931, 5.21518, 5.41095};
-//    y_list_for_test = {0.0288432, 0.0283601, 0.0248548, 0.0183767, 0.00898279, -0.00326293, -0.0182899, -0.0360215, -0.0563753, -0.079264, -0.104596, -0.132274, -0.162198, -0.194266, -0.228372, -0.264406, -0.30226, -0.34182, -0.382975, -0.42561, -0.469612, -0.514868, -0.561263, -0.608686, -0.657024, -0.706169, -0.756012, -0.806446, -0.85737, -0.908682};
-//    s_list_for_test = {0, 0.20238, 0.40476, 0.607141, 0.809522, 1.0119, 1.21428, 1.41667, 1.61905, 1.82143, 2.02381, 2.22619, 2.42858, 2.63096, 2.83334, 3.03573, 3.23811, 3.44049, 3.64288, 3.84526, 4.04765, 4.25003, 4.45242, 4.6548, 4.85719, 5.05957, 5.26196, 5.46435, 5.66673, 5.86912};
-//    k_list_for_test = {-0.0737908, -0.0733948, -0.0725463, -0.0711919, -0.0696773, -0.0680121, -0.0662057, -0.0642674, -0.0622067, -0.0600331, -0.057756, -0.0553848, -0.0529289, -0.0503978, -0.047801, -0.0451477, -0.0424476, -0.0397099, -0.0369442, -0.0341599, -0.0313663, -0.028573, -0.0257894, -0.0230248, -0.0202888, -0.0175908, -0.0149401, -0.0123462, -0.010637, -0.00979338};
-//    k_spline_for_test.set_points(s_list_for_test, k_list_for_test);
-//    ps = 1.27176;
-//    pq = -0.00564891;
-//    psi = 1.35341*M_PI/180;
-    // -----------------------------------------------
 
     typedef CPPAD_TESTVECTOR(double) Dvector;
     // todo: these variables should be changeable.
@@ -334,15 +276,6 @@ void MpcPathOptimizer::solve() {
                                                constraints_lowerbound, constraints_upperbound,
                                                fg_eval_frenet, solution);
 
-//    std::cout << "test kspline: " << k_spline_for_test(0) << " " << k_spline_for_test(1) << " " << k_spline_for_test(2) << std::endl;
-
-//    FgEvalFrenetForTest fg_eval_frenet_for_test(k_spline_for_test,isback,N,0.15,weights,2);
-//    // solve the problem
-//    CppAD::ipopt::solve<Dvector, FgEvalFrenetForTest>(options, vars,
-//                                               vars_lowerbound, vars_upperbound,
-//                                               constraints_lowerbound, constraints_upperbound,
-//                                               fg_eval_frenet_for_test, solution);
-
     // Check some of the solution values
     bool ok = true;
     ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
@@ -365,6 +298,7 @@ void MpcPathOptimizer::solve() {
 
 //    predicted_path_x.push_back(start_state.x);
 //    predicted_path_y.push_back(start_state.y);
+    // todo: consider the condition where the start state is not on the path
     predicted_path_x.push_back(x_list.front());
     predicted_path_y.push_back(y_list.front());
     // todo: use x_spline, y_spline and their derivative to calculate predicted path
@@ -408,59 +342,4 @@ std::vector<double> &MpcPathOptimizer::getXList() {
 
 std::vector<double> &MpcPathOptimizer::getYList() {
     return this->predicted_path_y;
-}
-
-void MpcPathOptimizer::transformToLocal(const std::vector<double> &x_before,
-                                        const std::vector<double> &y_before,
-                                        std::vector<double> *x_after,
-                                        std::vector<double> *y_after) {
-    double px = start_state.x;
-    double py = start_state.y;
-    double psi = start_state.z;
-    int index_min = 0;
-//    double min = 999;
-
-//    // todo: check if the first point is on the path
-//    for (unsigned int i = 0; i < x_before.size(); i++) {
-//        double delta_x = x_before[i] - px;
-//        double delta_y = y_before[i] - py;
-//        double dist = sqrt(pow(delta_x, 2) + pow(delta_y, 2));
-//        if (dist < min) {
-//            min = dist;
-//            index_min = i;
-//        }
-//    }
-
-    x_after->clear();
-    y_after->clear();
-//    for (size_t j = index_min; j < x_before.size(); j++) {
-//
-//        double delta_x = x_before[j] - px;
-//        double delta_y = y_before[j] - py;
-//
-//        double x = delta_x * cos(psi) + delta_y * sin(psi);
-//        double y = delta_y * cos(psi) - delta_x * sin(psi);
-//        x_after->push_back(x);
-//        y_after->push_back(y);
-//    }
-
-    for (size_t j = index_min; j < x_before.size(); j++) {
-        double delta_x = x_before[j] - px;
-        double delta_y = y_before[j] - py;
-        double distance = sqrt(pow(delta_x, 2) + pow(delta_y, 2));
-        double tmp_angle = atan(delta_y / delta_x);
-        if (delta_x < 0) {
-            if (tmp_angle > 0) {
-                tmp_angle -= M_PI;
-            } else if (tmp_angle < 0) {
-                tmp_angle += M_PI;
-            }
-        }
-        double delta_angle = tmp_angle - psi;
-        double x = distance * cos(delta_angle);
-        double y = distance * sin(delta_angle);
-        x_after->push_back(x);
-        y_after->push_back(y);
-    }
-}
 }

@@ -54,8 +54,7 @@ private:
     double getPointCurvature(const double &x1, const double &y1,
                              const double &x2, const double &y2,
                              const double &x3, const double &y3);
-    void transformToLocal(const std::vector<double> &x_before, const std::vector<double> &y_before,
-                          std::vector<double> *x_after, std::vector<double> *y_after);
+
     std::vector<double> x_list;
     std::vector<double> y_list;
     std::vector<double> x_local;
