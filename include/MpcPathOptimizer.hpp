@@ -18,7 +18,10 @@
 #include <tinyspline_ros/tinysplinecpp.h>
 #include "eigen3/Eigen/Core"
 #include "eigen3/Eigen/QR"
+#include "Clothoid.hh"
 
+#define MAX_CURVATURE 0.25
+#define MAX_CURVATURE_RATE 0.3
 
 namespace MpcSmoother {
 

@@ -8,7 +8,7 @@
 #include "eigen3/Eigen/Core"
 #include "eigen3/Eigen/QR"
 
-namespace MpcSmoother{
+namespace MpcSmoother {
 using CppAD::AD;
 
 class FgEvalFrenet {
@@ -95,116 +95,16 @@ public:
             AD<double> curvature0 = vars[curvature_range_begin + i];
 
             AD<double> tmp_s = Var2Par(s0);
-            AD<double> s_on_path = ds * (i+1);
+            AD<double> s_on_path = ds * (i + 1);
             AD<double> k0 = k_s(Value(s_on_path));
             AD<double> tmp_ds = ds / CppAD::cos(psi0) * (1 - q0 * k0);
-            std::cout << "tmp_s: " << tmp_s << ", tmp_ds: " << tmp_ds << ", last psi: " << psi0*180/M_PI << std::endl;
+            std::cout << "tmp_s: " << tmp_s << ", tmp_ds: " << tmp_ds << ", last psi: " << psi0 * 180 / M_PI
+                      << std::endl;
 
             fg[2 + ps_range_begin + i] = s1 - (s0 + tmp_ds);
             fg[2 + pq_range_begin + i] = q1 - (q0 + tmp_ds * CppAD::sin(psi0));
             fg[2 + psi_range_begin + i] = psi1 - (psi0 + (tmp_ds * curvature0 - ds * k0));
         }
-    }
-};
-
-class FgEvalFrenetForTest {
-public:
-    FgEvalFrenetForTest(const tk::spline &k_s, const bool &isback,
-                 const int &N, const double &dt,
-                        const std::vector<double> &cost_func, const double &velocity) {
-        this->k_s = k_s;
-        this->isback = isback;
-        this->N = N;
-        this->dt = dt;
-        this->current_vel = velocity;
-        this->cost_func_cte_weight = cost_func[0];
-        this->cost_func_epsi_weight = cost_func[1];
-        this->cost_func_curvature_weight = cost_func[2];
-        this->cost_func_curvature_rate_weight = cost_func[3];
-    }
-
-public:
-    tk::spline k_s;
-    bool isback;
-    int N;
-    double dt;
-    double current_vel;
-
-    double cost_func_cte_weight;
-    double cost_func_epsi_weight;
-    double cost_func_curvature_weight;
-    double cost_func_curvature_rate_weight;
-
-    typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
-
-    void operator()(ADvector &fg, const ADvector &vars) {
-        std::cout << "weights: " << cost_func_cte_weight << " " << cost_func_epsi_weight
-            << " " << cost_func_curvature_weight << " " << cost_func_curvature_rate_weight << std::endl;
-        // MPC Implementation ...
-//            ROS_INFO_STREAM("fg: " << fg.size());
-//            ROS_INFO_STREAM("vars: " << vars.size());
-
-        const int ps_range_begin = 0;
-        const int pq_range_begin = ps_range_begin + N;
-        const int psi_range_begin = pq_range_begin + N;
-
-        const int curvature_range_begin = psi_range_begin + N;
-
-        const double desired_q = 0.0;
-        const double desired_psi = 0.0;
-
-        fg[0] = 0.0;
-        for (int t = 0; t < N; t++) {
-            fg[0] += cost_func_cte_weight * pow(vars[pq_range_begin + t] - desired_q, 2);
-            fg[0] += cost_func_epsi_weight * pow(vars[psi_range_begin + t] - desired_psi, 2);
-        }
-        //fg[0] += 100 * cost_func_cte_weight * pow(vars[pq_range_begin + N - 1] - desired_q, 2);
-        // The cost function is not limited to the state, we could also include the control input! The reason we would do this is to allow us to penalize the magnitude of
-        // the input as well as the change-rate. If we want to change lanes, for example, we would have a large cross-track error, but we wouldn't want to jerk the curvature
-        // wheel as hard as we can. We could add the control input magnitude like this:
-        for (int t = 0; t < N - 1; t++) {
-            fg[0] += cost_func_curvature_weight * pow(vars[curvature_range_begin + t], 2);
-        }
-        // We still need to capture the change-rate of the control input to add some temporal smoothness.
-        // This additional term in the cost function captures the difference between the next actuator state and the current one:
-
-        for (int t = 0; t < N - 2; t++) {
-            fg[0] += cost_func_curvature_rate_weight
-                * pow(vars[curvature_range_begin + t + 1] - vars[curvature_range_begin + t], 2);
-        }
-
-
-        // Initial constraints
-        // We add 1 to each of the starting indices due to cost being located at
-        // index 0 of `fg`. This bumps up the position of all the other values.
-        fg[1 + ps_range_begin] = vars[ps_range_begin];
-        fg[1 + pq_range_begin] = vars[pq_range_begin];
-        fg[1 + psi_range_begin] = vars[psi_range_begin];
-
-        // The rest of the constraints
-        for (int i = 0; i < N - 1; i++) {
-            // The state at time t+1 .
-            AD<double> s1 = vars[ps_range_begin + i + 1];
-            AD<double> q1 = vars[pq_range_begin + i + 1];
-            AD<double> psi1 = vars[psi_range_begin + i + 1];
-            // The state at time t.
-            AD<double> s0 = vars[ps_range_begin + i];
-            AD<double> q0 = vars[pq_range_begin + i];
-            AD<double> psi0 = vars[psi_range_begin + i];
-            // Only consider the actuation at time t.
-            AD<double> curvature0 = vars[curvature_range_begin + i];
-
-            AD<double> tmp_s = Var2Par(s0);
-            AD<double> k0 = k_s(Value(tmp_s));
-            AD<double> tmp_v = current_vel * CppAD::cos(psi0) / (1 - q0 * k0);
-
-            fg[2 + ps_range_begin + i] = s1 - (s0 + tmp_v * dt);
-            fg[2 + pq_range_begin + i] = q1 - (q0 + current_vel * CppAD::sin(psi0) * dt);
-            fg[2 + psi_range_begin + i] = psi1 - (psi0 + (current_vel * curvature0 - tmp_v * k0) * dt);
-        }
-        std::cout<<"111"<<std::endl;
-        std::cout<<"current_vel: "<<current_vel<<std::endl;
-
     }
 };
 }

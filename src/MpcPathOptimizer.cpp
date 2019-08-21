@@ -162,8 +162,8 @@ bool MpcPathOptimizer::solve() {
 
     double psi = epsi;
     double ps = delta_s / cos(psi);
-    double pq = delta_s *tan(psi);
-    psi += ps * curvature - ps * cos(psi) * k_spline(delta_s);
+    double pq = delta_s * tan(psi);
+    psi += ps * curvature - delta_s * k_spline(delta_s);
     std::cout << "initial ps pq psi: " << ps << " " << pq << " " << psi * 180 / M_PI << std::endl;
     double end_ref_angle;
     if (x_spline.deriv(1, s_list.back()) == 0) {
@@ -223,8 +223,8 @@ bool MpcPathOptimizer::solve() {
 //              << " " << vars_upperbound[psi_range_begin + N - 1] * 180 / M_PI << std::endl;
     // set bounds for control variables
     for (size_t i = curvature_range_begin; i < n_vars; i++) {
-        vars_lowerbound[i] = -0.25;
-        vars_upperbound[i] = 0.25;
+        vars_lowerbound[i] = -MAX_CURVATURE;
+        vars_upperbound[i] = MAX_CURVATURE;
     }
     // Lower and upper limits for the constraints
     // Should be 0 besides initial state.
@@ -292,6 +292,43 @@ bool MpcPathOptimizer::solve() {
         LOG(INFO) << "mpc path optimization solver failed!";
         return false;
     }
+
+//    // output result using clothoid
+//    predicted_path_x.push_back(start_state.x);
+//    predicted_path_y.push_back(start_state.y);
+//    std::vector<double> curvature_output_list;
+//    std::vector<double> ps_output_list;
+//    State tmp_state = start_state;
+//    // todo: does the curvature of the start state have impact on the result?
+//    curvature_output_list.push_back(start_state.k);
+//    ps_output_list.push_back(0);
+//    for (size_t i = 0; i != N; ++i) {
+//        double tmp_cur = solution.x[curvature_range_begin + i];
+//        curvature_output_list.push_back(tmp_cur);
+//        double tmp_ps = solution.x[ps_range_begin + i];
+//        ps_output_list.push_back(tmp_ps);
+//    }
+//    for (size_t i = 1; i != curvature_output_list.size(); ++i) {
+////        dk = std::max(dk, );
+////        dk = std::min(dk, MAX_CURVATURE);
+//        G2lib::ClothoidCurve clothoid_curve;
+//        double tmp_ps = ps_output_list[i] - ps_output_list[i - 1];
+//        double dk = (curvature_output_list[i] - curvature_output_list[i - 1]) / tmp_ps;
+//        std::cout << "tmp ps: " << tmp_ps << std::endl;
+//        clothoid_curve.build(tmp_state.x, tmp_state.y, tmp_state.z, tmp_state.k, dk, tmp_ps);
+//        // todo: choose the right interval
+//        for (double s = 0.3; s <= tmp_ps; s += 0.3) {
+//            clothoid_curve.evaluate(s, tmp_state.z, tmp_state.k, tmp_state.x, tmp_state.y);
+//            predicted_path_x.push_back(tmp_state.x);
+//            predicted_path_y.push_back(tmp_state.y);
+//            if (s + 0.3 > tmp_ps) {
+//                clothoid_curve.evaluate(s, tmp_state.z, tmp_state.k, tmp_state.x, tmp_state.y);
+//                predicted_path_x.push_back(tmp_state.x);
+//                predicted_path_y.push_back(tmp_state.y);
+//            }
+//        }
+//    }
+
 
     size_t nan_num = 0;
     for (size_t i = 0; i < N; i++) {
