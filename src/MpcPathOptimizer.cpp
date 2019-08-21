@@ -181,9 +181,16 @@ void MpcPathOptimizer::solve() {
             start_ref_angle += M_PI;
         }
     }
+
+
 //    start_ref_angle = start_ref_angle > M_PI ? start_ref_angle - M_PI : start_ref_angle;
 //    start_ref_angle = start_ref_angle < -M_PI ? start_ref_angle + M_PI : start_ref_angle;
     epsi = start_state.z - start_ref_angle;
+    if (epsi > M_PI) {
+        epsi -= 2 * M_PI;
+    } else if (epsi < - M_PI) {
+        epsi += 2 * M_PI;
+    }
 
 //    std::cout << "y1y0x1x0: " << y_list[5] << " " << y_list[0] << " " << x_list[5] << " " << x_list[0] << std::endl;
 //    std::cout << "end point y x: " << y_list.back() << " " << x_list.back() << std::endl;
@@ -198,6 +205,26 @@ void MpcPathOptimizer::solve() {
     double pq = delta_s * sin(psi);
     psi += delta_s * curvature - delta_s * cos(psi) * k_spline(ps);
     std::cout << "initial ps pq psi: " << ps << " " << pq << " " << psi*180/M_PI << std::endl;
+    double end_ref_angle;
+    if (x_spline.deriv(1, s_list.back()) == 0) {
+        end_ref_angle = 0;
+    } else {
+        end_ref_angle = atan(y_spline.deriv(1, s_list.back()) / x_spline.deriv(1, s_list.back()));
+    }
+    if (x_spline.deriv(1, s_list.back()) < 0) {
+        if (end_ref_angle > 0) {
+            end_ref_angle -= M_PI;
+        } else if (end_ref_angle < 0) {
+            end_ref_angle += M_PI;
+        }
+    }
+    double end_psi = end_state.z - end_ref_angle;
+    if (end_psi > M_PI) {
+        end_psi -= 2 * M_PI;
+    } else if (end_psi < - M_PI) {
+        end_psi += 2 * M_PI;
+    }
+    std::cout << "end ref: " << end_ref_angle*180/M_PI << ", end z: " << end_state.z*180/M_PI <<  ", end psi: " << end_psi*180/M_PI << std::endl;
 
     // only for test----------------------
 //    x_list_for_test = {-0.364482, -0.162103, 0.0402473, 0.242524, 0.444687, 0.646697, 0.848519, 1.05012, 1.25148, 1.45256, 1.65335, 1.85383, 2.05399, 2.25382, 2.45331, 2.65246, 2.85127, 3.04975, 3.2479, 3.44575, 3.64329, 3.84055, 4.03755, 4.2343, 4.43082, 4.62715, 4.8233, 5.01931, 5.21518, 5.41095};
@@ -242,6 +269,11 @@ void MpcPathOptimizer::solve() {
         vars_lowerbound[i] = -1.0e19;
         vars_upperbound[i] = 1.0e19;
     }
+    double end_psi_error = 2*M_PI/180;
+    vars_lowerbound[psi_range_begin + N - 1] = end_psi - end_psi_error;
+    vars_upperbound[psi_range_begin + N - 1] = end_psi + end_psi_error;
+    std::cout << "target psi range: " << vars_lowerbound[psi_range_begin + N - 1]*180/M_PI
+            << " " << vars_upperbound[psi_range_begin + N - 1]*180/M_PI << std::endl;
     // set bounds for control variables
     for (size_t i = curvature_range_begin; i < n_vars; i++) {
         vars_lowerbound[i] = -0.25;
@@ -265,6 +297,7 @@ void MpcPathOptimizer::solve() {
     constraints_lowerbound[psi_range_begin] = psi;
     constraints_upperbound[psi_range_begin] = psi;
 
+    double end_psi_bound = 20*M_PI/180;
     // options for IPOPT solver
     std::string options;
     // Uncomment this if you'd like more print information
@@ -283,11 +316,12 @@ void MpcPathOptimizer::solve() {
     // place to return solution
     CppAD::ipopt::solve_result<Dvector> solution;
     // weights of the cost function
+    // todo: use a config file
     std::vector<double> weights;
-    weights.push_back(1);
-    weights.push_back(11);
-    weights.push_back(10);
-    weights.push_back(1500);
+    weights.push_back(1); //cost_func_cte_weight
+    weights.push_back(11); //cost_func_epsi_weight
+    weights.push_back(400); //cost_func_curvature_weight
+    weights.push_back(1500); //cost_func_curvature_rate_weight
     bool isback = false;
 
 //    Eigen::VectorXd cost_func(4);
@@ -320,11 +354,14 @@ void MpcPathOptimizer::solve() {
 
     size_t nan_num = 0;
     for (size_t i = 0; i < N; i++) {
-        double tmp[3] = {solution.x[ps_range_begin + i], solution.x[pq_range_begin + i], double(i)};
+        double tmp[4] = {solution.x[ps_range_begin + i], solution.x[pq_range_begin + i],
+                         solution.x[psi_range_begin + i], double(i)};
         std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
         this->predicted_path_in_frenet.push_back(v);
         std::cout << "calculated curvature: " << solution.x[curvature_range_begin + i] << std::endl;
     }
+    std::cout << "solution end psi: " << solution.x[psi_range_begin + N -1]*180/M_PI << std::endl;
+    std::cout << "predicted path size: " << predicted_path_in_frenet.size() << std::endl;
 
 //    predicted_path_x.push_back(start_state.x);
 //    predicted_path_y.push_back(start_state.y);
@@ -350,7 +387,7 @@ void MpcPathOptimizer::solve() {
                         << y_list[num] << std::endl;
 
                 std::cout << "original angle: " << angle*180/M_PI << ", new angle: "
-                        << new_angle*180/M_PI << ", d: " << point_in_frenet[1] << std::endl;
+                        << new_angle*180/M_PI << ", d: " << point_in_frenet[1] << ", psi: " << point_in_frenet[2]*180/M_PI << std::endl;
                 if (std::isnan(x) || std::isnan(y)) {
                     ++nan_num;
                     std::cout << "not a number; " << x_list[num + 1] - x_list[num] << std::endl;

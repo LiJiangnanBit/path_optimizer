@@ -80,9 +80,6 @@ private:
 
     tk::spline k_spline_for_test;
 
-    //    tk::spline x_spline_local;
-//    tk::spline y_spline_local;
-//    tk::spline k_spline_local;
     std::vector<std::vector<double> > predicted_path_in_frenet;
     std::vector<double> predicted_path_x;
     std::vector<double> predicted_path_y;
