@@ -95,13 +95,14 @@ public:
             AD<double> curvature0 = vars[curvature_range_begin + i];
 
             AD<double> tmp_s = Var2Par(s0);
-            AD<double> k0 = k_s(Value(tmp_s));
-            AD<double> tmp_ds = ds * CppAD::cos(psi0) / (1 - q0 * k0);
+            AD<double> s_on_path = ds * (i+1);
+            AD<double> k0 = k_s(Value(s_on_path));
+            AD<double> tmp_ds = ds / CppAD::cos(psi0) * (1 - q0 * k0);
             std::cout << "tmp_s: " << tmp_s << ", tmp_ds: " << tmp_ds << ", last psi: " << psi0*180/M_PI << std::endl;
 
             fg[2 + ps_range_begin + i] = s1 - (s0 + tmp_ds);
-            fg[2 + pq_range_begin + i] = q1 - (q0 + ds * CppAD::sin(psi0));
-            fg[2 + psi_range_begin + i] = psi1 - (psi0 + (ds * curvature0 - tmp_ds * k0));
+            fg[2 + pq_range_begin + i] = q1 - (q0 + tmp_ds * CppAD::sin(psi0));
+            fg[2 + psi_range_begin + i] = psi1 - (psi0 + (tmp_ds * curvature0 - ds * k0));
         }
     }
 };

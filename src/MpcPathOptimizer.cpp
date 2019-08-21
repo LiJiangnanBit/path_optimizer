@@ -157,11 +157,13 @@ bool MpcPathOptimizer::solve() {
     double curvature = start_state.k;
     // todo: delta_s should be changeable.
     double delta_s = 2;
+    size_t N = max_s / delta_s;
+    int state_size = 3;
 
     double psi = epsi;
-    double ps = delta_s * cos(psi);
-    double pq = delta_s * sin(psi);
-    psi += delta_s * curvature - delta_s * cos(psi) * k_spline(ps);
+    double ps = delta_s / cos(psi);
+    double pq = delta_s *tan(psi);
+    psi += ps * curvature - ps * cos(psi) * k_spline(delta_s);
     std::cout << "initial ps pq psi: " << ps << " " << pq << " " << psi * 180 / M_PI << std::endl;
     double end_ref_angle;
     if (x_spline.deriv(1, s_list.back()) == 0) {
@@ -186,9 +188,6 @@ bool MpcPathOptimizer::solve() {
               << end_psi * 180 / M_PI << std::endl;
 
     typedef CPPAD_TESTVECTOR(double) Dvector;
-    // todo: these variables should be changeable.
-    size_t N = 20;
-    int state_size = 3;
     // n_vars: Set the number of model variables (includes both states and inputs).
     // For example: If the state is a 4 element vector, the actuators is a 2
     // element vector and there are 10 timesteps. The number of variables is:
@@ -312,9 +311,10 @@ bool MpcPathOptimizer::solve() {
     predicted_path_y.push_back(y_list.front());
     // todo: use x_spline, y_spline and their derivative to calculate predicted path
     size_t num = 0;
-    for (const auto &point_in_frenet : predicted_path_in_frenet) {
+//    for (const auto &point_in_frenet : predicted_path_in_frenet) {
+    for (size_t i = 0; i != predicted_path_in_frenet.size(); ++i) {
         for (; num != s_list.size() - 1; ++num) {
-            if (s_list[num] >= point_in_frenet[0]) {
+            if (s_list[num] >= (i + 1) * delta_s) {
                 double angle = atan((y_list[num + 1] - y_list[num]) / (x_list[num + 1] - x_list[num]));
                 if (x_list[num + 1] - x_list[num] < 0) {
                     if (angle > 0) {
@@ -324,15 +324,15 @@ bool MpcPathOptimizer::solve() {
                     }
                 }
                 double new_angle = angle + M_PI_2;
-                double x = x_list[num] + point_in_frenet[1] * cos(new_angle);
-                double y = y_list[num] + point_in_frenet[1] * sin(new_angle);
-                std::cout << "num: " << num << ", target s: " << point_in_frenet[0] << ", original x: " << x_list[num]
+                double x = x_list[num] + predicted_path_in_frenet[i][1] * cos(new_angle);
+                double y = y_list[num] + predicted_path_in_frenet[i][1] * sin(new_angle);
+                std::cout << "num: " << num << ", target s: " << (i + 1) * delta_s << ", original x: " << x_list[num]
                           << ", original y: "
                           << y_list[num] << std::endl;
 
                 std::cout << "original angle: " << angle * 180 / M_PI << ", new angle: "
-                          << new_angle * 180 / M_PI << ", d: " << point_in_frenet[1] << ", psi: "
-                          << point_in_frenet[2] * 180 / M_PI << std::endl;
+                          << new_angle * 180 / M_PI << ", d: " << predicted_path_in_frenet[i][1] << ", psi: "
+                          << predicted_path_in_frenet[i][2] * 180 / M_PI << std::endl;
                 if (std::isnan(x) || std::isnan(y)) {
                     ++nan_num;
                     std::cout << "not a number; " << x_list[num + 1] - x_list[num] << std::endl;
