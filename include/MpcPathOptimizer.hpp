@@ -45,7 +45,7 @@ public:
                const std::vector<double> &y,
                const State &init_state,
                const State &goal_state);
-    void solve();
+    bool solve();
     std::vector<double> &getXList();
     std::vector<double> &getYList();
 private:
@@ -55,17 +55,15 @@ private:
                              const double &x2, const double &y2,
                              const double &x3, const double &y3);
 
+    // todo: use this flag.
+    bool flag;
+
     std::vector<double> x_list;
     std::vector<double> y_list;
     std::vector<double> x_local;
     std::vector<double> y_local;
     std::vector<double> k_list;
     std::vector<double> s_list;
-
-    std::vector<double> x_list_for_test;
-    std::vector<double> y_list_for_test;
-    std::vector<double> k_list_for_test;
-    std::vector<double> s_list_for_test;
 
     double cte;  // lateral error
     double epsi; // navigable error
@@ -76,8 +74,6 @@ private:
     tk::spline x_spline;
     tk::spline y_spline;
     tk::spline k_spline;
-
-    tk::spline k_spline_for_test;
 
     std::vector<std::vector<double> > predicted_path_in_frenet;
     std::vector<double> predicted_path_x;
