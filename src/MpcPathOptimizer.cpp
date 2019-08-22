@@ -219,6 +219,8 @@ bool MpcPathOptimizer::solve() {
 //    double end_psi_error = 2 * M_PI / 180;
     vars_lowerbound[psi_range_begin + N - 1] = end_psi;// - end_psi_error;
     vars_upperbound[psi_range_begin + N - 1] = end_psi;// + end_psi_error;
+    vars_lowerbound[pq_range_begin + N - 1] = -1.5;
+    vars_upperbound[pq_range_begin + N - 1] = 1.5;
 //    std::cout << "target psi range: " << vars_lowerbound[psi_range_begin + N - 1] * 180 / M_PI
 //              << " " << vars_upperbound[psi_range_begin + N - 1] * 180 / M_PI << std::endl;
     // set bounds for control variables
@@ -348,40 +350,22 @@ bool MpcPathOptimizer::solve() {
     predicted_path_y.push_back(y_list.front());
     // todo: use x_spline, y_spline and their derivative to calculate predicted path
     size_t num = 0;
-//    for (const auto &point_in_frenet : predicted_path_in_frenet) {
-    for (size_t i = 0; i != predicted_path_in_frenet.size(); ++i) {
-        for (; num != s_list.size() - 1; ++num) {
-            if (s_list[num] >= (i + 1) * delta_s) {
-                double angle = atan((y_list[num + 1] - y_list[num]) / (x_list[num + 1] - x_list[num]));
-                if (x_list[num + 1] - x_list[num] < 0) {
-                    if (angle > 0) {
-                        angle -= M_PI;
-                    } else if (angle < 0) {
-                        angle += M_PI;
-                    }
-                }
-                double new_angle = angle + M_PI_2;
-                double x = x_list[num] + predicted_path_in_frenet[i][1] * cos(new_angle);
-                double y = y_list[num] + predicted_path_in_frenet[i][1] * sin(new_angle);
-                std::cout << "num: " << num << ", target s: " << (i + 1) * delta_s << ", original x: " << x_list[num]
-                          << ", original y: "
-                          << y_list[num] << std::endl;
-
-                std::cout << "original angle: " << angle * 180 / M_PI << ", new angle: "
-                          << new_angle * 180 / M_PI << ", d: " << predicted_path_in_frenet[i][1] << ", psi: "
-                          << predicted_path_in_frenet[i][2] * 180 / M_PI << std::endl;
-                if (std::isnan(x) || std::isnan(y)) {
-                    ++nan_num;
-                    std::cout << "not a number; " << x_list[num + 1] - x_list[num] << std::endl;
-                }
-                std::cout << "mpc smoothing: x: " << x << ", y: " << y << std::endl;
-                predicted_path_x.push_back(x);
-                predicted_path_y.push_back(y);
-                break;
+    for (size_t i = 1; i * delta_s <= max_s; ++i) {
+        double angle = atan(y_spline.deriv(1, i * delta_s) / x_spline.deriv(1, i * delta_s));
+        if (x_spline.deriv(1, i * delta_s) < 0) {
+            if (angle > 0) {
+                angle -= M_PI;
+            } else if (angle < 0) {
+                angle += M_PI;
             }
         }
+        double new_angle = angle + M_PI_2;
+        double x = x_spline(i * delta_s) + predicted_path_in_frenet[i - 1][1] * cos(new_angle);
+        double y = y_spline(i * delta_s) + predicted_path_in_frenet[i - 1][1] * sin(new_angle);
+        predicted_path_x.push_back(x);
+        predicted_path_y.push_back(y);
     }
-    std::cout << "nan num: " << nan_num << std::endl;
+
     return true;
 }
 

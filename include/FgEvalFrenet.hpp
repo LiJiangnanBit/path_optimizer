@@ -83,6 +83,8 @@ public:
 
         // The rest of the constraints
         for (int i = 0; i < N - 1; i++) {
+            // Only consider the actuation at time t.
+            AD<double> curvature0 = vars[curvature_range_begin + i];
             // The state at time t+1 .
             AD<double> s1 = vars[ps_range_begin + i + 1];
             AD<double> q1 = vars[pq_range_begin + i + 1];
@@ -91,19 +93,22 @@ public:
             AD<double> s0 = vars[ps_range_begin + i];
             AD<double> q0 = vars[pq_range_begin + i];
             AD<double> psi0 = vars[psi_range_begin + i];
-            // Only consider the actuation at time t.
-            AD<double> curvature0 = vars[curvature_range_begin + i];
 
-            AD<double> tmp_s = Var2Par(s0);
+
+//            AD<double> tmp_s = Var2Par(s0);
             AD<double> s_on_path = ds * (i + 1);
             AD<double> k0 = k_s(Value(s_on_path));
             AD<double> tmp_ds = ds / CppAD::cos(psi0) * (1 - q0 * k0);
-            std::cout << "tmp_s: " << tmp_s << ", tmp_ds: " << tmp_ds << ", last psi: " << psi0 * 180 / M_PI
-                      << std::endl;
+
+            AD<double> alpha = psi0 + tmp_ds * curvature0 / 2;
+            AD<double> r = 1 / curvature0;
+//            AD<double> len = CppAD::sqrt(2 * pow(r, 2) * (1 - CppAD::cos(tmp_ds * curvature0)));
+
 
             fg[2 + ps_range_begin + i] = s1 - (s0 + tmp_ds);
-            fg[2 + pq_range_begin + i] = q1 - (q0 + tmp_ds * CppAD::sin(psi0));
-            fg[2 + psi_range_begin + i] = psi1 - (psi0 + (tmp_ds * curvature0 - ds * k0));
+//            fg[2 + pq_range_begin + i] = q1 - (q0 + tmp_ds * CppAD::sin(psi0));
+            fg[2 + pq_range_begin + i] = q1 - (q0 + tmp_ds * CppAD::sin(alpha));
+            fg[2 + psi_range_begin + i] = psi1 - (alpha + (tmp_ds * curvature0 - ds * k0));
         }
     }
 };
