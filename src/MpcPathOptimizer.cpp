@@ -14,16 +14,7 @@ MpcPathOptimizer::MpcPathOptimizer(const std::vector<double> &x_list,
     start_state(start_state),
     end_state(end_state) {}
 
-void MpcPathOptimizer::reset(const std::vector<double> &x,
-                             const std::vector<double> &y,
-                             const State &init_state,
-                             const State &goal_state) {
-    this->x_list = x;
-    this->y_list = y;
-    this->start_state = init_state;
-    this->end_state = goal_state;
-    // todo: clear other elements!
-}
+
 void MpcPathOptimizer::getCurvature(const std::vector<double> &local_x,
                                     const std::vector<double> &local_y,
                                     std::vector<double> *pt_curvature_out) {
@@ -47,46 +38,6 @@ void MpcPathOptimizer::getCurvature(const std::vector<double> &local_x,
         else
             pt_curvature_out->push_back((curvature[j - 1] + curvature[j] + curvature[j + 1]) / 3);
     }
-}
-
-double MpcPathOptimizer::getPointCurvature(const double &x1,
-                                           const double &y1,
-                                           const double &x2,
-                                           const double &y2,
-                                           const double &x3,
-                                           const double &y3) {
-    double_t a, b, c;
-    double_t delta_x, delta_y;
-    double_t s;
-    double_t A;
-    double_t curv;
-    double_t rotate_direction;
-
-    delta_x = x2 - x1;
-    delta_y = y2 - y1;
-    a = sqrt(pow(delta_x, 2.0) + pow(delta_y, 2.0));
-
-    delta_x = x3 - x2;
-    delta_y = y3 - y2;
-    b = sqrt(pow(delta_x, 2.0) + pow(delta_y, 2.0));
-
-    delta_x = x1 - x3;
-    delta_y = y1 - y3;
-    c = sqrt(pow(delta_x, 2.0) + pow(delta_y, 2.0));
-
-    s = (a + b + c) / 2.0;
-    A = sqrt(fabs(s * (s - a) * (s - b) * (s - c)));
-    curv = 4 * A / (a * b * c);
-
-    /* determine the sign, using cross product(叉乘)
-     * 2维空间中的叉乘是： A x B = |A||B|Sin(\theta)
-     * V1(x1, y1) X V2(x2, y2) = x1y2 – y1x2
-     */
-    rotate_direction = (x2 - x1) * (y3 - y2) - (y2 - y1) * (x3 - x2);
-    if (rotate_direction < 0) {
-        curv = -curv;
-    }
-    return curv;
 }
 
 bool MpcPathOptimizer::solve() {
@@ -308,6 +259,7 @@ bool MpcPathOptimizer::solve() {
         G2lib::ClothoidCurve clothoid_curve;
         double tmp_ps, dk;
         tmp_ps = ps_output_list[i] - ps_output_list[i - 1];
+//        tmp_ps *= 1.1;
         dk = (curvature_output_list[i] - curvature_output_list[i - 1]) / tmp_ps;
         clothoid_curve.build(tmp_state.x, tmp_state.y, tmp_state.z, curvature_output_list[i - 1], 0, tmp_ps);
         // todo: choose the right interval
@@ -336,24 +288,47 @@ bool MpcPathOptimizer::solve() {
     // todo: consider the condition where the start state is not on the path
     predicted_path_x.push_back(x_list.front());
     predicted_path_y.push_back(y_list.front());
-    for (size_t i = 1; i * delta_s <= max_s; ++i) {
-        double angle = atan(y_spline.deriv(1, i * delta_s) / x_spline.deriv(1, i * delta_s));
+//    for (size_t i = 1; i * delta_s <= max_s; ++i) {
+//        double angle = atan(y_spline.deriv(1, i * delta_s) / x_spline.deriv(1, i * delta_s));
+//        if (x_spline.deriv(1, i * delta_s) < 0) {
+//            if (angle > 0) {
+//                angle -= M_PI;
+//            } else if (angle < 0) {
+//                angle += M_PI;
+//            }
+//        }
+//        double new_angle = angle + M_PI_2;
+//        double x = x_spline(i * delta_s) + predicted_path_in_frenet[i - 1][1] * cos(new_angle);
+//        double y = y_spline(i * delta_s) + predicted_path_in_frenet[i - 1][1] * sin(new_angle);
+//        if (std::isnan(x) || std::isnan(y)) {
+//            LOG(WARNING) << "output is not a number, mpc path opitmization failed!" << std::endl;
+//            return false;
+//        }
+//        predicted_path_x.push_back(x);
+//        predicted_path_y.push_back(y);
+//    }
+
+    double tmp_ds = predicted_path_in_frenet[0][0];
+    double tmp_x = start_state.x + tmp_ds * cos(start_state.z);
+    double tmp_y = start_state.y + tmp_ds * sin(start_state.z);
+    predicted_path_x.push_back(tmp_x);
+    predicted_path_y.push_back(tmp_y);
+    for (size_t i = 1; i != predicted_path_in_frenet.size(); ++i) {
+        tmp_ds = predicted_path_in_frenet[i][0] - predicted_path_in_frenet[i - 1][0];
+        double ref_angle = atan(y_spline.deriv(1, i * delta_s) / x_spline.deriv(1, i * delta_s));
         if (x_spline.deriv(1, i * delta_s) < 0) {
-            if (angle > 0) {
-                angle -= M_PI;
-            } else if (angle < 0) {
-                angle += M_PI;
+            if (ref_angle > 0) {
+                ref_angle -= M_PI;
+            } else if (ref_angle < 0) {
+                ref_angle += M_PI;
             }
         }
-        double new_angle = angle + M_PI_2;
-        double x = x_spline(i * delta_s) + predicted_path_in_frenet[i - 1][1] * cos(new_angle);
-        double y = y_spline(i * delta_s) + predicted_path_in_frenet[i - 1][1] * sin(new_angle);
-        if (std::isnan(x) || std::isnan(y)) {
-            LOG(WARNING) << "output is not a number, mpc path opitmization failed!" << std::endl;
-            return false;
-        }
-        predicted_path_x.push_back(x);
-        predicted_path_y.push_back(y);
+        double tmp_psi = predicted_path_in_frenet[i - 1][2];
+        double real_angle = ref_angle + tmp_psi;
+        tmp_x = tmp_x + tmp_ds * cos(real_angle);
+        tmp_y = tmp_y + tmp_ds * sin(real_angle);
+        predicted_path_x.push_back(tmp_x);
+        predicted_path_y.push_back(tmp_y);
     }
 
     return true;
@@ -373,4 +348,46 @@ std::vector<double> &MpcPathOptimizer::getXListClothoid() {
 std::vector<double> &MpcPathOptimizer::getYListClothoid() {
     return this->predicted_path_y_clothoid;
 }
+
+double MpcPathOptimizer::getPointCurvature(const double &x1,
+                                           const double &y1,
+                                           const double &x2,
+                                           const double &y2,
+                                           const double &x3,
+                                           const double &y3) {
+    double_t a, b, c;
+    double_t delta_x, delta_y;
+    double_t s;
+    double_t A;
+    double_t curv;
+    double_t rotate_direction;
+
+    delta_x = x2 - x1;
+    delta_y = y2 - y1;
+    a = sqrt(pow(delta_x, 2.0) + pow(delta_y, 2.0));
+
+    delta_x = x3 - x2;
+    delta_y = y3 - y2;
+    b = sqrt(pow(delta_x, 2.0) + pow(delta_y, 2.0));
+
+    delta_x = x1 - x3;
+    delta_y = y1 - y3;
+    c = sqrt(pow(delta_x, 2.0) + pow(delta_y, 2.0));
+
+    s = (a + b + c) / 2.0;
+    A = sqrt(fabs(s * (s - a) * (s - b) * (s - c)));
+    curv = 4 * A / (a * b * c);
+
+    /* determine the sign, using cross product(叉乘)
+     * 2维空间中的叉乘是： A x B = |A||B|Sin(\theta)
+     * V1(x1, y1) X V2(x2, y2) = x1y2 – y1x2
+     */
+    rotate_direction = (x2 - x1) * (y3 - y2) - (y2 - y1) * (x3 - x2);
+    if (rotate_direction < 0) {
+        curv = -curv;
+    }
+    return curv;
+}
+
+
 }
