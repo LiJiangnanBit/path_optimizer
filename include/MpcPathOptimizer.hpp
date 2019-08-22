@@ -21,7 +21,6 @@
 #include "Clothoid.hh"
 
 #define MAX_CURVATURE 0.25
-#define MAX_CURVATURE_RATE 0.3
 
 namespace MpcSmoother {
 

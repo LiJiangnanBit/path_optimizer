@@ -30,7 +30,7 @@ void MpcPathOptimizer::getCurvature(const std::vector<double> &local_x,
     assert(local_x.size() == local_y.size());
     unsigned long size_n = local_x.size();
     std::vector<double> curvature = std::vector<double>(size_n);
-    for (int i = 1; i < size_n - 1; ++i) {
+    for (size_t i = 1; i < size_n - 1; ++i) {
         double x1 = local_x.at(i - 1);
         double x2 = local_x.at(i);
         double x3 = local_x.at(i + 1);
@@ -41,7 +41,7 @@ void MpcPathOptimizer::getCurvature(const std::vector<double> &local_x,
     }
     curvature.at(0) = curvature.at(1);
     curvature.at(size_n - 1) = curvature.at(size_n - 2);
-    for (int j = 0; j < size_n; ++j) {
+    for (size_t j = 0; j < size_n; ++j) {
         if (j == 0 || j == size_n - 1)
             pt_curvature_out->push_back(curvature[j]);
         else
@@ -92,7 +92,6 @@ double MpcPathOptimizer::getPointCurvature(const double &x1,
 bool MpcPathOptimizer::solve() {
     CHECK(x_list.size() == y_list.size()) << "x and y list size not equal!";
     point_num = x_list.size();
-    std::cout << "start state: " << start_state.x << ", " << start_state.y << std::endl;
 
     double s = 0;
     s_list.push_back(0);
@@ -103,6 +102,7 @@ bool MpcPathOptimizer::solve() {
         s_list.push_back(s);
     }
     double max_s = s_list.back();
+    std::cout << "ref path length: " << max_s << std::endl;
     x_spline.set_points(s_list, x_list);
     y_spline.set_points(s_list, y_list);
     x_list.clear();
@@ -148,15 +148,14 @@ bool MpcPathOptimizer::solve() {
         epsi += 2 * M_PI;
     }
 
-    std::cout << "start state angle: " << start_state.z * 180 / M_PI << ",  initial ref angle: "
-              << start_ref_angle * 180 / M_PI << ",  initial epsi: " << epsi * 180 / M_PI << std::endl;
+
     if (fabs(epsi) > M_PI_2) {
-        LOG(INFO) << "initial epsi is larger than π/2, quit mpc path optimizer";
+        LOG(WARNING) << "initial epsi is larger than π/2, quit mpc path optimizer";
         return false;
     }
     double curvature = start_state.k;
     // todo: delta_s should be changeable.
-    double delta_s = 2;
+    double delta_s = 1.3;
     size_t N = max_s / delta_s;
     int state_size = 3;
 
@@ -164,7 +163,6 @@ bool MpcPathOptimizer::solve() {
     double ps = delta_s / cos(psi);
     double pq = delta_s * tan(psi);
     psi += ps * curvature - delta_s * k_spline(delta_s);
-    std::cout << "initial ps pq psi: " << ps << " " << pq << " " << psi * 180 / M_PI << std::endl;
     double end_ref_angle;
     if (x_spline.deriv(1, s_list.back()) == 0) {
         end_ref_angle = 0;
@@ -184,8 +182,6 @@ bool MpcPathOptimizer::solve() {
     } else if (end_psi < -M_PI) {
         end_psi += 2 * M_PI;
     }
-    std::cout << "end ref: " << end_ref_angle * 180 / M_PI << ", end z: " << end_state.z * 180 / M_PI << ", end psi: "
-              << end_psi * 180 / M_PI << std::endl;
 
     typedef CPPAD_TESTVECTOR(double) Dvector;
     // n_vars: Set the number of model variables (includes both states and inputs).
@@ -221,8 +217,7 @@ bool MpcPathOptimizer::solve() {
     vars_upperbound[psi_range_begin + N - 1] = end_psi;// + end_psi_error;
     vars_lowerbound[pq_range_begin + N - 1] = -1.5;
     vars_upperbound[pq_range_begin + N - 1] = 1.5;
-//    std::cout << "target psi range: " << vars_lowerbound[psi_range_begin + N - 1] * 180 / M_PI
-//              << " " << vars_upperbound[psi_range_begin + N - 1] * 180 / M_PI << std::endl;
+
     // set bounds for control variables
     for (size_t i = curvature_range_begin; i < n_vars; i++) {
         vars_lowerbound[i] = -MAX_CURVATURE;
@@ -285,15 +280,14 @@ bool MpcPathOptimizer::solve() {
     // Check some of the solution values
     bool ok = true;
     ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
-    std::cout << "are you ok: " << ok << std::endl;
+    if (!ok) {
+        LOG(WARNING) << "mpc path optimization solver failed!";
+        return false;
+    }
 
     // Cost
     double cost = solution.obj_value;
     std::cout << "cost: " << cost << std::endl;
-    if (!ok) {
-        LOG(INFO) << "mpc path optimization solver failed!";
-        return false;
-    }
 
     // output result using clothoid
     predicted_path_x_clothoid.push_back(start_state.x);
@@ -302,7 +296,7 @@ bool MpcPathOptimizer::solve() {
     std::vector<double> ps_output_list;
     State tmp_state = start_state;
     // todo: does the curvature of the start state have impact on the result?
-//    curvature_output_list.push_back(start_state.k);
+    curvature_output_list.push_back(start_state.k);
     ps_output_list.push_back(0);
     for (size_t i = 0; i != N; ++i) {
         double tmp_cur = solution.x[curvature_range_begin + i];
@@ -310,20 +304,12 @@ bool MpcPathOptimizer::solve() {
         double tmp_ps = solution.x[ps_range_begin + i];
         ps_output_list.push_back(tmp_ps);
     }
-    for (size_t i = 0; i != curvature_output_list.size(); ++i) {
-//        dk = std::max(dk, );
-//        dk = std::min(dk, MAX_CURVATURE);
+    for (size_t i = 1; i != curvature_output_list.size(); ++i) {
         G2lib::ClothoidCurve clothoid_curve;
         double tmp_ps, dk;
-        if (i == 0) {
-            tmp_ps = delta_s / cos(epsi);
-            dk = (curvature_output_list[0] - start_state.k) / tmp_ps;
-        } else {
-            tmp_ps = ps_output_list[i] - ps_output_list[i - 1];
-            dk = (curvature_output_list[i] - curvature_output_list[i - 1]) / tmp_ps;
-        }
-        std::cout << "i: " << i << ", tmp ps: " << tmp_ps << ", dk: " << dk << std::endl;
-        clothoid_curve.build(tmp_state.x, tmp_state.y, tmp_state.z, tmp_state.k, dk, tmp_ps);
+        tmp_ps = ps_output_list[i] - ps_output_list[i - 1];
+        dk = (curvature_output_list[i] - curvature_output_list[i - 1]) / tmp_ps;
+        clothoid_curve.build(tmp_state.x, tmp_state.y, tmp_state.z, curvature_output_list[i - 1], 0, tmp_ps);
         // todo: choose the right interval
         for (double s = 0.3; s <= tmp_ps; s += 0.3) {
             clothoid_curve.evaluate(s, tmp_state.z, tmp_state.k, tmp_state.x, tmp_state.y);
@@ -337,8 +323,6 @@ bool MpcPathOptimizer::solve() {
         }
     }
 
-
-    size_t nan_num = 0;
     for (size_t i = 0; i < N; i++) {
         double tmp[4] = {solution.x[ps_range_begin + i], solution.x[pq_range_begin + i],
                          solution.x[psi_range_begin + i], double(i)};
@@ -346,16 +330,12 @@ bool MpcPathOptimizer::solve() {
         this->predicted_path_in_frenet.push_back(v);
         std::cout << "calculated curvature: " << solution.x[curvature_range_begin + i] << std::endl;
     }
-    std::cout << "solution end psi: " << solution.x[psi_range_begin + N - 1] * 180 / M_PI << std::endl;
-    std::cout << "predicted path size: " << predicted_path_in_frenet.size() << std::endl;
 
 //    predicted_path_x.push_back(start_state.x);
 //    predicted_path_y.push_back(start_state.y);
     // todo: consider the condition where the start state is not on the path
     predicted_path_x.push_back(x_list.front());
     predicted_path_y.push_back(y_list.front());
-    // todo: use x_spline, y_spline and their derivative to calculate predicted path
-    size_t num = 0;
     for (size_t i = 1; i * delta_s <= max_s; ++i) {
         double angle = atan(y_spline.deriv(1, i * delta_s) / x_spline.deriv(1, i * delta_s));
         if (x_spline.deriv(1, i * delta_s) < 0) {
@@ -368,6 +348,10 @@ bool MpcPathOptimizer::solve() {
         double new_angle = angle + M_PI_2;
         double x = x_spline(i * delta_s) + predicted_path_in_frenet[i - 1][1] * cos(new_angle);
         double y = y_spline(i * delta_s) + predicted_path_in_frenet[i - 1][1] * sin(new_angle);
+        if (std::isnan(x) || std::isnan(y)) {
+            LOG(WARNING) << "output is not a number, mpc path opitmization failed!" << std::endl;
+            return false;
+        }
         predicted_path_x.push_back(x);
         predicted_path_y.push_back(y);
     }
