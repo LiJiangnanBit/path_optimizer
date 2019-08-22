@@ -295,41 +295,47 @@ bool MpcPathOptimizer::solve() {
         return false;
     }
 
-//    // output result using clothoid
-//    predicted_path_x.push_back(start_state.x);
-//    predicted_path_y.push_back(start_state.y);
-//    std::vector<double> curvature_output_list;
-//    std::vector<double> ps_output_list;
-//    State tmp_state = start_state;
-//    // todo: does the curvature of the start state have impact on the result?
+    // output result using clothoid
+    predicted_path_x_clothoid.push_back(start_state.x);
+    predicted_path_y_clothoid.push_back(start_state.y);
+    std::vector<double> curvature_output_list;
+    std::vector<double> ps_output_list;
+    State tmp_state = start_state;
+    // todo: does the curvature of the start state have impact on the result?
 //    curvature_output_list.push_back(start_state.k);
-//    ps_output_list.push_back(0);
-//    for (size_t i = 0; i != N; ++i) {
-//        double tmp_cur = solution.x[curvature_range_begin + i];
-//        curvature_output_list.push_back(tmp_cur);
-//        double tmp_ps = solution.x[ps_range_begin + i];
-//        ps_output_list.push_back(tmp_ps);
-//    }
-//    for (size_t i = 1; i != curvature_output_list.size(); ++i) {
-////        dk = std::max(dk, );
-////        dk = std::min(dk, MAX_CURVATURE);
-//        G2lib::ClothoidCurve clothoid_curve;
-//        double tmp_ps = ps_output_list[i] - ps_output_list[i - 1];
-//        double dk = (curvature_output_list[i] - curvature_output_list[i - 1]) / tmp_ps;
-//        std::cout << "tmp ps: " << tmp_ps << std::endl;
-//        clothoid_curve.build(tmp_state.x, tmp_state.y, tmp_state.z, tmp_state.k, dk, tmp_ps);
-//        // todo: choose the right interval
-//        for (double s = 0.3; s <= tmp_ps; s += 0.3) {
-//            clothoid_curve.evaluate(s, tmp_state.z, tmp_state.k, tmp_state.x, tmp_state.y);
-//            predicted_path_x.push_back(tmp_state.x);
-//            predicted_path_y.push_back(tmp_state.y);
-//            if (s + 0.3 > tmp_ps) {
-//                clothoid_curve.evaluate(s, tmp_state.z, tmp_state.k, tmp_state.x, tmp_state.y);
-//                predicted_path_x.push_back(tmp_state.x);
-//                predicted_path_y.push_back(tmp_state.y);
-//            }
-//        }
-//    }
+    ps_output_list.push_back(0);
+    for (size_t i = 0; i != N; ++i) {
+        double tmp_cur = solution.x[curvature_range_begin + i];
+        curvature_output_list.push_back(tmp_cur);
+        double tmp_ps = solution.x[ps_range_begin + i];
+        ps_output_list.push_back(tmp_ps);
+    }
+    for (size_t i = 0; i != curvature_output_list.size(); ++i) {
+//        dk = std::max(dk, );
+//        dk = std::min(dk, MAX_CURVATURE);
+        G2lib::ClothoidCurve clothoid_curve;
+        double tmp_ps, dk;
+        if (i == 0) {
+            tmp_ps = delta_s / cos(epsi);
+            dk = (curvature_output_list[0] - start_state.k) / tmp_ps;
+        } else {
+            tmp_ps = ps_output_list[i] - ps_output_list[i - 1];
+            dk = (curvature_output_list[i] - curvature_output_list[i - 1]) / tmp_ps;
+        }
+        std::cout << "i: " << i << ", tmp ps: " << tmp_ps << ", dk: " << dk << std::endl;
+        clothoid_curve.build(tmp_state.x, tmp_state.y, tmp_state.z, tmp_state.k, dk, tmp_ps);
+        // todo: choose the right interval
+        for (double s = 0.3; s <= tmp_ps; s += 0.3) {
+            clothoid_curve.evaluate(s, tmp_state.z, tmp_state.k, tmp_state.x, tmp_state.y);
+            predicted_path_x_clothoid.push_back(tmp_state.x);
+            predicted_path_y_clothoid.push_back(tmp_state.y);
+            if (s + 0.3 > tmp_ps) {
+                clothoid_curve.evaluate(s, tmp_state.z, tmp_state.k, tmp_state.x, tmp_state.y);
+                predicted_path_x_clothoid.push_back(tmp_state.x);
+                predicted_path_y_clothoid.push_back(tmp_state.y);
+            }
+        }
+    }
 
 
     size_t nan_num = 0;
@@ -375,5 +381,12 @@ std::vector<double> &MpcPathOptimizer::getXList() {
 
 std::vector<double> &MpcPathOptimizer::getYList() {
     return this->predicted_path_y;
+}
+std::vector<double> &MpcPathOptimizer::getXListClothoid() {
+    return this->predicted_path_x_clothoid;
+}
+
+std::vector<double> &MpcPathOptimizer::getYListClothoid() {
+    return this->predicted_path_y_clothoid;
 }
 }

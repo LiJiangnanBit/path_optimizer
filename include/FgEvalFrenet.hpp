@@ -108,7 +108,7 @@ public:
             fg[2 + ps_range_begin + i] = s1 - (s0 + tmp_ds);
 //            fg[2 + pq_range_begin + i] = q1 - (q0 + tmp_ds * CppAD::sin(psi0));
             fg[2 + pq_range_begin + i] = q1 - (q0 + tmp_ds * CppAD::sin(alpha));
-            fg[2 + psi_range_begin + i] = psi1 - (alpha + (tmp_ds * curvature0 - ds * k0));
+            fg[2 + psi_range_begin + i] = psi1 - (psi0 + (tmp_ds * curvature0 - ds * k0));
         }
     }
 };
