@@ -1,5 +1,6 @@
 # mpc_path_optimization
-A substitute of state sampling; path optimization using MPC.
+A substitute for state sampling; path optimization using MPC.  
+为了解决状态采样有时结果不太自然的问题(多余的转向，过大的误差等)，并提高成功率，尝试改用MPC的方法对搜索结果进行优化。
 ## 依赖
 IPOPT
 ## 未完成内容
@@ -13,9 +14,9 @@ IPOPT
 catkin build state_sampling
 roslaunch state_sampling state_sampling.launch
 ```
-蓝色为状态采样，黄色为MPC优化结果，红色为纯跟踪采样。
+黄色为MPC优化结果，蓝色为状态采样，红色为纯跟踪采样。
 ## 效果图
-（蓝色为状态采样，黄色为使用MPC优化的结果）
+（黄色为使用MPC优化的结果，蓝色为状态采样）
 ![image](https://github.com/bit-ivrc/mpc_path_optimization/blob/master/picture/2019-08-23%2016-23-38%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE.png)
 ![image](https://github.com/bit-ivrc/mpc_path_optimization/blob/master/picture/2019-08-23%2016-24-26%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE.png)
 ![image](https://github.com/bit-ivrc/mpc_path_optimization/blob/master/picture/2019-08-23%2016-26-36%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE.png)
