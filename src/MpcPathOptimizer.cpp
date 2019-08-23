@@ -179,10 +179,9 @@ bool MpcPathOptimizer::solve() {
     }
 
     // the calculated path should have the same heading with the end state.
-    // double end_psi_error = 2 * M_PI / 180;
     vars_lowerbound[psi_range_begin + N - 1] = end_psi;// - end_psi_error;
     vars_upperbound[psi_range_begin + N - 1] = end_psi;// + end_psi_error;
-    // bound the end state lateral error.
+    // bound the lateral error of the end state .
     vars_lowerbound[pq_range_begin + N - 1] = -1.5;
     vars_upperbound[pq_range_begin + N - 1] = 1.5;
     // todo: set bounds for pq to ensure the path won't collide with obstacles!
@@ -261,7 +260,6 @@ bool MpcPathOptimizer::solve() {
                          solution.x[psi_range_begin + i], double(i)};
         std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
         this->predicted_path_in_frenet.push_back(v);
-        std::cout << "calculated curvature: " << solution.x[curvature_range_begin + i] << std::endl;
     }
 
 
