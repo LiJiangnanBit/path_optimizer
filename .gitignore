@@ -1,0 +1,80 @@
+compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+### CMake ###
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Makefile
+cmake_install.cmake
+install_manifest.txt
+
+## Folders and custom rules
+build
+lib
+bin
+devel
+logs
+unline_data
+
+# Text editor temporary files
+*~
+*.autosave
+
+## Ros ignore stuff
+CATKIN_IGNORE
+
+## MATLAB stuff
+*.mat
+
+## Test Results
+
+
+# Profiler Results
+callgrind*
+
+# clion project files
+.idea/
+
+# git conflicts file
+*.orig
+
+# ignore log files
+*.log
+
+# ignore cmake build folder
+cmake-build-*/
+
+# ignore heuristic file
+heuristic_info.txt
+
+# ignore .gpx files
+*.gpx
+*.bag
+packages/
