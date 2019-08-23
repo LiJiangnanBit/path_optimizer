@@ -15,22 +15,20 @@ class FgEvalFrenet {
 public:
     FgEvalFrenet(const tk::spline &k_s, const bool &isback,
                  const int &N, const std::vector<double> &cost_func,
-                 const double &delta_s) {
-        this->k_s = k_s;
-        this->isback = isback;
-        this->N = N;
-        this->ds = delta_s;
-        this->cost_func_cte_weight = cost_func[0];
-        this->cost_func_epsi_weight = cost_func[1];
-        this->cost_func_curvature_weight = cost_func[2];
-        this->cost_func_curvature_rate_weight = cost_func[3];
-    }
+                 const std::vector<double> &seg_list) :
+        k_s(k_s),
+        N(N),
+        seg_list(seg_list),
+        cost_func_cte_weight(cost_func[0]),
+        cost_func_epsi_weight(cost_func[1]),
+        cost_func_curvature_weight(cost_func[2]),
+        cost_func_curvature_rate_weight(cost_func[3]) {}
 
 public:
     tk::spline k_s;
-    bool isback;
     int N;
-    double ds;
+    const std::vector<double> &seg_list;
+//    double ds;
 
     double cost_func_cte_weight;
     double cost_func_epsi_weight;
@@ -93,7 +91,8 @@ public:
 
 
 //            AD<double> tmp_s = Var2Par(s0);
-            AD<double> s_on_path = ds * (i + 1);
+            AD<double> s_on_path = seg_list[i];
+            AD<double> ds = seg_list[i + 1] - seg_list[i];
             AD<double> k0 = k_s(Value(s_on_path));
             AD<double> tmp_ds = ds / CppAD::cos(psi0) * (1 - q0 * k0);
 
@@ -102,7 +101,6 @@ public:
 //            AD<double> len = CppAD::sqrt(2 * pow(r, 2) * (1 - CppAD::cos(tmp_ds * curvature0)));
 
             AD<double> dq_ref = (1 - CppAD::cos(ds * k0)) / k0;
-
 
             fg[2 + ps_range_begin + i] = s1 - (s0 + tmp_ds);
 //            fg[2 + pq_range_begin + i] = q1 - (q0 + tmp_ds * CppAD::sin(psi0));

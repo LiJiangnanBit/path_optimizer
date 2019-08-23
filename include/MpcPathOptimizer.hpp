@@ -56,12 +56,15 @@ private:
                              const double &x3, const double &y3);
 
     // todo: use this flag.
-    bool flag;
+    bool succeed_flag;
+    bool large_init_psi_flag;
+
 
     std::vector<double> x_list;
     std::vector<double> y_list;
     std::vector<double> k_list;
     std::vector<double> s_list;
+    std::vector<double> seg_list;
 
     double cte;  // lateral error
     double epsi; // navigable error

@@ -12,7 +12,9 @@ MpcPathOptimizer::MpcPathOptimizer(const std::vector<double> &x_list,
     x_list(x_list),
     y_list(y_list),
     start_state(start_state),
-    end_state(end_state) {}
+    end_state(end_state),
+    succeed_flag(false),
+    large_init_psi_flag(false){}
 
 bool MpcPathOptimizer::solve() {
     CHECK(x_list.size() == y_list.size()) << "x and y list size not equal!";
@@ -47,6 +49,9 @@ bool MpcPathOptimizer::solve() {
 
     // todo: consider the condition where the initial state is not on the path.
     getCurvature(x_list, y_list, &k_list);
+    for (const auto &k : k_list) {
+        std::cout << "k: " << k << std::endl;
+    }
     k_spline.set_points(s_list, k_list);
 
     // initial states
@@ -76,18 +81,35 @@ bool MpcPathOptimizer::solve() {
         LOG(WARNING) << "initial epsi is larger than π/2, quit mpc path optimization";
         return false;
     }
+    // if the initial psi is large, make the first 4 segments smaller.
+    if (fabs(epsi) > M_PI / 4) {
+        large_init_psi_flag = true;
+    }
 
     double curvature = start_state.k;
     // todo: delta_s should be changeable.
     double delta_s = 1.3;
     size_t N = max_s / delta_s;
-//    N = std::min(N, static_cast<size_t >(50));
+    if (large_init_psi_flag) {
+        LOG(INFO) << "large initial psi mode";
+        N += 6;
+    }
+    std::cout << "N: " << N << std::endl;
+    double length = 0;
+    for (size_t i = 0; i != N; ++i) {
+        if (large_init_psi_flag && i <= 8) {
+            length += delta_s / 4;
+        } else {
+            length += delta_s;
+        }
+        seg_list.push_back(length);
+    }
     int state_size = 3;
 
     double psi = epsi;
-    double ps = delta_s / cos(psi);
-    double pq = delta_s * tan(psi);
-    psi += ps * curvature - delta_s * k_spline(delta_s);
+    double ps = seg_list[0] / cos(psi);
+    double pq = seg_list[0] * tan(psi);
+    psi += ps * curvature - seg_list[0] * k_spline(seg_list[0]);
     double end_ref_angle;
     if (x_spline.deriv(1, s_list.back()) == 0) {
         end_ref_angle = 0;
@@ -198,8 +220,8 @@ bool MpcPathOptimizer::solve() {
 
 //    Eigen::VectorXd cost_func(4);
 //    cost_func << 1, 11, 1, 1500;
-
-    FgEvalFrenet fg_eval_frenet(k_spline, isback, N, weights, delta_s);
+    std::cout << "into fg" << std::endl;
+    FgEvalFrenet fg_eval_frenet(k_spline, isback, N, weights, seg_list);
     // solve the problem
     CppAD::ipopt::solve<Dvector, FgEvalFrenet>(options, vars,
                                                vars_lowerbound, vars_upperbound,
@@ -261,15 +283,16 @@ bool MpcPathOptimizer::solve() {
         std::cout << "calculated curvature: " << solution.x[curvature_range_begin + i] << std::endl;
     }
 
-    predicted_path_x.push_back(start_state.x);
-    predicted_path_y.push_back(start_state.y);
+//    predicted_path_x.push_back(start_state.x);
+//    predicted_path_y.push_back(start_state.y);
 
     // todo: consider the condition where the start state is not on the path
     predicted_path_x.push_back(x_list.front());
     predicted_path_y.push_back(y_list.front());
-    for (size_t i = 1; i * delta_s <= max_s; ++i) {
-        double angle = atan(y_spline.deriv(1, i * delta_s) / x_spline.deriv(1, i * delta_s));
-        if (x_spline.deriv(1, i * delta_s) < 0) {
+    for (size_t i = 0; i != seg_list.size(); ++i) {
+        double length_on_ref_path = seg_list[i];
+        double angle = atan(y_spline.deriv(1, length_on_ref_path) / x_spline.deriv(1, length_on_ref_path));
+        if (x_spline.deriv(1, length_on_ref_path) < 0) {
             if (angle > 0) {
                 angle -= M_PI;
             } else if (angle < 0) {
@@ -277,13 +300,13 @@ bool MpcPathOptimizer::solve() {
             }
         }
         double new_angle = angle + M_PI_2;
-        double x = x_spline(i * delta_s) + predicted_path_in_frenet[i - 1][1] * cos(new_angle);
-        double y = y_spline(i * delta_s) + predicted_path_in_frenet[i - 1][1] * sin(new_angle);
+        double x = x_spline(length_on_ref_path) + predicted_path_in_frenet[i][1] * cos(new_angle);
+        double y = y_spline(length_on_ref_path) + predicted_path_in_frenet[i][1] * sin(new_angle);
         if (std::isnan(x) || std::isnan(y)) {
             LOG(WARNING) << "output is not a number, mpc path opitmization failed!" << std::endl;
             return false;
         }
-        std::cout << "i: " << i << ", d: " << predicted_path_in_frenet[i - 1][1] << std::endl;
+//        std::cout << "i: " << i << ", d: " << predicted_path_in_frenet[i][1] << std::endl;
         predicted_path_x.push_back(x);
         predicted_path_y.push_back(y);
     }
@@ -295,24 +318,25 @@ bool MpcPathOptimizer::solve() {
     double tmp_y = start_state.y + tmp_ds * sin(start_state.z);
     predicted_path_x_clothoid.push_back(tmp_x);
     predicted_path_y_clothoid.push_back(tmp_y);
-    for (size_t i = 1; i != predicted_path_in_frenet.size(); ++i) {
-        tmp_ds = predicted_path_in_frenet[i][0] - predicted_path_in_frenet[i - 1][0];
-        double ref_angle = atan(y_spline.deriv(1, i * delta_s) / x_spline.deriv(1, i * delta_s));
-        if (x_spline.deriv(1, i * delta_s) < 0) {
+    for (size_t i = 0; i != predicted_path_in_frenet.size() - 1; ++i) {
+        double length_on_ref_path = seg_list[i];
+        tmp_ds = predicted_path_in_frenet[i + 1][0] - predicted_path_in_frenet[i][0];
+        double ref_angle = atan(y_spline.deriv(1, length_on_ref_path) / x_spline.deriv(1, length_on_ref_path));
+        if (x_spline.deriv(1, length_on_ref_path) < 0) {
             if (ref_angle > 0) {
                 ref_angle -= M_PI;
             } else if (ref_angle < 0) {
                 ref_angle += M_PI;
             }
         }
-        double tmp_psi = predicted_path_in_frenet[i - 1][2];
+        double tmp_psi = predicted_path_in_frenet[i][2];
         double real_angle = ref_angle + tmp_psi;
         real_angle *= 1.02;
         tmp_x = tmp_x + tmp_ds * cos(real_angle);
         tmp_y = tmp_y + tmp_ds * sin(real_angle);
-        std::cout << "i: " << i << ", d: " << predicted_path_in_frenet[i - 1][1]
-                  << ", tmp_ds: " << tmp_ds << std::endl;
-        std::cout << "ref angle: " << ref_angle*180/M_PI << ", tmp_psi: " << tmp_psi*180/M_PI << ", real angle: " << real_angle*180/M_PI << std::endl;
+//        std::cout << "i: " << i << ", d: " << predicted_path_in_frenet[i][1]
+//                  << ", tmp_ds: " << tmp_ds << std::endl;
+//        std::cout << "ref angle: " << ref_angle*180/M_PI << ", tmp_psi: " << tmp_psi*180/M_PI << ", real angle: " << real_angle*180/M_PI << std::endl;
         predicted_path_x_clothoid.push_back(tmp_x);
         predicted_path_y_clothoid.push_back(tmp_y);
     }
