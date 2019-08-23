@@ -1,6 +1,6 @@
 # mpc_path_optimization
 A substitute for state sampling; path optimization using MPC.  
-为了解决状态采样有时结果不太自然的问题(多余的转向，过大的误差等)，并提高成功率，尝试改用MPC的方法对搜索结果进行优化。
+为了解决状态采样有时结果不太自然的问题(多余的转向，过大的误差等)，改善路径质量，并提高成功率，尝试改用MPC的方法对搜索结果进行优化。
 ## 依赖
 IPOPT
 ## 未完成内容
