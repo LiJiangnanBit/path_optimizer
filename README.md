@@ -1,6 +1,8 @@
 # mpc_path_optimization
 A substitute of state sampling; path optimization using MPC.
-## 未完成
+## 依赖
+IPOPT
+## 未完成内容
 - 现在只做了起点在路上的情况；
 - 没有检查结果是否有碰撞；
 - 对横向误差加约束，将结果限制在可通行区域内;
