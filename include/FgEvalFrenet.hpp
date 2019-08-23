@@ -40,9 +40,6 @@ public:
     typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
 
     void operator()(ADvector &fg, const ADvector &vars) {
-        // MPC Implementation ...
-//            ROS_INFO_STREAM("fg: " << fg.size());
-//            ROS_INFO_STREAM("vars: " << vars.size());
 
         const int ps_range_begin = 0;
         const int pq_range_begin = ps_range_begin + N;
@@ -104,10 +101,12 @@ public:
             AD<double> r = 1 / curvature0;
 //            AD<double> len = CppAD::sqrt(2 * pow(r, 2) * (1 - CppAD::cos(tmp_ds * curvature0)));
 
+            AD<double> dq_ref = (1 - CppAD::cos(ds * k0)) / k0;
+
 
             fg[2 + ps_range_begin + i] = s1 - (s0 + tmp_ds);
 //            fg[2 + pq_range_begin + i] = q1 - (q0 + tmp_ds * CppAD::sin(psi0));
-            fg[2 + pq_range_begin + i] = q1 - (q0 + tmp_ds * CppAD::sin(alpha));
+            fg[2 + pq_range_begin + i] = q1 - (q0 + tmp_ds * CppAD::sin(alpha) - dq_ref);
             fg[2 + psi_range_begin + i] = psi1 - (psi0 + (tmp_ds * curvature0 - ds * k0));
         }
     }
