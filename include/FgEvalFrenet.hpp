@@ -5,8 +5,6 @@
 #ifndef MPC_PATH_OPTIMIZER__FGEVALFRENET_HPP_
 #define MPC_PATH_OPTIMIZER__FGEVALFRENET_HPP_
 #include <vector>
-#include "eigen3/Eigen/Core"
-#include "eigen3/Eigen/QR"
 
 namespace MpcSmoother {
 using CppAD::AD;

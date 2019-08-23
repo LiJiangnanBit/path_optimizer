@@ -17,8 +17,6 @@ message(STATUS "CMAKE SOURCE DIR:" ${CMAKE_MODULE_PATH})
 
 ## find system depends libraries
 find_package(IPOPT REQUIRED)
-FIND_LIBRARY(Clothoids /usr/local/lib)
-
 
 ###################################
 ## catkin specific configuration ##
@@ -50,9 +48,9 @@ include_directories(
 # Declare a C++ library
 add_library(${PROJECT_NAME}
         src/MpcPathOptimizer.cpp)
-target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} Clothoids)
+target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES})
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 add_executable(mpc_path_optimizer_demo src/mpc_path_optimizer_demo.cpp)
-target_link_libraries(mpc_path_optimizer_demo glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} Clothoids)
+target_link_libraries(mpc_path_optimizer_demo glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES})

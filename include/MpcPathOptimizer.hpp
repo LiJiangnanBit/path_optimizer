@@ -16,9 +16,6 @@
 #include "spline.h"
 #include "FgEvalFrenet.hpp"
 #include <tinyspline_ros/tinysplinecpp.h>
-#include "eigen3/Eigen/Core"
-#include "eigen3/Eigen/QR"
-#include "Clothoid.hh"
 
 #define MAX_CURVATURE 0.25
 
@@ -46,11 +43,12 @@ public:
     bool solve();
     std::vector<double> &getXList();
     std::vector<double> &getYList();
-    std::vector<double> &getXListClothoid();
-    std::vector<double> &getYListClothoid();
 private:
-    void getCurvature(const std::vector<double> &local_x, const std::vector<double> &local_y,
-                      std::vector<double> *pt_curvature_out);
+    void getCurvature(const std::vector<double> &local_x,
+                      const std::vector<double> &local_y,
+                      std::vector<double> *pt_curvature_out,
+                      double *max_curvature_abs,
+                      double *max_curvature_change_abs);
     double getPointCurvature(const double &x1, const double &y1,
                              const double &x2, const double &y2,
                              const double &x3, const double &y3);
@@ -79,8 +77,6 @@ private:
     std::vector<std::vector<double> > predicted_path_in_frenet;
     std::vector<double> predicted_path_x;
     std::vector<double> predicted_path_y;
-    std::vector<double> predicted_path_x_clothoid;
-    std::vector<double> predicted_path_y_clothoid;
 
 };
 
