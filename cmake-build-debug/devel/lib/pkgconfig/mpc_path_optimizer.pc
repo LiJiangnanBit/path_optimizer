@@ -1,8 +1,0 @@
-prefix=/home/ljn/catkin_ws/src/mpc_path_optimizer/cmake-build-debug/devel
-
-Name: mpc_path_optimizer
-Description: Description of mpc_path_optimizer
-Version: 0.0.0
-Cflags: 
-Libs: -L/home/ljn/catkin_ws/src/mpc_path_optimizer/cmake-build-debug/devel/lib 
-Requires: 

@@ -1,8 +1,0 @@
-prefix=/usr/local
-
-Name: mpc_path_optimizer
-Description: Description of mpc_path_optimizer
-Version: 0.0.0
-Cflags: 
-Libs: -L/usr/local/lib 
-Requires: 
