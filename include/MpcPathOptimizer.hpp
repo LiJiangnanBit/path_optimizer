@@ -15,7 +15,6 @@
 #include <chrono>
 #include "spline.h"
 #include "FgEvalFrenet.hpp"
-#include <tinyspline_ros/tinysplinecpp.h>
 
 #define MAX_CURVATURE 0.25
 
