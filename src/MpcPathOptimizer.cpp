@@ -116,6 +116,10 @@ bool MpcPathOptimizer::solve() {
         }
         seg_list.push_back(length);
     }
+    if (max_s - length > delta_s * 0.2) {
+        ++N;
+        seg_list.push_back(max_s);
+    }
 
     // initial states
     int state_size = 3;
@@ -242,7 +246,7 @@ bool MpcPathOptimizer::solve() {
                                                constraints_lowerbound, constraints_upperbound,
                                                fg_eval_frenet, solution);
 
-    // Check some of the solution values
+    // Check if it works
     bool ok = true;
     ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
     if (!ok) {
