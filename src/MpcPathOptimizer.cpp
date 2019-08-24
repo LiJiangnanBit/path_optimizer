@@ -106,7 +106,6 @@ bool MpcPathOptimizer::solve() {
         LOG(INFO) << "large initial psi mode";
         N += 6;
     }
-    std::cout << "N: " << N << std::endl;
     double length = 0;
     for (size_t i = 0; i != N; ++i) {
         if (large_init_psi_flag && i <= 8) {
@@ -255,8 +254,8 @@ bool MpcPathOptimizer::solve() {
     }
 
     // Cost
-    double cost = solution.obj_value;
-    std::cout << "cost: " << cost << std::endl;
+//    double cost = solution.obj_value;
+//    std::cout << "cost: " << cost << std::endl;
 
     // output
     for (size_t i = 0; i < N; i++) {

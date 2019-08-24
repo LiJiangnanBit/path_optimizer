@@ -23,13 +23,15 @@ namespace MpcSmoother {
 enum Type { START_ON_PATH = 0, START_OFF_PATH = 1 };
 
 struct State {
+    State(double x, double y, double z, double k) :
+        x(x),
+        y(y),
+        z(z),
+        k(k) {}
     double x{};
     double y{};
     double z{};
     double k{};
-    double s{};
-    double v{};
-    double dk{};
 };
 
 class MpcPathOptimizer {
@@ -55,7 +57,6 @@ private:
     // todo: use this flag.
     bool succeed_flag;
     bool large_init_psi_flag;
-
 
     std::vector<double> x_list;
     std::vector<double> y_list;
