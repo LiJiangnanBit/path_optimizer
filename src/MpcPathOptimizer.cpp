@@ -90,8 +90,8 @@ bool MpcPathOptimizer::solve() {
     } else if (epsi < -M_PI) {
         epsi += 2 * M_PI;
     }
-    if (fabs(epsi) > M_PI_2 * 4 / 5) {
-        LOG(WARNING) << "initial epsi is larger than 2π/5, quit mpc path optimization!";
+    if (fabs(epsi) > 80 * M_PI / 180) {
+        LOG(WARNING) << "initial epsi is larger than 80°, quit mpc path optimization!";
         return false;
     }
 
@@ -148,7 +148,7 @@ bool MpcPathOptimizer::solve() {
         end_psi += 2 * M_PI;
     }
     if (fabs(end_psi) > M_PI_2) {
-        LOG(WARNING) << "end psi is larger than π/2, quit mpc path optimization!";
+        LOG(WARNING) << "end psi is larger than 90°, quit mpc path optimization!";
         return false;
     }
 
