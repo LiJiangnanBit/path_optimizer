@@ -23,6 +23,7 @@ namespace MpcSmoother {
 enum Type { START_ON_PATH = 0, START_OFF_PATH = 1 };
 
 struct State {
+    State() = default;
     State(double x, double y, double z, double k) :
         x(x),
         y(y),
