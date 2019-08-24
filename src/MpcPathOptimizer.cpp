@@ -90,8 +90,8 @@ bool MpcPathOptimizer::solve() {
     } else if (epsi < -M_PI) {
         epsi += 2 * M_PI;
     }
-    if (fabs(epsi) > M_PI_2) {
-        LOG(WARNING) << "initial epsi is larger than π/2, quit mpc path optimization!";
+    if (fabs(epsi) > M_PI_2 * 4 / 5) {
+        LOG(WARNING) << "initial epsi is larger than 2π/5, quit mpc path optimization!";
         return false;
     }
 
