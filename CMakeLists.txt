@@ -52,8 +52,5 @@ target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
-add_executable(mpc_path_optimizer_demo src/mpc_path_optimizer_demo.cpp src/MpcPathOptimizer.cpp)
-target_link_libraries(mpc_path_optimizer_demo glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES})
-
 add_executable(mpc_path_optimizer_benchmark src/mpc_path_optimizer_benchmark.cpp src/MpcPathOptimizer.cpp)
 target_link_libraries(mpc_path_optimizer_benchmark glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark)
