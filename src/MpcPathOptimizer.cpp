@@ -54,7 +54,8 @@ bool MpcPathOptimizer::solve() {
     double max_curvature_abs;
     double max_curvature_change_abs;
     getCurvature(x_list, y_list, &k_list, &max_curvature_abs, &max_curvature_change_abs);
-    if (max_curvature_abs > 0.4) {
+    std::cout << "max cur: " << max_curvature_abs << ", " << max_curvature_change_abs << std::endl;
+    if (max_curvature_abs > 0.35) {
         LOG(WARNING) << "the ref path has large curvature, quit mpc optimization!";
         return false;
     }
@@ -100,7 +101,7 @@ bool MpcPathOptimizer::solve() {
         large_init_psi_flag = true;
     }
     //
-    double delta_s = 2;
+    double delta_s = 1.6;
     size_t N = max_s / delta_s + 1;
     if (large_init_psi_flag) {
         LOG(INFO) << "large initial psi mode";
@@ -237,9 +238,9 @@ bool MpcPathOptimizer::solve() {
     // todo: use a config file
     std::vector<double> weights;
     weights.push_back(0.3); //cost_func_cte_weight
-    weights.push_back(30); //cost_func_epsi_weight
+    weights.push_back(11); //cost_func_epsi_weight
     weights.push_back(80); //cost_func_curvature_weight
-    weights.push_back(1500); //cost_func_curvature_rate_weight
+    weights.push_back(2500); //cost_func_curvature_rate_weight
     bool isback = false;
 
     FgEvalFrenet fg_eval_frenet(k_spline, isback, N, weights, seg_list);
@@ -374,10 +375,7 @@ void MpcPathOptimizer::getCurvature(const std::vector<double> &local_x,
     double max_curvature = 0;
     double max_curvature_change = 0;
     for (size_t j = 0; j < size_n; ++j) {
-        if (j == 0 || j == size_n - 1)
-            final_curvature = curvature[j];
-        else
-            final_curvature = (curvature[j - 1] + curvature[j] + curvature[j + 1]) / 3;
+        final_curvature = curvature[j];
         pt_curvature_out->push_back(final_curvature);
         if (fabs(final_curvature) > max_curvature) {
             max_curvature = fabs(final_curvature);
