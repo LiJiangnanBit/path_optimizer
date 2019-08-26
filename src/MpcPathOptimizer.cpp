@@ -125,11 +125,8 @@ bool MpcPathOptimizer::solve() {
     int state_size = 3;
     double curvature = start_state.k;
     double psi = epsi;
-//    double ps = seg_list[0] / cos(psi);
-//    double pq = seg_list[0] * tan(psi);
     double ps = 0;
     double pq = cte;
-//    psi += ps * curvature - seg_list[0] * k_spline(seg_list[0]);
     double end_ref_angle;
     if (x_spline.deriv(1, s_list.back()) == 0) {
         end_ref_angle = 0;
@@ -184,8 +181,8 @@ bool MpcPathOptimizer::solve() {
         vars_upperbound[i] = 1.0e19;
     }
     for (size_t i = pq_range_begin; i != psi_range_begin; ++i) {
-        vars_lowerbound[i] = -2.5;
-        vars_upperbound[i] = 2.5;
+        vars_lowerbound[i] = -4;
+        vars_upperbound[i] = 4;
     }
 
     // the calculated path should have the same heading with the end state.
