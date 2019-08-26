@@ -100,14 +100,15 @@ bool MpcPathOptimizer::solve() {
         large_init_psi_flag = true;
     }
     //
-    double delta_s = 1.3;
-    size_t N = max_s / delta_s;
+    double delta_s = 2;
+    size_t N = max_s / delta_s + 1;
     if (large_init_psi_flag) {
         LOG(INFO) << "large initial psi mode";
         N += 6;
     }
     double length = 0;
-    for (size_t i = 0; i != N; ++i) {
+    seg_list.push_back(0);
+    for (size_t i = 0; i != N - 1; ++i) {
         if (large_init_psi_flag && i <= 8) {
             length += delta_s / 4;
         } else {
@@ -124,9 +125,11 @@ bool MpcPathOptimizer::solve() {
     int state_size = 3;
     double curvature = start_state.k;
     double psi = epsi;
-    double ps = seg_list[0] / cos(psi);
-    double pq = seg_list[0] * tan(psi);
-    psi += ps * curvature - seg_list[0] * k_spline(seg_list[0]);
+//    double ps = seg_list[0] / cos(psi);
+//    double pq = seg_list[0] * tan(psi);
+    double ps = 0;
+    double pq = cte;
+//    psi += ps * curvature - seg_list[0] * k_spline(seg_list[0]);
     double end_ref_angle;
     if (x_spline.deriv(1, s_list.back()) == 0) {
         end_ref_angle = 0;
@@ -179,6 +182,10 @@ bool MpcPathOptimizer::solve() {
     for (size_t i = 0; i < curvature_range_begin; i++) {
         vars_lowerbound[i] = -1.0e19;
         vars_upperbound[i] = 1.0e19;
+    }
+    for (size_t i = pq_range_begin; i != psi_range_begin; ++i) {
+        vars_lowerbound[i] = -2.5;
+        vars_upperbound[i] = 2.5;
     }
 
     // the calculated path should have the same heading with the end state.
@@ -267,8 +274,8 @@ bool MpcPathOptimizer::solve() {
 
 
     // todo: consider the condition where the start state is not on the path
-    predicted_path_x.push_back(start_state.x);
-    predicted_path_y.push_back(start_state.y);
+//    predicted_path_x.push_back(start_state.x);
+//    predicted_path_y.push_back(start_state.y);
     for (size_t i = 0; i != seg_list.size(); ++i) {
         double length_on_ref_path = seg_list[i];
         double angle;
