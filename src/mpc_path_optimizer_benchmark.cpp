@@ -8,7 +8,7 @@
 #include <MpcPathOptimizer.hpp>
 
 //static void BM_optimizePath(benchmark::State &state) {
-//    std::vector<double> x_list =
+//    std::vector<double> x_list_ =
 //        {36.933, 35.664, 34.5232, 33.5006, 32.5863, 31.7711, 31.0461, 30.4029, 29.8334, 29.33, 28.8857, 28.4938,
 //         28.1478, 27.8421, 27.5711, 27.3299, 27.1139, 26.919, 26.7415, 26.5781, 26.4261, 26.283, 26.1468, 26.016,
 //         25.8895, 25.7666, 25.6471, 25.5308, 25.4176, 25.3073, 25.1998, 25.0951, 24.9929, 24.8933, 24.7961, 24.7011,
@@ -31,7 +31,7 @@
 //    MpcSmoother::State start_state(36.933, 33.6609, -1.36375, 0);
 //    MpcSmoother::State end_state(21.4611, -2.52501, -1.30825, 0);
 //    for (auto _:state) {
-//        MpcSmoother::MpcPathOptimizer mpc_path_optimizer(x_list, y_list, start_state, end_state);
+//        MpcSmoother::MpcPathOptimizer mpc_path_optimizer(x_list_, y_list, start_state, end_state);
 //        bool ok = mpc_path_optimizer.solve();
 //    }
 //}

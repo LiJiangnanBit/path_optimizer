@@ -59,27 +59,27 @@ private:
                              const double &x3, const double &y3);
 
     hmpl::InternalGridMap grid_map_;
-    bool large_init_psi_flag;
+    bool large_init_psi_flag_;
 
-    std::vector<double> x_list;
-    std::vector<double> y_list;
-    std::vector<double> k_list;
-    std::vector<double> s_list;
-    std::vector<double> seg_list;
+    std::vector<double> x_list_;
+    std::vector<double> y_list_;
+    std::vector<double> k_list_;
+    std::vector<double> s_list_;
+    std::vector<double> seg_list_;
 
-    double cte;  // lateral error
-    double epsi; // navigable error
-    size_t point_num;
-    State start_state;
-    State end_state;
+    double cte_;  // lateral error
+    double epsi_; // navigable error
+    size_t point_num_;
+    State start_state_;
+    State end_state_;
     // x_spline and y_spline are in global frame
-    tk::spline x_spline;
-    tk::spline y_spline;
-    tk::spline k_spline;
+    tk::spline x_spline_;
+    tk::spline y_spline_;
+    tk::spline k_spline_;
 
-    std::vector<std::vector<double> > predicted_path_in_frenet;
-    std::vector<double> predicted_path_x;
-    std::vector<double> predicted_path_y;
+    std::vector<std::vector<double> > predicted_path_in_frenet_;
+    std::vector<double> predicted_path_x_;
+    std::vector<double> predicted_path_y_;
 
 };
 

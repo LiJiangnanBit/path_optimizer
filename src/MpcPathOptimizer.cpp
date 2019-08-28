@@ -10,53 +10,53 @@ MpcPathOptimizer::MpcPathOptimizer(const std::vector<double> &x_list,
                                    const State &start_state,
                                    const State &end_state,
                                    const hmpl::InternalGridMap &map) :
-    x_list(x_list),
-    y_list(y_list),
-    start_state(start_state),
-    end_state(end_state),
-    large_init_psi_flag(false) {}
+    x_list_(x_list),
+    y_list_(y_list),
+    start_state_(start_state),
+    end_state_(end_state),
+    large_init_psi_flag_(false) {}
 
 bool MpcPathOptimizer::solve() {
     //
     // todo: the result path should be different for various initial velocity!
     //
-    CHECK(x_list.size() == y_list.size()) << "x and y list size not equal!";
-    point_num = x_list.size();
+    CHECK(x_list_.size() == y_list_.size()) << "x and y list size not equal!";
+    point_num_ = x_list_.size();
 
     double s = 0;
-    s_list.push_back(0);
-    for (size_t i = 1; i != point_num; ++i) {
-        double ds = sqrt(pow(x_list[i] - x_list[i - 1], 2)
-                             + pow(y_list[i] - y_list[i - 1], 2));
+    s_list_.push_back(0);
+    for (size_t i = 1; i != point_num_; ++i) {
+        double ds = sqrt(pow(x_list_[i] - x_list_[i - 1], 2)
+                             + pow(y_list_[i] - y_list_[i - 1], 2));
         s += ds;
-        s_list.push_back(s);
+        s_list_.push_back(s);
     }
-    double max_s = s_list.back();
+    double max_s = s_list_.back();
     std::cout << "ref path length: " << max_s << std::endl;
-    x_spline.set_points(s_list, x_list);
-    y_spline.set_points(s_list, y_list);
+    x_spline_.set_points(s_list_, x_list_);
+    y_spline_.set_points(s_list_, y_list_);
 
     // make the path dense, the interval being 0.3m
-    x_list.clear();
-    y_list.clear();
-    s_list.clear();
+    x_list_.clear();
+    y_list_.clear();
+    s_list_.clear();
     size_t new_points_count = 0;
     for (double new_s = 0; new_s <= max_s; new_s += 0.3) {
-        double x = x_spline(new_s);
-        double y = y_spline(new_s);
-        x_list.push_back(x);
-        y_list.push_back(y);
-        s_list.push_back(new_s);
+        double x = x_spline_(new_s);
+        double y = y_spline_(new_s);
+        x_list_.push_back(x);
+        y_list_.push_back(y);
+        s_list_.push_back(new_s);
         ++new_points_count;
     }
-    point_num = x_list.size();
+    point_num_ = x_list_.size();
 
     // check if there are points whose curvature or curvature change is too large. if such point does exist, the result
     // might be not natural.
     // todo: when large curvature or curvature change is detected, try to generate a shorter path instead of quiting this method.
     double max_curvature_abs;
     double max_curvature_change_abs;
-    getCurvature(x_list, y_list, &k_list, &max_curvature_abs, &max_curvature_change_abs);
+    getCurvature(x_list_, y_list_, &k_list_, &max_curvature_abs, &max_curvature_change_abs);
     std::cout << "max cur: " << max_curvature_abs << ", " << max_curvature_change_abs << std::endl;
     if (max_curvature_abs > 0.35) {
         LOG(WARNING) << "the ref path has large curvature, quit mpc optimization!";
@@ -67,18 +67,18 @@ bool MpcPathOptimizer::solve() {
         return false;
     }
 
-    k_spline.set_points(s_list, k_list);
+    k_spline_.set_points(s_list_, k_list_);
 
     // initial states
-    cte = 0;
+    cte_ = 0;
     double start_ref_angle = 0;
     // calculate the start angle of the reference path.
-    if (x_spline.deriv(1, 0) == 0) {
+    if (x_spline_.deriv(1, 0) == 0) {
         start_ref_angle = 0;
     } else {
-        start_ref_angle = atan(y_spline.deriv(1, 0) / x_spline.deriv(1, 0));
+        start_ref_angle = atan(y_spline_.deriv(1, 0) / x_spline_.deriv(1, 0));
     }
-    if (x_spline.deriv(1, 0) < 0) {
+    if (x_spline_.deriv(1, 0) < 0) {
         if (start_ref_angle > 0) {
             start_ref_angle -= M_PI;
         } else if (start_ref_angle < 0) {
@@ -86,64 +86,64 @@ bool MpcPathOptimizer::solve() {
         }
     }
     // calculate the difference between the start angle of the reference path ande the angle of start state.
-    epsi = start_state.z - start_ref_angle;
+    epsi_ = start_state_.z - start_ref_angle;
     // keep the angle between -π and π.
-    if (epsi > M_PI) {
-        epsi -= 2 * M_PI;
-    } else if (epsi < -M_PI) {
-        epsi += 2 * M_PI;
+    if (epsi_ > M_PI) {
+        epsi_ -= 2 * M_PI;
+    } else if (epsi_ < -M_PI) {
+        epsi_ += 2 * M_PI;
     }
-    if (fabs(epsi) > 80 * M_PI / 180) {
+    if (fabs(epsi_) > 80 * M_PI / 180) {
         LOG(WARNING) << "initial epsi is larger than 80°, quit mpc path optimization!";
         return false;
     }
 
     // if the initial psi is large, use smaller step size(sampling time) at early stage.
-    if (fabs(epsi) > M_PI / 4) {
-        large_init_psi_flag = true;
+    if (fabs(epsi_) > M_PI / 4) {
+        large_init_psi_flag_ = true;
     }
     //
     double delta_s = 1.6;
     size_t N = max_s / delta_s + 1;
-    if (large_init_psi_flag) {
+    if (large_init_psi_flag_) {
         LOG(INFO) << "large initial psi mode";
         N += 6;
     }
     double length = 0;
-    seg_list.push_back(0);
+    seg_list_.push_back(0);
     for (size_t i = 0; i != N - 1; ++i) {
-        if (large_init_psi_flag && i <= 8) {
+        if (large_init_psi_flag_ && i <= 8) {
             length += delta_s / 4;
         } else {
             length += delta_s;
         }
-        seg_list.push_back(length);
+        seg_list_.push_back(length);
     }
     if (max_s - length > delta_s * 0.2) {
         ++N;
-        seg_list.push_back(max_s);
+        seg_list_.push_back(max_s);
     }
 
     // initial states
     int state_size = 3;
-    double curvature = start_state.k;
-    double psi = epsi;
+    double curvature = start_state_.k;
+    double psi = epsi_;
     double ps = 0;
-    double pq = cte;
+    double pq = cte_;
     double end_ref_angle;
-    if (x_spline.deriv(1, s_list.back()) == 0) {
+    if (x_spline_.deriv(1, s_list_.back()) == 0) {
         end_ref_angle = 0;
     } else {
-        end_ref_angle = atan(y_spline.deriv(1, s_list.back()) / x_spline.deriv(1, s_list.back()));
+        end_ref_angle = atan(y_spline_.deriv(1, s_list_.back()) / x_spline_.deriv(1, s_list_.back()));
     }
-    if (x_spline.deriv(1, s_list.back()) < 0) {
+    if (x_spline_.deriv(1, s_list_.back()) < 0) {
         if (end_ref_angle > 0) {
             end_ref_angle -= M_PI;
         } else if (end_ref_angle < 0) {
             end_ref_angle += M_PI;
         }
     }
-    double end_psi = end_state.z - end_ref_angle;
+    double end_psi = end_state_.z - end_ref_angle;
     if (end_psi > M_PI) {
         end_psi -= 2 * M_PI;
     } else if (end_psi < -M_PI) {
@@ -245,7 +245,7 @@ bool MpcPathOptimizer::solve() {
     weights.push_back(2500); //cost_func_curvature_rate_weight
     bool isback = false;
 
-    FgEvalFrenet fg_eval_frenet(k_spline, isback, N, weights, seg_list);
+    FgEvalFrenet fg_eval_frenet(k_spline_, isback, N, weights, seg_list_);
     // solve the problem
     CppAD::ipopt::solve<Dvector, FgEvalFrenet>(options, vars,
                                                vars_lowerbound, vars_upperbound,
@@ -269,21 +269,21 @@ bool MpcPathOptimizer::solve() {
         double tmp[4] = {solution.x[ps_range_begin + i], solution.x[pq_range_begin + i],
                          solution.x[psi_range_begin + i], double(i)};
         std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
-        this->predicted_path_in_frenet.push_back(v);
+        this->predicted_path_in_frenet_.push_back(v);
     }
 
 
 //    predicted_path_x.push_back(start_state.x);
 //    predicted_path_y.push_back(start_state.y);
-    for (size_t i = 0; i != seg_list.size(); ++i) {
-        double length_on_ref_path = seg_list[i];
+    for (size_t i = 0; i != seg_list_.size(); ++i) {
+        double length_on_ref_path = seg_list_[i];
         double angle;
-        if (x_spline.deriv(1, length_on_ref_path) == 0) {
+        if (x_spline_.deriv(1, length_on_ref_path) == 0) {
             angle = 0;
         } else {
-            angle = atan(y_spline.deriv(1, length_on_ref_path) / x_spline.deriv(1, length_on_ref_path));
+            angle = atan(y_spline_.deriv(1, length_on_ref_path) / x_spline_.deriv(1, length_on_ref_path));
         }
-        if (x_spline.deriv(1, length_on_ref_path) < 0) {
+        if (x_spline_.deriv(1, length_on_ref_path) < 0) {
             if (angle > 0) {
                 angle -= M_PI;
             } else if (angle < 0) {
@@ -291,26 +291,26 @@ bool MpcPathOptimizer::solve() {
             }
         }
         double new_angle = angle + M_PI_2;
-        double x = x_spline(length_on_ref_path) + predicted_path_in_frenet[i][1] * cos(new_angle);
-        double y = y_spline(length_on_ref_path) + predicted_path_in_frenet[i][1] * sin(new_angle);
+        double x = x_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][1] * cos(new_angle);
+        double y = y_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][1] * sin(new_angle);
         if (std::isnan(x) || std::isnan(y)) {
             LOG(WARNING) << "output is not a number, mpc path opitmization failed!" << std::endl;
             return false;
         }
 //        std::cout << "i: " << i << ", d: " << predicted_path_in_frenet[i][1] << std::endl;
-        predicted_path_x.push_back(x);
-        predicted_path_y.push_back(y);
+        predicted_path_x_.push_back(x);
+        predicted_path_y_.push_back(y);
     }
 
     return true;
 }
 
 std::vector<double> &MpcPathOptimizer::getXList() {
-    return this->predicted_path_x;
+    return this->predicted_path_x_;
 }
 
 std::vector<double> &MpcPathOptimizer::getYList() {
-    return this->predicted_path_y;
+    return this->predicted_path_y_;
 }
 
 double MpcPathOptimizer::getPointCurvature(const double &x1,
