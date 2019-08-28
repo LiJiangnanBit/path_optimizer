@@ -227,15 +227,19 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         } else if (right_angle < -M_PI) {
             right_angle += 2 * M_PI;
         }
-        // Set 1.4m as safety distance. It should be related with the vehicle size.
-        double clearance_left = getClearanceWithDirection(state, left_angle) - 1.6;
-        double clearance_rght = getClearanceWithDirection(state, right_angle) - 1.6;
-        std::cout << "pq bound: " << clearance_left << ", " << clearance_rght << std::endl;
+        // Set safety distance. It should be related with the vehicle size.
+        double clearance_left = getClearanceWithDirection(state, left_angle);
+        double clearance_right = getClearanceWithDirection(state, right_angle);
+        double safety_distance_left = clearance_left / 5.0 * 3.6;
+        double safety_distance_right = clearance_right / 5.0 * 3.6;
+        clearance_left -= safety_distance_left;
+        clearance_right -= safety_distance_right;
+        std::cout << "upper & lower bound: " << clearance_left << ", " << -clearance_right << std::endl;
         if (i == seg_list_.size() - 1) {
             clearance_left = std::min(clearance_left, 1.5);
-            clearance_rght = std::min(clearance_rght, 1.5);
+            clearance_right = std::min(clearance_right, 1.5);
         }
-        vars_lowerbound[pq_range_begin + i] = -clearance_rght;
+        vars_lowerbound[pq_range_begin + i] = -clearance_right;
         vars_upperbound[pq_range_begin + i] = clearance_left;
     }
 
