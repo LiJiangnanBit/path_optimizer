@@ -13,6 +13,8 @@
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
 #include <chrono>
+#include <opt_utils/utils.hpp>
+#include <internal_grid_map/internal_grid_map.hpp>
 #include "spline.h"
 #include "FgEvalFrenet.hpp"
 
@@ -41,7 +43,8 @@ public:
     MpcPathOptimizer(const std::vector<double> &x_list,
                      const std::vector<double> &y_list,
                      const State &start_state,
-                     const State &end_state);
+                     const State &end_state,
+                     const hmpl::InternalGridMap &map);
     bool solve();
     std::vector<double> &getXList();
     std::vector<double> &getYList();
@@ -55,8 +58,7 @@ private:
                              const double &x2, const double &y2,
                              const double &x3, const double &y3);
 
-    // todo: use this flag.
-    bool succeed_flag;
+    hmpl::InternalGridMap grid_map_;
     bool large_init_psi_flag;
 
     std::vector<double> x_list;

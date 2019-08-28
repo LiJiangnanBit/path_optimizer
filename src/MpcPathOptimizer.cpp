@@ -8,12 +8,12 @@ namespace MpcSmoother {
 MpcPathOptimizer::MpcPathOptimizer(const std::vector<double> &x_list,
                                    const std::vector<double> &y_list,
                                    const State &start_state,
-                                   const State &end_state) :
+                                   const State &end_state,
+                                   const hmpl::InternalGridMap &map) :
     x_list(x_list),
     y_list(y_list),
     start_state(start_state),
     end_state(end_state),
-    succeed_flag(false),
     large_init_psi_flag(false) {}
 
 bool MpcPathOptimizer::solve() {
