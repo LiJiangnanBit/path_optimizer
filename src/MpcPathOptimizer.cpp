@@ -61,7 +61,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     double max_curvature_abs;
     double max_curvature_change_abs;
     getCurvature(x_list_, y_list_, &k_list_, &max_curvature_abs, &max_curvature_change_abs);
-    std::cout << "max cur: " << max_curvature_abs << ", " << max_curvature_change_abs << std::endl;
     if (max_curvature_abs > 0.35) {
         LOG(WARNING) << "the ref path has large curvature, quit mpc optimization!";
         return false;
@@ -263,6 +262,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         LOG(WARNING) << "mpc path optimization solver failed!";
         return false;
     }
+    LOG(INFO) << "mpc path optimization solver succeeded!";
 
 //     // Cost
 //    double cost = solution.obj_value;
@@ -276,9 +276,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         this->predicted_path_in_frenet_.push_back(v);
     }
 
-
-//    predicted_path_x.push_back(start_state.x);
-//    predicted_path_y.push_back(start_state.y);
     for (size_t i = 0; i != seg_list_.size(); ++i) {
         double length_on_ref_path = seg_list_[i];
         double angle;
@@ -299,28 +296,28 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         double tmp_y = y_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][1] * sin(new_angle);
         double tmp_psi = predicted_path_in_frenet_[i][2];
         double tmp_heading = tmp_psi + angle;
+        double tmp_length = predicted_path_in_frenet_[i][0];
         if (std::isnan(tmp_x) || std::isnan(tmp_y)) {
             LOG(WARNING) << "output is not a number, mpc path opitmization failed!" << std::endl;
             return false;
         }
-        // todo: add other information maybe.
         hmpl::State state;
         state.x = tmp_x;
         state.y = tmp_y;
         state.z = tmp_heading;
+        state.s = tmp_length;
         final_path->push_back(state);
-//        if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
-//            std::cout << "no collision!" << std::endl;
-//        } else {
-//            std::cout << "collision!" << std::endl;
-//        }
+
         if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
             final_path->push_back(state);
         } else {
+            if (state.s > 30) {
+                return true;
+            }
             LOG(WARNING) << "collision check of mpc path optimization failed!";
+            final_path->clear();
             return false;
         }
-//        std::cout << "i: " << i << ", d: " << predicted_path_in_frenet[i][1] << std::endl;
     }
 
 
