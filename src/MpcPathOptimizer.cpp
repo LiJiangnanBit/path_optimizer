@@ -187,10 +187,10 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         vars_lowerbound[i] = -1.0e19;
         vars_upperbound[i] = 1.0e19;
     }
-    for (size_t i = pq_range_begin; i != psi_range_begin; ++i) {
-        vars_lowerbound[i] = -4;
-        vars_upperbound[i] = 4;
-    }
+//    for (size_t i = pq_range_begin; i != psi_range_begin; ++i) {
+//        vars_lowerbound[i] = -2.5;
+//        vars_upperbound[i] = 2.5;
+//    }
 
     // the calculated path should have the same heading with the end state.
     vars_lowerbound[psi_range_begin + N - 1] = end_psi;// - end_psi_error;
@@ -306,8 +306,20 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         state.x = x;
         state.y = y;
         final_path->push_back(state);
+        if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
+            std::cout << "no collision!" << std::endl;
+        } else {
+            std::cout << "collision!" << std::endl;
+        }
+//        if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
+//            final_path->push_back(state);
+//        } else {
+//            LOG(WARNING) << "collision check of mpc path optimization failed!";
+//            return false;
+//        }
 //        std::cout << "i: " << i << ", d: " << predicted_path_in_frenet[i][1] << std::endl;
     }
+
 
     return true;
 }
