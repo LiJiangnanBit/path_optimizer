@@ -40,6 +40,7 @@ private:
     double getPointCurvature(const double &x1, const double &y1,
                              const double &x2, const double &y2,
                              const double &x3, const double &y3);
+    double getClearanceWithDirection(hmpl::State state, double angle);
 
     hmpl::InternalGridMap grid_map_;
     CollisionChecker collision_checker_;
@@ -51,6 +52,7 @@ private:
     std::vector<double> k_list_;
     std::vector<double> s_list_;
     std::vector<double> seg_list_;
+    std::vector<double> angle_list_;
 
     double cte_;  // lateral error
     double epsi_; // navigable error

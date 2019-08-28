@@ -28,7 +28,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         if (i == 0) {
             s_list_.push_back(0);
         } else {
-            double ds = sqrt(pow(points_list_[i].x - points_list_[i-1].x, 2) + pow(points_list_[i].y - points_list_[i-1].y, 2));
+            double ds = sqrt(
+                pow(points_list_[i].x - points_list_[i - 1].x, 2) + pow(points_list_[i].y - points_list_[i - 1].y, 2));
             s += ds;
             s_list_.push_back(s);
         }
@@ -127,6 +128,25 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         seg_list_.push_back(max_s);
     }
 
+    // angle may be used more than once, so store them in a vector.
+    for (size_t i = 0; i != seg_list_.size(); ++i) {
+        double length_on_ref_path = seg_list_[i];
+        double angle;
+        if (x_spline_.deriv(1, length_on_ref_path) == 0) {
+            angle = 0;
+        } else {
+            angle = atan(y_spline_.deriv(1, length_on_ref_path) / x_spline_.deriv(1, length_on_ref_path));
+        }
+        if (x_spline_.deriv(1, length_on_ref_path) < 0) {
+            if (angle > 0) {
+                angle -= M_PI;
+            } else if (angle < 0) {
+                angle += M_PI;
+            }
+        }
+        angle_list_.push_back(angle);
+    }
+
     // initial states
     int state_size = 3;
     double curvature = start_state_.k;
@@ -186,10 +206,34 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         vars_lowerbound[i] = -1.0e19;
         vars_upperbound[i] = 1.0e19;
     }
-//    for (size_t i = pq_range_begin; i != psi_range_begin; ++i) {
-//        vars_lowerbound[i] = -2.5;
-//        vars_upperbound[i] = 2.5;
-//    }
+    // Set pq bounds according to the distance to obstacles.
+    // Start from the second point, because the first point is fixed.
+    for (size_t i = 1; i != seg_list_.size(); ++i) {
+        double length_on_ref = seg_list_[i];
+        double x = x_spline_(length_on_ref);
+        double y = y_spline_(length_on_ref);
+        hmpl::State state;
+        state.x = x;
+        state.y = y;
+        double left_angle = angle_list_[i] + M_PI_2;
+        double right_angle = angle_list_[i] - M_PI_2;
+        if (left_angle > M_PI) {
+            left_angle -= 2 * M_PI;
+        } else if (left_angle < -M_PI) {
+            left_angle += 2 * M_PI;
+        }
+        if (right_angle > M_PI) {
+            right_angle -= 2 * M_PI;
+        } else if (right_angle < -M_PI) {
+            right_angle += 2 * M_PI;
+        }
+        // Set 1.1m as safety distance. It should be related with the vehicle size.
+        double clearance_left = getClearanceWithDirection(state, left_angle) - 1.1;
+        double clearance_rght = getClearanceWithDirection(state, right_angle) - 1.1;
+        std::cout << "pq bound: " << clearance_left << ", " << clearance_rght << std::endl;
+        vars_lowerbound[pq_range_begin + i] = -clearance_rght;
+        vars_upperbound[pq_range_begin + i] = clearance_left;
+    }
 
     // the calculated path should have the same heading with the end state.
     vars_lowerbound[psi_range_begin + N - 1] = end_psi;// - end_psi_error;
@@ -278,19 +322,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 
     for (size_t i = 0; i != seg_list_.size(); ++i) {
         double length_on_ref_path = seg_list_[i];
-        double angle;
-        if (x_spline_.deriv(1, length_on_ref_path) == 0) {
-            angle = 0;
-        } else {
-            angle = atan(y_spline_.deriv(1, length_on_ref_path) / x_spline_.deriv(1, length_on_ref_path));
-        }
-        if (x_spline_.deriv(1, length_on_ref_path) < 0) {
-            if (angle > 0) {
-                angle -= M_PI;
-            } else if (angle < 0) {
-                angle += M_PI;
-            }
-        }
+        double angle = angle_list_[i];
         double new_angle = angle + M_PI_2;
         double tmp_x = x_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][1] * cos(new_angle);
         double tmp_y = y_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][1] * sin(new_angle);
@@ -319,9 +351,23 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             return false;
         }
     }
-
-
     return true;
+}
+
+double MpcPathOptimizer::getClearanceWithDirection(hmpl::State state, double angle) {
+    double s = 0;
+    double delta_s = 0.2;
+    size_t n = 5.0 / delta_s;
+    for (size_t i = 0; i != n; ++i) {
+        s += delta_s;
+        double x = state.x + s * cos(angle);
+        double y = state.y + s * sin(angle);
+        grid_map::Position new_position(x, y);
+        if (grid_map_.maps.atPosition("obstacle", new_position) == 0) {
+            return s - delta_s;
+        }
+    }
+    return s;
 }
 
 double MpcPathOptimizer::getPointCurvature(const double &x1,
