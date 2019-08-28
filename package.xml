@@ -52,6 +52,8 @@
   <depend>opt_utils</depend>
   <depend>internal_grid_map</depend>
   <depend>grid_map_ros</depend>
+  <depend>car_model</depend>
+
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

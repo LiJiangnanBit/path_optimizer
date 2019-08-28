@@ -13,6 +13,7 @@ set(catkin_deps
         opt_utils
         grid_map_ros
         internal_grid_map
+        car_model
         )
 
 find_package(catkin REQUIRED COMPONENTS
@@ -56,10 +57,10 @@ include_directories(
 
 # Declare a C++ library
 add_library(${PROJECT_NAME}
-        src/MpcPathOptimizer.cpp)
+        src/MpcPathOptimizer.cpp src/collision_checker.cpp)
 target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES})
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
-add_executable(mpc_path_optimizer_benchmark src/mpc_path_optimizer_benchmark.cpp src/MpcPathOptimizer.cpp)
+add_executable(mpc_path_optimizer_benchmark src/mpc_path_optimizer_benchmark.cpp)
 target_link_libraries(mpc_path_optimizer_benchmark glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark)

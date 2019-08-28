@@ -17,6 +17,7 @@
 #include <internal_grid_map/internal_grid_map.hpp>
 #include "spline.h"
 #include "FgEvalFrenet.hpp"
+#include "collosion_checker.hpp"
 
 #define MAX_CURVATURE 0.25
 
@@ -59,6 +60,7 @@ private:
                              const double &x3, const double &y3);
 
     hmpl::InternalGridMap grid_map_;
+    CollisionChecker collision_checker_;
     bool large_init_psi_flag_;
 
     std::vector<double> x_list_;

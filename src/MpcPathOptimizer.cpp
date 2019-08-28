@@ -10,11 +10,13 @@ MpcPathOptimizer::MpcPathOptimizer(const std::vector<double> &x_list,
                                    const State &start_state,
                                    const State &end_state,
                                    const hmpl::InternalGridMap &map) :
+    grid_map_(map),
+    collision_checker_(map),
+    large_init_psi_flag_(false),
     x_list_(x_list),
     y_list_(y_list),
     start_state_(start_state),
-    end_state_(end_state),
-    large_init_psi_flag_(false) {}
+    end_state_(end_state) {}
 
 bool MpcPathOptimizer::solve() {
     //
