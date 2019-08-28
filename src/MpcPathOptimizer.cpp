@@ -17,6 +17,9 @@ MpcPathOptimizer::MpcPathOptimizer(const std::vector<double> &x_list,
     large_init_psi_flag(false) {}
 
 bool MpcPathOptimizer::solve() {
+    //
+    // todo: the result path should be different for various initial velocity!
+    //
     CHECK(x_list.size() == y_list.size()) << "x and y list size not equal!";
     point_num = x_list.size();
 
@@ -67,7 +70,6 @@ bool MpcPathOptimizer::solve() {
     k_spline.set_points(s_list, k_list);
 
     // initial states
-    // todo: consider the condition where the initial state is not on the path.
     cte = 0;
     double start_ref_angle = 0;
     // calculate the start angle of the reference path.
@@ -258,7 +260,7 @@ bool MpcPathOptimizer::solve() {
         return false;
     }
 
-    // Cost
+//     // Cost
 //    double cost = solution.obj_value;
 //    std::cout << "cost: " << cost << std::endl;
 
@@ -271,7 +273,6 @@ bool MpcPathOptimizer::solve() {
     }
 
 
-    // todo: consider the condition where the start state is not on the path
 //    predicted_path_x.push_back(start_state.x);
 //    predicted_path_y.push_back(start_state.y);
     for (size_t i = 0; i != seg_list.size(); ++i) {
