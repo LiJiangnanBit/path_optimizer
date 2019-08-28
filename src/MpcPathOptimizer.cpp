@@ -227,9 +227,9 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         } else if (right_angle < -M_PI) {
             right_angle += 2 * M_PI;
         }
-        // Set 1.1m as safety distance. It should be related with the vehicle size.
-        double clearance_left = getClearanceWithDirection(state, left_angle) - 1.1;
-        double clearance_rght = getClearanceWithDirection(state, right_angle) - 1.1;
+        // Set 1.4m as safety distance. It should be related with the vehicle size.
+        double clearance_left = getClearanceWithDirection(state, left_angle) - 1.6;
+        double clearance_rght = getClearanceWithDirection(state, right_angle) - 1.6;
         std::cout << "pq bound: " << clearance_left << ", " << clearance_rght << std::endl;
         vars_lowerbound[pq_range_begin + i] = -clearance_rght;
         vars_upperbound[pq_range_begin + i] = clearance_left;
@@ -338,8 +338,12 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         state.y = tmp_y;
         state.z = tmp_heading;
         state.s = tmp_length;
-        final_path->push_back(state);
-
+//        final_path->push_back(state);
+//        if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
+//            std::cout << "no collision" << std::endl;
+//        } else {
+//            std::cout << "collision" << std::endl;
+//        }
         if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
             final_path->push_back(state);
         } else {
