@@ -27,6 +27,7 @@ message(STATUS "CMAKE SOURCE DIR:" ${CMAKE_MODULE_PATH})
 ## find system depends libraries
 find_package(IPOPT REQUIRED)
 find_package(benchmark REQUIRED)
+find_package(OpenCV REQUIRED)
 
 ###################################
 ## catkin specific configuration ##
@@ -40,8 +41,8 @@ find_package(benchmark REQUIRED)
 catkin_package(
         INCLUDE_DIRS include
         LIBRARIES ${PROJECT_NAME}
-        #        CATKIN_DEPENDS
-        #        DEPENDS
+        CATKIN_DEPENDS ${catkin_deps}
+        DEPENDS OpenCV
 )
 
 ###########
@@ -53,14 +54,15 @@ catkin_package(
 include_directories(
         include
         ${catkin_INCLUDE_DIRS}
+        ${OpenCV_INCLUDE_DIRS}
 )
 
 # Declare a C++ library
 add_library(${PROJECT_NAME}
         src/MpcPathOptimizer.cpp src/collision_checker.cpp)
-target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
-add_executable(mpc_path_optimizer_benchmark src/mpc_path_optimizer_benchmark.cpp)
-target_link_libraries(mpc_path_optimizer_benchmark glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark)
+add_executable(mpc_path_optimizer_benchmark src/mpc_path_optimizer_benchmark.cpp src/MpcPathOptimizer.cpp src/collision_checker.cpp)
+target_link_libraries(mpc_path_optimizer_benchmark glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark ${OpenCV_LIBRARIES})
