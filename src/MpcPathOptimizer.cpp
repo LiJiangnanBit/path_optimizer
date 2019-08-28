@@ -62,11 +62,11 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     double max_curvature_abs;
     double max_curvature_change_abs;
     getCurvature(x_list_, y_list_, &k_list_, &max_curvature_abs, &max_curvature_change_abs);
-    if (max_curvature_abs > 0.35) {
+    if (max_curvature_abs > 0.45) {
         LOG(WARNING) << "the ref path has large curvature, quit mpc optimization!";
         return false;
     }
-    if (max_curvature_change_abs > 0.08) {
+    if (max_curvature_change_abs > 0.12) {
         LOG(WARNING) << "the ref path has large curvature change, quit mpc optimization!";
         return false;
     }
@@ -107,7 +107,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         large_init_psi_flag_ = true;
     }
     //
-    double delta_s = 1.6;
+    double delta_s = 1.4;
     size_t N = max_s / delta_s + 1;
     if (large_init_psi_flag_) {
         LOG(INFO) << "large initial psi mode";
@@ -231,6 +231,10 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         double clearance_left = getClearanceWithDirection(state, left_angle) - 1.6;
         double clearance_rght = getClearanceWithDirection(state, right_angle) - 1.6;
         std::cout << "pq bound: " << clearance_left << ", " << clearance_rght << std::endl;
+        if (i == seg_list_.size() - 1) {
+            clearance_left = std::min(clearance_left, 1.5);
+            clearance_rght = std::min(clearance_rght, 1.5);
+        }
         vars_lowerbound[pq_range_begin + i] = -clearance_rght;
         vars_upperbound[pq_range_begin + i] = clearance_left;
     }
@@ -238,10 +242,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // the calculated path should have the same heading with the end state.
     vars_lowerbound[psi_range_begin + N - 1] = end_psi;// - end_psi_error;
     vars_upperbound[psi_range_begin + N - 1] = end_psi;// + end_psi_error;
-    // bound the lateral error of the end state .
-    vars_lowerbound[pq_range_begin + N - 1] = -1.5;
-    vars_upperbound[pq_range_begin + N - 1] = 1.5;
-    // todo: set bounds for pq to ensure the path won't collide with obstacles!
 
     // set bounds for control variables
     for (size_t i = curvature_range_begin; i < n_vars; i++) {
