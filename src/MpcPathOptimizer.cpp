@@ -295,28 +295,31 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             }
         }
         double new_angle = angle + M_PI_2;
-        double x = x_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][1] * cos(new_angle);
-        double y = y_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][1] * sin(new_angle);
-        if (std::isnan(x) || std::isnan(y)) {
+        double tmp_x = x_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][1] * cos(new_angle);
+        double tmp_y = y_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][1] * sin(new_angle);
+        double tmp_psi = predicted_path_in_frenet_[i][2];
+        double tmp_heading = tmp_psi + angle;
+        if (std::isnan(tmp_x) || std::isnan(tmp_y)) {
             LOG(WARNING) << "output is not a number, mpc path opitmization failed!" << std::endl;
             return false;
         }
         // todo: add other information maybe.
         hmpl::State state;
-        state.x = x;
-        state.y = y;
+        state.x = tmp_x;
+        state.y = tmp_y;
+        state.z = tmp_heading;
         final_path->push_back(state);
-        if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
-            std::cout << "no collision!" << std::endl;
-        } else {
-            std::cout << "collision!" << std::endl;
-        }
 //        if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
-//            final_path->push_back(state);
+//            std::cout << "no collision!" << std::endl;
 //        } else {
-//            LOG(WARNING) << "collision check of mpc path optimization failed!";
-//            return false;
+//            std::cout << "collision!" << std::endl;
 //        }
+        if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
+            final_path->push_back(state);
+        } else {
+            LOG(WARNING) << "collision check of mpc path optimization failed!";
+            return false;
+        }
 //        std::cout << "i: " << i << ", d: " << predicted_path_in_frenet[i][1] << std::endl;
     }
 
