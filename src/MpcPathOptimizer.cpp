@@ -5,33 +5,35 @@
 #include "../include/MpcPathOptimizer.hpp"
 namespace MpcSmoother {
 
-MpcPathOptimizer::MpcPathOptimizer(const std::vector<double> &x_list,
-                                   const std::vector<double> &y_list,
-                                   const State &start_state,
-                                   const State &end_state,
+MpcPathOptimizer::MpcPathOptimizer(const std::vector<hmpl::State> &points_list,
+                                   const hmpl::State &start_state,
+                                   const hmpl::State &end_state,
                                    const hmpl::InternalGridMap &map) :
     grid_map_(map),
     collision_checker_(map),
     large_init_psi_flag_(false),
-    x_list_(x_list),
-    y_list_(y_list),
+    points_list_(points_list),
     start_state_(start_state),
     end_state_(end_state) {}
 
-bool MpcPathOptimizer::solve() {
+bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     //
     // todo: the result path should be different for various initial velocity!
     //
-    CHECK(x_list_.size() == y_list_.size()) << "x and y list size not equal!";
-    point_num_ = x_list_.size();
+
+    point_num_ = points_list_.size();
 
     double s = 0;
-    s_list_.push_back(0);
-    for (size_t i = 1; i != point_num_; ++i) {
-        double ds = sqrt(pow(x_list_[i] - x_list_[i - 1], 2)
-                             + pow(y_list_[i] - y_list_[i - 1], 2));
-        s += ds;
-        s_list_.push_back(s);
+    for (size_t i = 0; i != point_num_; ++i) {
+        if (i == 0) {
+            s_list_.push_back(0);
+        } else {
+            double ds = sqrt(pow(points_list_[i].x - points_list_[i-1].x, 2) + pow(points_list_[i].y - points_list_[i-1].y, 2));
+            s += ds;
+            s_list_.push_back(s);
+        }
+        x_list_.push_back(points_list_[i].x);
+        y_list_.push_back(points_list_[i].y);
     }
     double max_s = s_list_.back();
     std::cout << "ref path length: " << max_s << std::endl;
@@ -299,20 +301,15 @@ bool MpcPathOptimizer::solve() {
             LOG(WARNING) << "output is not a number, mpc path opitmization failed!" << std::endl;
             return false;
         }
+        // todo: add other information maybe.
+        hmpl::State state;
+        state.x = x;
+        state.y = y;
+        final_path->push_back(state);
 //        std::cout << "i: " << i << ", d: " << predicted_path_in_frenet[i][1] << std::endl;
-        predicted_path_x_.push_back(x);
-        predicted_path_y_.push_back(y);
     }
 
     return true;
-}
-
-std::vector<double> &MpcPathOptimizer::getXList() {
-    return this->predicted_path_x_;
-}
-
-std::vector<double> &MpcPathOptimizer::getYList() {
-    return this->predicted_path_y_;
 }
 
 double MpcPathOptimizer::getPointCurvature(const double &x1,

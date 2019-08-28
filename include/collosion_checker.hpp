@@ -2,8 +2,8 @@
 // Created by yangt on 19-5-8.
 //
 
-#ifndef STATE_SAMPLING_COLLOSION_CHECKER_HPP
-#define STATE_SAMPLING_COLLOSION_CHECKER_HPP
+#ifndef MPC_STATE_SAMPLING_COLLOSION_CHECKER_HPP
+#define MPC_STATE_SAMPLING_COLLOSION_CHECKER_HPP
 
 #include <internal_grid_map/internal_grid_map.hpp>
 #include <car_model/car_geometry.hpp>

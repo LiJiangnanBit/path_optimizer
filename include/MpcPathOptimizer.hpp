@@ -23,32 +23,14 @@
 
 namespace MpcSmoother {
 
-enum Type { START_ON_PATH = 0, START_OFF_PATH = 1 };
-
-struct State {
-    State() = default;
-    State(double x, double y, double z, double k) :
-        x(x),
-        y(y),
-        z(z),
-        k(k) {}
-    double x{};
-    double y{};
-    double z{};
-    double k{};
-};
-
 class MpcPathOptimizer {
 public:
     MpcPathOptimizer() = delete;
-    MpcPathOptimizer(const std::vector<double> &x_list,
-                     const std::vector<double> &y_list,
-                     const State &start_state,
-                     const State &end_state,
+    MpcPathOptimizer(const std::vector<hmpl::State> &points_list,
+                     const hmpl::State &start_state,
+                     const hmpl::State &end_state,
                      const hmpl::InternalGridMap &map);
-    bool solve();
-    std::vector<double> &getXList();
-    std::vector<double> &getYList();
+    bool solve(std::vector<hmpl::State> *final_path);
 private:
     void getCurvature(const std::vector<double> &local_x,
                       const std::vector<double> &local_y,
@@ -63,6 +45,7 @@ private:
     CollisionChecker collision_checker_;
     bool large_init_psi_flag_;
 
+    const std::vector<hmpl::State>& points_list_;
     std::vector<double> x_list_;
     std::vector<double> y_list_;
     std::vector<double> k_list_;
@@ -72,16 +55,14 @@ private:
     double cte_;  // lateral error
     double epsi_; // navigable error
     size_t point_num_;
-    State start_state_;
-    State end_state_;
+    hmpl::State start_state_;
+    hmpl::State end_state_;
     // x_spline and y_spline are in global frame
     tk::spline x_spline_;
     tk::spline y_spline_;
     tk::spline k_spline_;
 
     std::vector<std::vector<double> > predicted_path_in_frenet_;
-    std::vector<double> predicted_path_x_;
-    std::vector<double> predicted_path_y_;
 
 };
 
