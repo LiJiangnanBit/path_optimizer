@@ -78,7 +78,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     double start_ref_angle = 0;
     // calculate the start angle of the reference path.
     if (x_spline_.deriv(1, 0) == 0) {
-        start_ref_angle = 0;
+        start_ref_angle = M_PI_2;
     } else {
         start_ref_angle = atan(y_spline_.deriv(1, 0) / x_spline_.deriv(1, 0));
     }
@@ -133,7 +133,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         double length_on_ref_path = seg_list_[i];
         double angle;
         if (x_spline_.deriv(1, length_on_ref_path) == 0) {
-            angle = 0;
+            angle = M_PI_2;
         } else {
             angle = atan(y_spline_.deriv(1, length_on_ref_path) / x_spline_.deriv(1, length_on_ref_path));
         }
@@ -155,7 +155,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     double pq = cte_;
     double end_ref_angle;
     if (x_spline_.deriv(1, s_list_.back()) == 0) {
-        end_ref_angle = 0;
+        end_ref_angle = M_PI_2;
     } else {
         end_ref_angle = atan(y_spline_.deriv(1, s_list_.back()) / x_spline_.deriv(1, s_list_.back()));
     }
