@@ -31,6 +31,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     double front_l = 2.5;
     double rear_circle_distance = rear_l - car_width / 2;
     double front_circle_distance = front_l - car_width / 2;
+    // vector car_geo is for function getClearanceWithDirection.
     std::vector<double> car_geo;
     car_geo.push_back(rear_circle_distance);
     car_geo.push_back(front_circle_distance);
@@ -389,7 +390,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 double MpcPathOptimizer::getClearanceWithDirection(hmpl::State state,
                                                    double angle,
                                                    const std::vector<double> &car_geometry) {
-//    std::cout << "geo: " << car_geometry[0] << " " << car_geometry[1] << " " << car_geometry[2] << " " << car_geometry[3] << std::endl;
     double s = 0;
     double delta_s = 0.2;
     size_t n = 5.0 / delta_s;
@@ -404,11 +404,14 @@ double MpcPathOptimizer::getClearanceWithDirection(hmpl::State state,
         grid_map::Position new_position(x, y);
         grid_map::Position new_rear_position(rear_x, rear_y);
         grid_map::Position new_front_position(front_x, front_y);
-        double new_rear_clearance = grid_map_.getObstacleDistance(new_rear_position);
-        double new_front_clearance = grid_map_.getObstacleDistance(new_front_position);
-        double new_middle_clearance = grid_map_.getObstacleDistance(new_position);
-//        std::cout << "clearance: " << new_rear_clearance << " " << new_middle_clearance << " " << new_front_clearance << std::endl;
-        if (std::min(new_rear_clearance, new_front_clearance) < car_geometry[2] || new_middle_clearance < car_geometry[3]) {
+        if (grid_map_.maps.isInside(new_position) && grid_map_.maps.isInside(new_rear_position) && grid_map_.maps.isInside(new_front_position)) {
+            double new_rear_clearance = grid_map_.getObstacleDistance(new_rear_position);
+            double new_front_clearance = grid_map_.getObstacleDistance(new_front_position);
+            double new_middle_clearance = grid_map_.getObstacleDistance(new_position);
+            if (std::min(new_rear_clearance, new_front_clearance) < car_geometry[2] || new_middle_clearance < car_geometry[3]) {
+                return s - delta_s;
+            }
+        } else {
             return s - delta_s;
         }
     }
@@ -424,7 +427,11 @@ double MpcPathOptimizer::getClearanceWithDirection(hmpl::State state, double ang
         double x = state.x + s * cos(angle);
         double y = state.y + s * sin(angle);
         grid_map::Position new_position(x, y);
-        if (grid_map_.maps.atPosition("obstacle", new_position) == 0) {
+        if (grid_map_.maps.isInside(new_position)) {
+            if (grid_map_.maps.atPosition("obstacle", new_position) == 0) {
+                return s - delta_s;
+            }
+        } else {
             return s - delta_s;
         }
     }
