@@ -13,6 +13,7 @@ MpcPathOptimizer::MpcPathOptimizer(const std::vector<hmpl::State> &points_list,
     collision_checker_(map),
     large_init_psi_flag_(false),
     points_list_(points_list),
+    point_num_(points_list.size()),
     start_state_(start_state),
     end_state_(end_state) {}
 
@@ -21,7 +22,27 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // todo: the result path should be different for various initial velocity!
     //
 
-    point_num_ = points_list_.size();
+    // Set the car geometry.
+    // todo: use a config file.
+    // todo: consider back up situation
+    double car_width = 2.2;
+    double car_length = 5;
+    double rear_l = 2.5;
+    double front_l = 2.5;
+    double rear_circle_distance = rear_l - car_width / 2;
+    double front_circle_distance = front_l - car_width / 2;
+    std::vector<double> car_geo;
+    car_geo.push_back(rear_circle_distance);
+    car_geo.push_back(front_circle_distance);
+    double rear_front_r = sqrt(pow(car_width / 2, 2) + pow(car_width / 2, 2));
+    double middle_r;
+    if (car_length > 2 * car_width) {
+        middle_r = sqrt(pow(std::max(rear_l, front_l) - car_width, 2) + pow(car_width / 2, 2));
+    } else {
+        middle_r = 0;
+    }
+    car_geo.push_back(rear_front_r);
+    car_geo.push_back(middle_r);
 
     double s = 0;
     for (size_t i = 0; i != point_num_; ++i) {
@@ -215,6 +236,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         hmpl::State state;
         state.x = x;
         state.y = y;
+        state.z = angle_list_[i];
         double left_angle = angle_list_[i] + M_PI_2;
         double right_angle = angle_list_[i] - M_PI_2;
         if (left_angle > M_PI) {
@@ -227,14 +249,16 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         } else if (right_angle < -M_PI) {
             right_angle += 2 * M_PI;
         }
+        double clearance_left = getClearanceWithDirection(state, left_angle, car_geo);
+        double clearance_right = getClearanceWithDirection(state, right_angle, car_geo);
         // Set safety distance. It should be related with the vehicle size.
-        double clearance_left = getClearanceWithDirection(state, left_angle);
-        double clearance_right = getClearanceWithDirection(state, right_angle);
-        double safety_distance_left = clearance_left / 5.0 * 3.6;
-        double safety_distance_right = clearance_right / 5.0 * 3.6;
-        clearance_left -= safety_distance_left;
-        clearance_right -= safety_distance_right;
-        std::cout << "upper & lower bound: " << clearance_left << ", " << -clearance_right << std::endl;
+//        double clearance_left = getClearanceWithDirection(state, left_angle);
+//        double clearance_right = getClearanceWithDirection(state, right_angle);
+//        double safety_distance_left = clearance_left / 5.0 * 3.6;
+//        double safety_distance_right = clearance_right / 5.0 * 3.6;
+//        clearance_left -= safety_distance_left;
+//        clearance_right -= safety_distance_right;
+//        std::cout << "upper & lower bound: " << clearance_left << ", " << -clearance_right << std::endl;
         if (i == seg_list_.size() - 1) {
             clearance_left = std::min(clearance_left, 1.5);
             clearance_right = std::min(clearance_right, 1.5);
@@ -360,6 +384,35 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         }
     }
     return true;
+}
+
+double MpcPathOptimizer::getClearanceWithDirection(hmpl::State state,
+                                                   double angle,
+                                                   const std::vector<double> &car_geometry) {
+//    std::cout << "geo: " << car_geometry[0] << " " << car_geometry[1] << " " << car_geometry[2] << " " << car_geometry[3] << std::endl;
+    double s = 0;
+    double delta_s = 0.2;
+    size_t n = 5.0 / delta_s;
+    for (size_t i = 0; i != n; ++i) {
+        s += delta_s;
+        double x = state.x + s * cos(angle);
+        double y = state.y + s * sin(angle);
+        double rear_x = x - car_geometry[0] * cos(state.z);
+        double rear_y = y - car_geometry[0] * sin(state.z);
+        double front_x = x + car_geometry[1] * cos(state.z);
+        double front_y = y + car_geometry[1] * sin(state.z);
+        grid_map::Position new_position(x, y);
+        grid_map::Position new_rear_position(rear_x, rear_y);
+        grid_map::Position new_front_position(front_x, front_y);
+        double new_rear_clearance = grid_map_.getObstacleDistance(new_rear_position);
+        double new_front_clearance = grid_map_.getObstacleDistance(new_front_position);
+        double new_middle_clearance = grid_map_.getObstacleDistance(new_position);
+//        std::cout << "clearance: " << new_rear_clearance << " " << new_middle_clearance << " " << new_front_clearance << std::endl;
+        if (std::min(new_rear_clearance, new_front_clearance) < car_geometry[2] || new_middle_clearance < car_geometry[3]) {
+            return s - delta_s;
+        }
+    }
+    return s;
 }
 
 double MpcPathOptimizer::getClearanceWithDirection(hmpl::State state, double angle) {
