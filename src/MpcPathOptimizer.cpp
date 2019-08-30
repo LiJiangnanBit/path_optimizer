@@ -102,23 +102,10 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     if (x_spline_.deriv(1, 0) == 0) {
         start_ref_angle = M_PI_2;
     } else {
-        start_ref_angle = atan(y_spline_.deriv(1, 0) / x_spline_.deriv(1, 0));
-    }
-    if (x_spline_.deriv(1, 0) < 0) {
-        if (start_ref_angle > 0) {
-            start_ref_angle -= M_PI;
-        } else if (start_ref_angle < 0) {
-            start_ref_angle += M_PI;
-        }
+        start_ref_angle = atan2(y_spline_.deriv(1, 0), x_spline_.deriv(1, 0));
     }
     // calculate the difference between the start angle of the reference path ande the angle of start state.
-    epsi_ = start_state_.z - start_ref_angle;
-    // keep the angle between -π and π.
-    if (epsi_ > M_PI) {
-        epsi_ -= 2 * M_PI;
-    } else if (epsi_ < -M_PI) {
-        epsi_ += 2 * M_PI;
-    }
+    epsi_ = constraintAngle(start_state_.z - start_ref_angle);
     if (fabs(epsi_) > 80 * M_PI / 180) {
         LOG(WARNING) << "initial epsi is larger than 80°, quit mpc path optimization!";
         return false;
@@ -157,14 +144,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         if (x_spline_.deriv(1, length_on_ref_path) == 0) {
             angle = M_PI_2;
         } else {
-            angle = atan(y_spline_.deriv(1, length_on_ref_path) / x_spline_.deriv(1, length_on_ref_path));
-        }
-        if (x_spline_.deriv(1, length_on_ref_path) < 0) {
-            if (angle > 0) {
-                angle -= M_PI;
-            } else if (angle < 0) {
-                angle += M_PI;
-            }
+            angle = atan2(y_spline_.deriv(1, length_on_ref_path), x_spline_.deriv(1, length_on_ref_path));
         }
         angle_list_.push_back(angle);
     }
@@ -179,21 +159,9 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     if (x_spline_.deriv(1, s_list_.back()) == 0) {
         end_ref_angle = M_PI_2;
     } else {
-        end_ref_angle = atan(y_spline_.deriv(1, s_list_.back()) / x_spline_.deriv(1, s_list_.back()));
+        end_ref_angle = atan2(y_spline_.deriv(1, s_list_.back()), x_spline_.deriv(1, s_list_.back()));
     }
-    if (x_spline_.deriv(1, s_list_.back()) < 0) {
-        if (end_ref_angle > 0) {
-            end_ref_angle -= M_PI;
-        } else if (end_ref_angle < 0) {
-            end_ref_angle += M_PI;
-        }
-    }
-    double end_psi = end_state_.z - end_ref_angle;
-    if (end_psi > M_PI) {
-        end_psi -= 2 * M_PI;
-    } else if (end_psi < -M_PI) {
-        end_psi += 2 * M_PI;
-    }
+    double end_psi = constraintAngle(end_state_.z - end_ref_angle);
     if (fabs(end_psi) > M_PI_2) {
         LOG(WARNING) << "end psi is larger than 90°, quit mpc path optimization!";
         return false;
@@ -238,18 +206,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         state.x = x;
         state.y = y;
         state.z = angle_list_[i];
-        double left_angle = angle_list_[i] + M_PI_2;
-        double right_angle = angle_list_[i] - M_PI_2;
-        if (left_angle > M_PI) {
-            left_angle -= 2 * M_PI;
-        } else if (left_angle < -M_PI) {
-            left_angle += 2 * M_PI;
-        }
-        if (right_angle > M_PI) {
-            right_angle -= 2 * M_PI;
-        } else if (right_angle < -M_PI) {
-            right_angle += 2 * M_PI;
-        }
+        double left_angle = constraintAngle(angle_list_[i] + M_PI_2);
+        double right_angle = constraintAngle(angle_list_[i] - M_PI_2);
         double clearance_left = getClearanceWithDirection(state, left_angle, car_geo);
         double clearance_right = getClearanceWithDirection(state, right_angle, car_geo);
         // Set safety distance. It should be related with the vehicle size.
@@ -364,6 +322,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             LOG(WARNING) << "output is not a number, mpc path opitmization failed!" << std::endl;
             return false;
         }
+        // To output raw result, uncomment code below and comment the B spline part.
 //        hmpl::State state;
 //        state.x = tmp_x;
 //        state.y = tmp_y;

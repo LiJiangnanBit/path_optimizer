@@ -94,7 +94,7 @@ public:
             AD<double> k0 = k_s(Value(s_on_path));
             AD<double> tmp_ds = ds / CppAD::cos(psi0) * (1 - q0 * k0);
 
-            AD<double> alpha = psi0 + tmp_ds * curvature0 / 2;
+            AD<double> alpha = i == 0 ? psi0 : psi0 + tmp_ds * curvature0 / 2;
             AD<double> r = 1 / curvature0;
 //            AD<double> len = CppAD::sqrt(2 * pow(r, 2) * (1 - CppAD::cos(tmp_ds * curvature0)));
 

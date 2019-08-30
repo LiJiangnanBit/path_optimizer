@@ -46,6 +46,15 @@ private:
                                      const std::vector<double> &car_geometry);
     double getClearanceWithDirection(hmpl::State state,
                                      double angle);
+    // Set angle range to -pi ~ pi.
+    inline double constraintAngle(double angle) {
+        if (angle > M_PI) {
+            angle -= 2 * M_PI;
+        } else if (angle < -M_PI) {
+            angle += 2 * M_PI;
+        }
+        return angle;
+    }
 
     hmpl::InternalGridMap grid_map_;
     CollisionChecker collision_checker_;
