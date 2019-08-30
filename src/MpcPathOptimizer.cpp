@@ -217,7 +217,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 //        double safety_distance_right = clearance_right / 5.0 * 3.6;
 //        clearance_left -= safety_distance_left;
 //        clearance_right -= safety_distance_right;
-//        std::cout << "upper & lower bound: " << clearance_left << ", " << -clearance_right << std::endl;
+//        std::cout << i << " upper & lower bound: " << clearance_left << ", " << -clearance_right << std::endl;
         if (i == N - 1) {
             clearance_left = std::min(clearance_left, 1.5);
             clearance_right = std::min(clearance_right, 1.5);
@@ -315,9 +315,9 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         double new_angle = angle + M_PI_2;
         double tmp_x = x_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][1] * cos(new_angle);
         double tmp_y = y_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][1] * sin(new_angle);
-        double tmp_psi = predicted_path_in_frenet_[i][2];
-        double tmp_heading = tmp_psi + angle;
-        double tmp_length = predicted_path_in_frenet_[i][0];
+//        double tmp_psi = predicted_path_in_frenet_[i][2];
+//        double tmp_heading = tmp_psi + angle;
+//        double tmp_length = predicted_path_in_frenet_[i][0];
         if (std::isnan(tmp_x) || std::isnan(tmp_y)) {
             LOG(WARNING) << "output is not a number, mpc path opitmization failed!" << std::endl;
             return false;
@@ -328,14 +328,14 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 //        state.y = tmp_y;
 //        state.z = tmp_heading;
 //        state.s = tmp_length;
-
-//        final_path->push_back(state);
-//        if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
-//            std::cout << "no collision" << std::endl;
-//        } else {
-//            std::cout << "collision" << std::endl;
-//        }
-
+//
+////        final_path->push_back(state);
+////        if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
+////            std::cout << "no collision" << std::endl;
+////        } else {
+////            std::cout << "collision" << std::endl;
+////        }
+//
 //        if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
 //            final_path->push_back(state);
 //        } else {
@@ -349,6 +349,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         ctrlp[2 * i] = tmp_x;
         ctrlp[2 * i + 1] = tmp_y;
     }
+    // B spline
     b_spline.setControlPoints(ctrlp);
     double step_t = 1.0 / (3.0 * N);
     for (size_t i = 0; i < 3 * N; ++i) {
@@ -359,10 +360,12 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         state.y = result[1];
         if (i == 0) {
             state.z = start_state_.z;
+            state.s = 0;
         } else {
-            double dx = result[0] - (*final_path)[i-1].x;
-            double dy = result[1] - (*final_path)[i-1].y;
+            double dx = result[0] - (*final_path)[i - 1].x;
+            double dy = result[1] - (*final_path)[i - 1].y;
             state.z = atan2(dy, dx);
+            state.s = sqrt(pow(dx, 2) + pow(dy, 2));
         }
         if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
             final_path->push_back(state);
