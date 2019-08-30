@@ -21,7 +21,10 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     //
     // todo: the result path should be different for various initial velocity!
     //
-
+    if (point_num_ == 0) {
+        LOG(INFO) << "path input is empty!";
+        return false;
+    }
     // Set the car geometry.
     // todo: use a config file.
     // todo: consider back up situation
@@ -210,13 +213,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         double right_angle = constraintAngle(angle_list_[i] - M_PI_2);
         double clearance_left = getClearanceWithDirection(state, left_angle, car_geo);
         double clearance_right = getClearanceWithDirection(state, right_angle, car_geo);
-        // Set safety distance. It should be related with the vehicle size.
-//        double clearance_left = getClearanceWithDirection(state, left_angle);
-//        double clearance_right = getClearanceWithDirection(state, right_angle);
-//        double safety_distance_left = clearance_left / 5.0 * 3.6;
-//        double safety_distance_right = clearance_right / 5.0 * 3.6;
-//        clearance_left -= safety_distance_left;
-//        clearance_right -= safety_distance_right;
 //        std::cout << i << " upper & lower bound: " << clearance_left << ", " << -clearance_right << std::endl;
         if (i == N - 1) {
             clearance_left = std::min(clearance_left, 1.5);
