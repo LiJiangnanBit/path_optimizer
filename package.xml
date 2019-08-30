@@ -53,6 +53,7 @@
   <depend>internal_grid_map</depend>
   <depend>grid_map_ros</depend>
   <depend>car_model</depend>
+  <depend>tinyspline_ros</depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

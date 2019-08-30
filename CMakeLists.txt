@@ -14,6 +14,7 @@ set(catkin_deps
         grid_map_ros
         internal_grid_map
         car_model
+        tinyspline_ros
         )
 
 find_package(catkin REQUIRED COMPONENTS

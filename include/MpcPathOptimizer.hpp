@@ -15,6 +15,7 @@
 #include <chrono>
 #include <opt_utils/utils.hpp>
 #include <internal_grid_map/internal_grid_map.hpp>
+#include "tinyspline_ros/tinysplinecpp.h"
 #include "spline.h"
 #include "FgEvalFrenet.hpp"
 #include "collosion_checker.hpp"

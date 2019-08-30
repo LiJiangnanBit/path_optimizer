@@ -151,7 +151,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
 
     // angle may be used more than once, so store them in a vector.
-    for (size_t i = 0; i != seg_list_.size(); ++i) {
+    for (size_t i = 0; i != N; ++i) {
         double length_on_ref_path = seg_list_[i];
         double angle;
         if (x_spline_.deriv(1, length_on_ref_path) == 0) {
@@ -230,7 +230,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
     // Set pq bounds according to the distance to obstacles.
     // Start from the second point, because the first point is fixed.
-    for (size_t i = 1; i != seg_list_.size(); ++i) {
+    for (size_t i = 1; i != N; ++i) {
         double length_on_ref = seg_list_[i];
         double x = x_spline_(length_on_ref);
         double y = y_spline_(length_on_ref);
@@ -260,7 +260,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 //        clearance_left -= safety_distance_left;
 //        clearance_right -= safety_distance_right;
 //        std::cout << "upper & lower bound: " << clearance_left << ", " << -clearance_right << std::endl;
-        if (i == seg_list_.size() - 1) {
+        if (i == N - 1) {
             clearance_left = std::min(clearance_left, 1.5);
             clearance_right = std::min(clearance_right, 1.5);
         }
@@ -349,7 +349,9 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         this->predicted_path_in_frenet_.push_back(v);
     }
 
-    for (size_t i = 0; i != seg_list_.size(); ++i) {
+    tinyspline::BSpline b_spline(N);
+    std::vector<tinyspline::real> ctrlp = b_spline.controlPoints();
+    for (size_t i = 0; i != N; ++i) {
         double length_on_ref_path = seg_list_[i];
         double angle = angle_list_[i];
         double new_angle = angle + M_PI_2;
@@ -362,17 +364,47 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             LOG(WARNING) << "output is not a number, mpc path opitmization failed!" << std::endl;
             return false;
         }
-        hmpl::State state;
-        state.x = tmp_x;
-        state.y = tmp_y;
-        state.z = tmp_heading;
-        state.s = tmp_length;
+//        hmpl::State state;
+//        state.x = tmp_x;
+//        state.y = tmp_y;
+//        state.z = tmp_heading;
+//        state.s = tmp_length;
+
 //        final_path->push_back(state);
 //        if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
 //            std::cout << "no collision" << std::endl;
 //        } else {
 //            std::cout << "collision" << std::endl;
 //        }
+
+//        if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
+//            final_path->push_back(state);
+//        } else {
+//            if (state.s > 30) {
+//                return true;
+//            }
+//            LOG(WARNING) << "collision check of mpc path optimization failed!";
+//            final_path->clear();
+//            return false;
+//        }
+        ctrlp[2 * i] = tmp_x;
+        ctrlp[2 * i + 1] = tmp_y;
+    }
+    b_spline.setControlPoints(ctrlp);
+    double step_t = 1.0 / (3.0 * N);
+    for (size_t i = 0; i < 3 * N; ++i) {
+        double t = i * step_t;
+        std::vector<tinyspline::real> result = b_spline.eval(t).result();
+        hmpl::State state;
+        state.x = result[0];
+        state.y = result[1];
+        if (i == 0) {
+            state.z = start_state_.z;
+        } else {
+            double dx = result[0] - (*final_path)[i-1].x;
+            double dy = result[1] - (*final_path)[i-1].y;
+            state.z = atan2(dy, dx);
+        }
         if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
             final_path->push_back(state);
         } else {
@@ -404,11 +436,13 @@ double MpcPathOptimizer::getClearanceWithDirection(hmpl::State state,
         grid_map::Position new_position(x, y);
         grid_map::Position new_rear_position(rear_x, rear_y);
         grid_map::Position new_front_position(front_x, front_y);
-        if (grid_map_.maps.isInside(new_position) && grid_map_.maps.isInside(new_rear_position) && grid_map_.maps.isInside(new_front_position)) {
+        if (grid_map_.maps.isInside(new_position) && grid_map_.maps.isInside(new_rear_position)
+            && grid_map_.maps.isInside(new_front_position)) {
             double new_rear_clearance = grid_map_.getObstacleDistance(new_rear_position);
             double new_front_clearance = grid_map_.getObstacleDistance(new_front_position);
             double new_middle_clearance = grid_map_.getObstacleDistance(new_position);
-            if (std::min(new_rear_clearance, new_front_clearance) < car_geometry[2] || new_middle_clearance < car_geometry[3]) {
+            if (std::min(new_rear_clearance, new_front_clearance) < car_geometry[2]
+                || new_middle_clearance < car_geometry[3]) {
                 return s - delta_s;
             }
         } else {
