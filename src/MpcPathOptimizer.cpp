@@ -87,14 +87,14 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     double max_curvature_abs;
     double max_curvature_change_abs;
     getCurvature(x_list_, y_list_, &k_list_, &max_curvature_abs, &max_curvature_change_abs);
-    if (max_curvature_abs > 0.45) {
-        LOG(WARNING) << "the ref path has large curvature, quit mpc optimization!";
-        return false;
-    }
-    if (max_curvature_change_abs > 0.12) {
-        LOG(WARNING) << "the ref path has large curvature change, quit mpc optimization!";
-        return false;
-    }
+//    if (max_curvature_abs > 0.45) {
+//        LOG(WARNING) << "the ref path has large curvature, quit mpc optimization!";
+//        return false;
+//    }
+//    if (max_curvature_change_abs > 0.12) {
+//        LOG(WARNING) << "the ref path has large curvature change, quit mpc optimization!";
+//        return false;
+//    }
 
     k_spline_.set_points(s_list_, k_list_);
 
@@ -269,8 +269,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // weights of the cost function
     // todo: use a config file
     std::vector<double> weights;
-    weights.push_back(0.3); //cost_func_cte_weight
-    weights.push_back(11); //cost_func_epsi_weight
+    weights.push_back(0); //cost_func_cte_weight
+    weights.push_back(0); //cost_func_epsi_weight
     weights.push_back(80); //cost_func_curvature_weight
     weights.push_back(2500); //cost_func_curvature_rate_weight
     bool isback = false;
