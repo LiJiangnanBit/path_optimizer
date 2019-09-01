@@ -115,9 +115,9 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
 
     // if the initial psi is large, use smaller step size(sampling time) at early stage.
-    if (fabs(epsi_) > M_PI / 4) {
+//    if (fabs(epsi_) > M_PI / 6) {
         large_init_psi_flag_ = true;
-    }
+//    }
     //
     double delta_s = 1.4;
     size_t N = max_s / delta_s + 1;
@@ -201,6 +201,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
     // Set pq bounds according to the distance to obstacles.
     // Start from the second point, because the first point is fixed.
+    double min_clearance = DBL_MAX;
     for (size_t i = 1; i != N; ++i) {
         double length_on_ref = seg_list_[i];
         double x = x_spline_(length_on_ref);
@@ -213,7 +214,11 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         double right_angle = constraintAngle(angle_list_[i] - M_PI_2);
         double clearance_left = getClearanceWithDirection(state, left_angle, car_geo);
         double clearance_right = getClearanceWithDirection(state, right_angle, car_geo);
-//        std::cout << i << " upper & lower bound: " << clearance_left << ", " << -clearance_right << std::endl;
+        std::cout << i << " upper & lower bound: " << clearance_left << ", " << -clearance_right << std::endl;
+
+        double clearance = clearance_left + clearance_right;
+        min_clearance = std::min(clearance, min_clearance);
+
         if (i == N - 1) {
             clearance_left = std::min(clearance_left, 1.5);
             clearance_right = std::min(clearance_right, 1.5);
@@ -222,10 +227,13 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         vars_upperbound[pq_range_begin + i] = clearance_left;
     }
 
-    // the calculated path should have the same heading with the end state.
-    vars_lowerbound[psi_range_begin + N - 1] = end_psi;// - end_psi_error;
-    vars_upperbound[psi_range_begin + N - 1] = end_psi;// + end_psi_error;
-
+    // The calculated path should have the same end heading with the end state,
+    // but in narrow environment, such constraint might cause failure. So only
+    // constraint end psi when minimum clearance is larger than 4m.
+    if (min_clearance > 4) {
+        vars_lowerbound[psi_range_begin + N - 1] = end_psi;// - end_psi_error;
+        vars_upperbound[psi_range_begin + N - 1] = end_psi;// + end_psi_error;
+    }
     // set bounds for control variables
     for (size_t i = curvature_range_begin; i < n_vars; i++) {
         vars_lowerbound[i] = -MAX_CURVATURE;
@@ -381,7 +389,7 @@ double MpcPathOptimizer::getClearanceWithDirection(hmpl::State state,
                                                    double angle,
                                                    const std::vector<double> &car_geometry) {
     double s = 0;
-    double delta_s = 0.2;
+    double delta_s = 0.1;
     size_t n = 5.0 / delta_s;
     for (size_t i = 0; i != n; ++i) {
         s += delta_s;
@@ -412,7 +420,7 @@ double MpcPathOptimizer::getClearanceWithDirection(hmpl::State state,
 
 double MpcPathOptimizer::getClearanceWithDirection(hmpl::State state, double angle) {
     double s = 0;
-    double delta_s = 0.2;
+    double delta_s = 0.1;
     size_t n = 5.0 / delta_s;
     for (size_t i = 0; i != n; ++i) {
         s += delta_s;
