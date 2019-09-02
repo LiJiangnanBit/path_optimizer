@@ -20,7 +20,7 @@
 #include "FgEvalFrenet.hpp"
 #include "collosion_checker.hpp"
 
-#define MAX_CURVATURE 0.5
+#define MAX_CURVATURE 0.3
 
 namespace MpcSmoother {
 
@@ -50,10 +50,13 @@ private:
     inline double constraintAngle(double angle) {
         if (angle > M_PI) {
             angle -= 2 * M_PI;
+            return constraintAngle(angle);
         } else if (angle < -M_PI) {
             angle += 2 * M_PI;
+            return constraintAngle(angle);
+        } else {
+            return angle;
         }
-        return angle;
     }
 
     hmpl::InternalGridMap grid_map_;

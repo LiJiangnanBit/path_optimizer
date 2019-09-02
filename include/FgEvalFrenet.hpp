@@ -44,10 +44,13 @@ public:
     inline DOUBLE_TYPE constraintAngle(DOUBLE_TYPE angle) {
         if (angle > M_PI) {
             angle -= 2 * M_PI;
+            return constraintAngle(angle);
         } else if (angle < -M_PI) {
             angle += 2 * M_PI;
+            return constraintAngle(angle);
+        } else{
+            return angle;
         }
-        return angle;
     }
 
     AD<double> getPointCurvature(const AD<double> &x1,
@@ -116,7 +119,6 @@ public:
         fg[cons_pq_range_begin + 1] = vars[pq_range_begin + 1];
         fg[cons_heading_range_begin] = vars[heading_range_begin];
 
-        std::cout << "N: " << N << std::endl;
         // The rest of the constraints
         for (size_t i = 1; i <= N - 2; i++) {
             size_t i_before = i - 1;
@@ -145,49 +147,38 @@ public:
             AD<double> x = ref_x + pq * CppAD::cos(constraintAngle(ref_angle + M_PI_2));
             AD<double> y = ref_y + pq * CppAD::sin(constraintAngle(ref_angle + M_PI_2));
             AD<double> ds = CppAD::sqrt(CppAD::pow(x - x_before, 2) + CppAD::pow(y - y_before, 2));
-//            AD<double> ds = CppAD::fabs(x - x_before) / CppAD::cos(heading_before);
+//
+//            AD<double> ds = CppAD::fabs((x - x_before) / CppAD::cos(heading_before));
 
             AD<double> x_after = ref_x_after + pq_after * CppAD::cos(constraintAngle(ref_angle_after + M_PI_2));
             AD<double> y_after = ref_y_after + pq_after * CppAD::sin(constraintAngle(ref_angle_after + M_PI_2));
+//            AD<double> ds_after = CppAD::sqrt(CppAD::pow(x - x_after, 2) + CppAD::pow(y - y_after, 2));
 
             AD<double> heading_by_position = CppAD::atan2(y_after - y, x_after - x);
-//            AD<double> curvature_by_position = getPointCurvature(x_before, y_before, x, y, x_after, y_after);
-            AD<double> curvature_by_position = (heading_by_position - heading_before) / ds;
-
+//            AD<double> psi_before = CppAD::atan((pq - pq_before) / (seg_s_list_[i] - seg_s_list_[i_before]));
+//            AD<double> psi = CppAD::atan((pq_after - pq) / (seg_s_list_[i_after] - seg_s_list_[i]));
+//            AD<double> curvature_by_position = (psi - psi_before) / ds;
+//            AD<double> curvature_by_position = fabs(heading - heading_before) < M_PI ? (heading - heading_before) / ds :
+//                                               (heading - heading_before > M_PI ? (heading - heading_before - 2 * M_PI) :
+//                                                (heading - heading_before + 2 * M_PI));
+//            AD<double> angle_diff_before = CppAD::atan((y - y_before) / (x - x_before));
+//            AD<double> angle_diff = CppAD::atan((y_after - y) / (x_after - x));
+//            AD<double> curvature_by_position = (angle_diff - angle_diff_before) / ds;
+//            AD<double> curvature_by_position = CppAD::acos(CppAD::cos(heading - heading_before)) / ds;
+//            AD<double> curvature_by_position = CppAD::acos(((x - x_before) * (x_after - x) + (y - y_before) * (y_after - y)) / ds / ds_after) / ds;
+//            AD<double> sign = (x - x_before) / CppAD::fabs(x - x_before);
+//            AD<double>
+            AD<double> curvature_by_position;
+            if (seg_x_list_[i] - seg_x_list_[i_before] < 0) {
+                AD<double> new_heading = CppAD::atan2(-y_after + y, -x_after + x);
+                AD<double> new_heading_before = CppAD::atan2(-y + y_before, -x + x_before);
+                curvature_by_position = (new_heading - new_heading_before) / ds;
+            } else {
+                curvature_by_position = (heading - heading_before) / ds;
+            }
 
             fg[cons_heading_range_begin + i] = heading - heading_by_position;
             fg[cons_curvature_range_begin + i - 1] = curvature - curvature_by_position;
-
-
-
-//            // Only consider the actuation at time t.
-//            AD<double> curvature0 = vars[curvature_range_begin + i];
-//            // The state at time t+1 .
-//            AD<double> s1 = vars[ps_range_begin + i + 1];
-//            AD<double> q1 = vars[pq_range_begin + i + 1];
-//            AD<double> psi1 = vars[psi_range_begin + i + 1];
-//            // The state at time t.
-//            AD<double> s0 = vars[ps_range_begin + i];
-//            AD<double> q0 = vars[pq_range_begin + i];
-//            AD<double> psi0 = vars[psi_range_begin + i];
-//
-//
-////            AD<double> tmp_s = Var2Par(s0);
-//            AD<double> s_on_path = seg_list[i];
-//            AD<double> ds = seg_list[i + 1] - seg_list[i];
-//            AD<double> k0 = k_s(Value(s_on_path));
-//            AD<double> tmp_ds = ds / CppAD::cos(psi0) * (1 - q0 * k0);
-//
-//            AD<double> alpha = i == 0 ? psi0 : psi0 + tmp_ds * curvature0 / 2;
-//            AD<double> r = 1 / curvature0;
-////            AD<double> len = CppAD::sqrt(2 * pow(r, 2) * (1 - CppAD::cos(tmp_ds * curvature0)));
-//
-//            AD<double> dq_ref = (1 - CppAD::cos(ds * k0)) / k0;
-//
-//            fg[2 + ps_range_begin + i] = s1 - (s0 + tmp_ds);
-//            fg[2 + pq_range_begin + i] = q1 - (q0 + tmp_ds * CppAD::sin(alpha) - dq_ref);
-////            fg[2 + pq_range_begin + i] = q1 - (q0 + tmp_ds * CppAD::sin(psi0));
-//            fg[2 + psi_range_begin + i] = psi1 - (psi0 + (tmp_ds * curvature0 - ds * k0));
         }
     }
 };

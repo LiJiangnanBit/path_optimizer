@@ -87,14 +87,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     double max_curvature_abs;
     double max_curvature_change_abs;
     getCurvature(x_list_, y_list_, &k_list_, &max_curvature_abs, &max_curvature_change_abs);
-//    if (max_curvature_abs > 0.45) {
-//        LOG(WARNING) << "the ref path has large curvature, quit mpc optimization!";
-//        return false;
-//    }
-//    if (max_curvature_change_abs > 0.12) {
-//        LOG(WARNING) << "the ref path has large curvature change, quit mpc optimization!";
-//        return false;
-//    }
 
     k_spline_.set_points(s_list_, k_list_);
 
@@ -119,7 +111,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         large_init_psi_flag_ = true;
 //    }
     // Divide reference path.
-    double delta_s = 1.4;
+    double delta_s = 1.6;
     size_t N = max_s / delta_s + 1;
     if (large_init_psi_flag_) {
         LOG(INFO) << "large initial psi mode";
@@ -165,10 +157,10 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         end_ref_angle = atan2(y_spline_.deriv(1, s_list_.back()), x_spline_.deriv(1, s_list_.back()));
     }
     double end_psi = constraintAngle(end_state_.z - end_ref_angle);
-//    if (fabs(end_psi) > M_PI_2) {
-//        LOG(WARNING) << "end psi is larger than 90°, quit mpc path optimization!";
-//        return false;
-//    }
+    if (fabs(end_psi) > M_PI_2) {
+        LOG(WARNING) << "end psi is larger than 90°, quit mpc path optimization!";
+        return false;
+    }
 
     typedef CPPAD_TESTVECTOR(double) Dvector;
     // n_vars: Set the number of model variables (includes both states and inputs).
@@ -214,7 +206,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         double right_angle = constraintAngle(seg_angle_list_[i] - M_PI_2);
         double clearance_left = getClearanceWithDirection(state, left_angle, car_geo);
         double clearance_right = getClearanceWithDirection(state, right_angle, car_geo);
-//        std::cout << i << " upper & lower bound: " << clearance_left << ", " << -clearance_right << std::endl;
+        std::cout << i << " upper & lower bound: " << clearance_left << ", " << -clearance_right << std::endl;
 
         double clearance = clearance_left + clearance_right;
         min_clearance = std::min(clearance, min_clearance);
@@ -240,7 +232,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // The calculated path should have the same end heading with the end state,
     // but in narrow environment, such constraint might cause failure. So only
     // constraint end heading when minimum clearance is larger than 4m.
-    std::cout << "end state z: " << end_state_.z * 180 / M_PI << std::endl;
     if (min_clearance > 4) {
         vars_lowerbound[heading_range_begin + N - 2] = end_state_.z;
         vars_upperbound[heading_range_begin + N - 2] = end_state_.z;
@@ -285,7 +276,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     weights.push_back(0); //cost_func_cte_weight_
     weights.push_back(0); //cost_func_epsi_weight_
     weights.push_back(80); //cost_func_curvature_weight_
-    weights.push_back(1000); //cost_func_curvature_rate_weight_
+    weights.push_back(1500); //cost_func_curvature_rate_weight_
 
     FgEvalFrenet fg_eval_frenet(seg_x_list_, seg_y_list_, seg_angle_list_, seg_s_list_, N, weights);
     // solve the problem
@@ -302,10 +293,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         return false;
     }
     LOG(INFO) << "mpc path optimization solver succeeded!";
-
-//     // Cost
-//    double cost = solution.obj_value;
-//    std::cout << "cost: " << cost << std::endl;
 
     // output
     for (size_t i = 0; i != N - 1; i++) {
@@ -382,22 +369,16 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             total_s += sqrt(pow(dx, 2) + pow(dy, 2));
             state.s = total_s;
         }
-        if (!collision_checker_.isSingleStateCollisionFreeImproved(state)) {
-            std::cout << "collision detected at " << i << " of " << 3*N << std::endl;
+        if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
+            final_path->push_back(state);
+        } else {
+            if (state.s > 30) {
+                return true;
+            }
+            LOG(WARNING) << "collision check of mpc path optimization failed!";
+            final_path->clear();
+            return false;
         }
-        final_path->push_back(state);
-
-
-//        if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
-//            final_path->push_back(state);
-//        } else {
-//            if (state.s > 30) {
-//                return true;
-//            }
-//            LOG(WARNING) << "collision check of mpc path optimization failed!";
-//            final_path->clear();
-//            return false;
-//        }
     }
     return true;
 }
