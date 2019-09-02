@@ -20,7 +20,7 @@
 #include "FgEvalFrenet.hpp"
 #include "collosion_checker.hpp"
 
-#define MAX_CURVATURE 0.25
+#define MAX_CURVATURE 0.5
 
 namespace MpcSmoother {
 
@@ -65,8 +65,10 @@ private:
     std::vector<double> y_list_;
     std::vector<double> k_list_;
     std::vector<double> s_list_;
-    std::vector<double> seg_list_;
-    std::vector<double> angle_list_;
+    std::vector<double> seg_s_list_;
+    std::vector<double> seg_x_list_;
+    std::vector<double> seg_y_list_;
+    std::vector<double> seg_angle_list_;
 
     double cte_;  // lateral error
     double epsi_; // navigable error
