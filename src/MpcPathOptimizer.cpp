@@ -90,9 +90,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 
     k_spline_.set_points(s_list_, k_list_);
 
-    // initial states
-    cte_ = 0;
-    double start_ref_angle = 0;
+    // If the start heading differs a lot with the ref path, quit.
+    double start_ref_angle;
     // calculate the start angle of the reference path.
     if (x_spline_.deriv(1, 0) == 0) {
         start_ref_angle = M_PI_2;
@@ -106,11 +105,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         return false;
     }
 
-    // if the initial psi is large, use smaller step size(sampling time) at early stage.
-//    if (fabs(epsi_) > M_PI / 6) {
-        large_init_psi_flag_ = true;
-//    }
     // Divide reference path.
+    large_init_psi_flag_ = true;
     double delta_s = 1.6;
     size_t N = max_s / delta_s + 1;
     if (large_init_psi_flag_) {
@@ -132,7 +128,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         seg_s_list_.push_back(max_s);
     }
 
-    // Store reference states in vectors.
+    // Store reference states in vectors. They will be used later.
     for (size_t i = 0; i != N; ++i) {
         double length_on_ref_path = seg_s_list_[i];
         double angle;
@@ -146,11 +142,14 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         seg_y_list_.push_back(y_spline_(length_on_ref_path));
     }
 
-    // initial states
+    // pq denotes the offset from ref path.
+    cte_ = 0;
     double pq = cte_;
+    // For the start position and heading are fixed, the second pq is also a fixed value.
     // Calculate the second state. It will be used as a constraint later.
     double second_pq = pq + seg_s_list_[1] * tan(epsi_);
     double end_ref_angle;
+    // If the end heading differs a lot with the ref path, quit.
     if (x_spline_.deriv(1, s_list_.back()) == 0) {
         end_ref_angle = M_PI_2;
     } else {
@@ -187,7 +186,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         vars_lowerbound[i] = -DBL_MAX;
         vars_upperbound[i] = DBL_MAX;
     }
-    // set bounds for control variables
+    // set bounds for curvature variables
     for (size_t i = curvature_range_begin; i < n_vars; i++) {
         vars_lowerbound[i] = -MAX_CURVATURE;
         vars_upperbound[i] = MAX_CURVATURE;
@@ -198,10 +197,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     vars_upperbound[pq_range_begin] = pq;
     vars_lowerbound[pq_range_begin + 1] = second_pq;
     vars_upperbound[pq_range_begin + 1] = second_pq;
-//        vars_lowerbound[heading_range_begin] = start_state_.z;
-//    vars_upperbound[heading_range_begin] = start_state_.z;
-//    vars_lowerbound[curvature_range_begin] = start_state_.k;
-//    vars_upperbound[curvature_range_begin] = start_state_.k;
 
     // Set pq bounds according to the distance to obstacles.
     // Start from the third point, because the first two points are fixed.
@@ -229,7 +224,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         vars_upperbound[pq_range_begin + i] = clearance_left;
     }
 
-
     // The calculated path should have the same end heading with the end state,
     // but in narrow environment, such constraint might cause failure. So only
     // constraint end heading when minimum clearance is larger than 4m.
@@ -238,15 +232,14 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         vars_upperbound[heading_range_begin] = end_state_.z + 5 * M_PI / 180;
     }
 
-    //
-    double n_constraints = 1 + (N - 2);
+    // Costraints inclued the end heading and N - 2 curvatures.
+    size_t n_constraints = 1 + (N - 2);
     Dvector constraints_lowerbound(n_constraints);
     Dvector constraints_upperbound(n_constraints);
     for (size_t i = 0; i < n_constraints; i++) {
         constraints_lowerbound[i] = 0.0;
         constraints_upperbound[i] = 0.0;
     }
-
 
     // options for IPOPT solver
     std::string options;
@@ -268,8 +261,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // weights of the cost function
     // todo: use a config file
     std::vector<double> weights;
-    weights.push_back(0); //cost_func_cte_weight_
-    weights.push_back(0); //cost_func_epsi_weight_
     weights.push_back(80); //cost_func_curvature_weight_
     weights.push_back(1500); //cost_func_curvature_rate_weight_
 
