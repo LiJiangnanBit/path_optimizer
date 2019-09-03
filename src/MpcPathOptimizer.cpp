@@ -262,7 +262,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // todo: use a config file
     std::vector<double> weights;
     weights.push_back(80); //cost_func_curvature_weight_
-    weights.push_back(1500); //cost_func_curvature_rate_weight_
+    weights.push_back(800); //cost_func_curvature_rate_weight_
 
     FgEvalFrenet fg_eval_frenet(seg_x_list_, seg_y_list_, seg_angle_list_, seg_s_list_, N, weights);
     // solve the problem
