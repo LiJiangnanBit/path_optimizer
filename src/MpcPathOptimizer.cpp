@@ -163,8 +163,9 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
 
     typedef CPPAD_TESTVECTOR(double) Dvector;
-    // n_vars: Set the number of model variables (includes both states and inputs).
-    size_t n_vars = N + (N - 1) + (N - 2);
+    // n_vars: Set the number of model variables.
+    // There are N pqs, 1 heading (the last heading) and N -2 curvatures in the variables.
+    size_t n_vars = N + (1) + (N - 2);
     // Set the number of constraints
     Dvector vars(n_vars);
     for (size_t i = 0; i < n_vars; i++) {
@@ -172,10 +173,9 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
     const size_t pq_range_begin = 0;
     const size_t heading_range_begin = pq_range_begin + N;
-    const size_t curvature_range_begin = heading_range_begin + N - 1;
+    const size_t curvature_range_begin = heading_range_begin + 1;
     vars[pq_range_begin] = pq;
     vars[pq_range_begin + 1] = second_pq;
-    vars[heading_range_begin] = start_state_.z;
     vars[curvature_range_begin] = start_state_.k;
 
     // bounds of variables
@@ -192,6 +192,16 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         vars_lowerbound[i] = -MAX_CURVATURE;
         vars_upperbound[i] = MAX_CURVATURE;
     }
+
+    // Set bounds for known points, which are fixed.
+    vars_lowerbound[pq_range_begin] = pq;
+    vars_upperbound[pq_range_begin] = pq;
+    vars_lowerbound[pq_range_begin + 1] = second_pq;
+    vars_upperbound[pq_range_begin + 1] = second_pq;
+//        vars_lowerbound[heading_range_begin] = start_state_.z;
+//    vars_upperbound[heading_range_begin] = start_state_.z;
+//    vars_lowerbound[curvature_range_begin] = start_state_.k;
+//    vars_upperbound[curvature_range_begin] = start_state_.k;
 
     // Set pq bounds according to the distance to obstacles.
     // Start from the third point, because the first two points are fixed.
@@ -219,39 +229,24 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         vars_upperbound[pq_range_begin + i] = clearance_left;
     }
 
-    // Set bounds for known points, which are fixed.
-//    vars_lowerbound[pq_range_begin] = pq;
-//    vars_upperbound[pq_range_begin] = pq;
-//    vars_lowerbound[pq_range_begin + 1] = second_pq;
-//    vars_upperbound[pq_range_begin + 1] = second_pq;
-//    vars_lowerbound[heading_range_begin] = start_state_.z;
-//    vars_upperbound[heading_range_begin] = start_state_.z;
-//    vars_lowerbound[curvature_range_begin] = start_state_.k;
-//    vars_upperbound[curvature_range_begin] = start_state_.k;
 
     // The calculated path should have the same end heading with the end state,
     // but in narrow environment, such constraint might cause failure. So only
     // constraint end heading when minimum clearance is larger than 4m.
     if (min_clearance > 4) {
-        vars_lowerbound[heading_range_begin + N - 2] = end_state_.z;
-        vars_upperbound[heading_range_begin + N - 2] = end_state_.z;
+        vars_lowerbound[heading_range_begin] = end_state_.z - 5 * M_PI / 180;
+        vars_upperbound[heading_range_begin] = end_state_.z + 5 * M_PI / 180;
     }
 
-    // There are N - 1 headings and N - 1 curvatures in the variables and the first heading and curvature is fixed.
-    // So we only need to constranit the others. 2 * (N - 2) constraints in total.
-    double n_constraints = 2 + (N - 1) + (N - 2);
+    //
+    double n_constraints = 1 + (N - 2);
     Dvector constraints_lowerbound(n_constraints);
     Dvector constraints_upperbound(n_constraints);
     for (size_t i = 0; i < n_constraints; i++) {
         constraints_lowerbound[i] = 0.0;
         constraints_upperbound[i] = 0.0;
     }
-    constraints_lowerbound[0] = pq;
-    constraints_upperbound[0] = pq;
-    constraints_lowerbound[1] = second_pq;
-    constraints_upperbound[1] = second_pq;
-    constraints_lowerbound[2] = start_state_.z;
-    constraints_upperbound[2] = start_state_.z;
+
 
     // options for IPOPT solver
     std::string options;
@@ -295,16 +290,11 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     LOG(INFO) << "mpc path optimization solver succeeded!";
 
     // output
-    for (size_t i = 0; i != N - 1; i++) {
-        double tmp[4] = {solution.x[pq_range_begin + i], solution.x[heading_range_begin + i],
-                         solution.x[curvature_range_begin + i], double(i)};
+    for (size_t i = 0; i != N; i++) {
+        double tmp[2] = {solution.x[pq_range_begin + i], double(i)};
         std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
         this->predicted_path_in_frenet_.push_back(v);
     }
-    double tmp[4] = {solution.x[pq_range_begin + N - 1], solution.x[heading_range_begin + N - 2],
-                     solution.x[curvature_range_begin + N - 2], double(N -1)};
-    std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
-    this->predicted_path_in_frenet_.push_back(v);
 
     tinyspline::BSpline b_spline(N);
     std::vector<tinyspline::real> ctrlp = b_spline.controlPoints();
