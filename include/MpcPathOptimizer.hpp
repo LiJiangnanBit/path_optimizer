@@ -20,7 +20,7 @@
 #include "FgEvalFrenet.hpp"
 #include "collosion_checker.hpp"
 
-#define MAX_CURVATURE 0.3
+#define MAX_CURVATURE 0.5
 
 namespace MpcSmoother {
 

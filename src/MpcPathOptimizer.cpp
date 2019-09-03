@@ -369,7 +369,7 @@ double MpcPathOptimizer::getClearanceWithDirection(hmpl::State state,
                                                    const std::vector<double> &car_geometry) {
     double s = 0;
     double delta_s = 0.1;
-    size_t n = 5.0 / delta_s;
+    size_t n = 3.0 / delta_s;
     for (size_t i = 0; i != n; ++i) {
         s += delta_s;
         double x = state.x + s * cos(angle);
@@ -400,7 +400,7 @@ double MpcPathOptimizer::getClearanceWithDirection(hmpl::State state,
 double MpcPathOptimizer::getClearanceWithDirection(hmpl::State state, double angle) {
     double s = 0;
     double delta_s = 0.1;
-    size_t n = 5.0 / delta_s;
+    size_t n = 3.0 / delta_s;
     for (size_t i = 0; i != n; ++i) {
         s += delta_s;
         double x = state.x + s * cos(angle);
