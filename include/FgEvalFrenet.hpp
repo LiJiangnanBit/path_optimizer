@@ -89,15 +89,16 @@ public:
                 fg[cons_heading_range_begin] = heading - heading_by_position;
             }
 
-            AD<double> ds = CppAD::sqrt(CppAD::pow(x - x_before, 2) + CppAD::pow(y - y_before, 2));
             AD<double> curvature_by_position;
             if (seg_x_list_[i] - seg_x_list_[i_before] < 0) {
                 AD<double> heading = CppAD::atan2(-y_after + y, -x_after + x);
                 AD<double> heading_before = CppAD::atan2(-y + y_before, -x + x_before);
+                AD<double> ds = CppAD::fabs((x - x_before) / CppAD::cos(heading_before));
                 curvature_by_position = (heading - heading_before) / ds;
             } else {
                 AD<double> heading = CppAD::atan2(y_after - y, x_after - x);
                 AD<double> heading_before = CppAD::atan2(y - y_before, x - x_before);
+                AD<double> ds = CppAD::fabs((x - x_before) / CppAD::cos(heading_before));
                 curvature_by_position = (heading - heading_before) / ds;
             }
 
