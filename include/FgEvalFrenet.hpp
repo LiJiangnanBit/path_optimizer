@@ -14,6 +14,7 @@ public:
     FgEvalFrenet(const std::vector<double> &seg_x_list,
                  const std::vector<double> &seg_y_list,
                  const std::vector<double> &seg_angle_list,
+                 const std::vector<double> &seg_k_list,
                  const std::vector<double> &seg_s_list,
                  const int &N,
                  const std::vector<double> &cost_func) :
@@ -22,6 +23,7 @@ public:
         seg_x_list_(seg_x_list),
         seg_y_list_(seg_y_list),
         seg_angle_list_(seg_angle_list),
+        seg_k_list_(seg_k_list),
         cost_func_curvature_weight_(cost_func[0]),
         cost_func_curvature_rate_weight_(cost_func[1]) {}
 
@@ -30,6 +32,7 @@ public:
     const std::vector<double> &seg_s_list_;
     const std::vector<double> &seg_x_list_;
     const std::vector<double> &seg_y_list_;
+    const std::vector<double> &seg_k_list_;
     const std::vector<double> &seg_angle_list_;
 
     double cost_func_curvature_weight_;
@@ -89,18 +92,26 @@ public:
                 fg[cons_heading_range_begin] = heading - heading_by_position;
             }
 
-            AD<double> curvature_by_position;
-            if (seg_x_list_[i] - seg_x_list_[i_before] < 0) {
-                AD<double> heading = CppAD::atan2(-y_after + y, -x_after + x);
-                AD<double> heading_before = CppAD::atan2(-y + y_before, -x + x_before);
-                AD<double> ds = CppAD::fabs((x - x_before) / CppAD::cos(heading_before));
-                curvature_by_position = (heading - heading_before) / ds;
-            } else {
-                AD<double> heading = CppAD::atan2(y_after - y, x_after - x);
-                AD<double> heading_before = CppAD::atan2(y - y_before, x - x_before);
-                AD<double> ds = CppAD::fabs((x - x_before) / CppAD::cos(heading_before));
-                curvature_by_position = (heading - heading_before) / ds;
-            }
+            // Two methods to calculate curvature. The first method is more accurate while the second method runs faster.
+//            AD<double> curvature_by_position;
+//            if (seg_x_list_[i] - seg_x_list_[i_before] < 0) {
+//                AD<double> heading = CppAD::atan2(-y_after + y, -x_after + x);
+//                AD<double> heading_before = CppAD::atan2(-y + y_before, -x + x_before);
+//                AD<double> ds = CppAD::fabs((x - x_before) / CppAD::cos(heading_before));
+//                curvature_by_position = (heading - heading_before) / ds;
+//            } else {
+//                AD<double> heading = CppAD::atan2(y_after - y, x_after - x);
+//                AD<double> heading_before = CppAD::atan2(y - y_before, x - x_before);
+//                AD<double> ds = CppAD::fabs((x - x_before) / CppAD::cos(heading_before));
+//                curvature_by_position = (heading - heading_before) / ds;
+//            }
+
+            AD<double> ref_ds_before = seg_s_list_[i] - seg_s_list_[i_before];
+            AD<double> psi_before = (pq - pq_before) / ref_ds_before;
+            AD<double> ps_before = ref_ds_before / CppAD::cos(psi_before) * (1 - pq_before * seg_k_list_[i_before]);
+            AD<double> ref_ds_after = seg_s_list_[i_after] - seg_s_list_[i];
+            AD<double> psi_after = (pq_after - pq) / ref_ds_after;
+            AD<double> curvature_by_position = (psi_after - psi_before) / ps_before + seg_k_list_[i];
 
             fg[cons_curvature_range_begin + i - 1] = curvature - curvature_by_position;
         }

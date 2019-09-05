@@ -69,6 +69,7 @@ private:
     std::vector<double> k_list_;
     std::vector<double> s_list_;
     std::vector<double> seg_s_list_;
+    std::vector<double> seg_k_list_;
     std::vector<double> seg_x_list_;
     std::vector<double> seg_y_list_;
     std::vector<double> seg_angle_list_;

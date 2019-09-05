@@ -140,6 +140,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         seg_angle_list_.push_back(angle);
         seg_x_list_.push_back(x_spline_(length_on_ref_path));
         seg_y_list_.push_back(y_spline_(length_on_ref_path));
+        seg_k_list_.push_back(k_spline_(length_on_ref_path));
     }
 
     // pq denotes the offset from ref path.
@@ -264,7 +265,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     weights.push_back(80); //cost_func_curvature_weight_
     weights.push_back(800); //cost_func_curvature_rate_weight_
 
-    FgEvalFrenet fg_eval_frenet(seg_x_list_, seg_y_list_, seg_angle_list_, seg_s_list_, N, weights);
+    FgEvalFrenet fg_eval_frenet(seg_x_list_, seg_y_list_, seg_angle_list_, seg_k_list_, seg_s_list_, N, weights);
     // solve the problem
     CppAD::ipopt::solve<Dvector, FgEvalFrenet>(options, vars,
                                                vars_lowerbound, vars_upperbound,
