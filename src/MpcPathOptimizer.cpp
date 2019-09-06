@@ -211,7 +211,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         std::vector<double> clearance_range = getClearance(state, car_geo);
         double clearance_left = clearance_range[0];
         double clearance_right = clearance_range[1];
-        std::cout << i << " upper & lower bound: " << clearance_left << ", " << clearance_right << std::endl;
+//        std::cout << i << " upper & lower bound: " << clearance_left << ", " << clearance_right << std::endl;
         double clearance = clearance_left - clearance_right;
         min_clearance = std::min(clearance, min_clearance);
         if (i == N - 1) {
@@ -354,7 +354,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             if (state.s > 30) {
                 return true;
             }
-            LOG(WARNING) << "collision check of mpc path optimization failed!";
+            LOG(WARNING) << "collision check of path optimization failed!";
             final_path->clear();
             return false;
         }
@@ -454,8 +454,8 @@ std::vector<double> MpcPathOptimizer::getClearance(hmpl::State state, const std:
                     new_state.z = state.z;
                     left_limit = right_limit
                         + getClearanceWithDirection(new_state, constraintAngle(state.z + M_PI_2), car_geometry);
+                    break;
                 }
-
             }
         }
         if (!left_exploration_succeed_flag) {
@@ -489,6 +489,7 @@ std::vector<double> MpcPathOptimizer::getClearance(hmpl::State state, const std:
                         new_state.z = state.z;
                         right_limit = left_limit
                             - getClearanceWithDirection(new_state, constraintAngle(state.z - M_PI_2), car_geometry);
+                        break;
                     }
 
                 }
