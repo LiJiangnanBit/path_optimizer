@@ -93,25 +93,25 @@ public:
             }
 
             // Two methods to calculate curvature. The first method is more accurate while the second method runs faster.
-//            AD<double> curvature_by_position;
-//            if (seg_x_list_[i] - seg_x_list_[i_before] < 0) {
-//                AD<double> heading = CppAD::atan2(-y_after + y, -x_after + x);
-//                AD<double> heading_before = CppAD::atan2(-y + y_before, -x + x_before);
-//                AD<double> ds = CppAD::fabs((x - x_before) / CppAD::cos(heading_before));
-//                curvature_by_position = (heading - heading_before) / ds;
-//            } else {
-//                AD<double> heading = CppAD::atan2(y_after - y, x_after - x);
-//                AD<double> heading_before = CppAD::atan2(y - y_before, x - x_before);
-//                AD<double> ds = CppAD::fabs((x - x_before) / CppAD::cos(heading_before));
-//                curvature_by_position = (heading - heading_before) / ds;
-//            }
+            AD<double> curvature_by_position;
+            if (seg_x_list_[i] - seg_x_list_[i_before] < 0) {
+                AD<double> heading = CppAD::atan2(-y_after + y, -x_after + x);
+                AD<double> heading_before = CppAD::atan2(-y + y_before, -x + x_before);
+                AD<double> ds = CppAD::fabs((x - x_before) / CppAD::cos(heading_before));
+                curvature_by_position = (heading - heading_before) / ds;
+            } else {
+                AD<double> heading = CppAD::atan2(y_after - y, x_after - x);
+                AD<double> heading_before = CppAD::atan2(y - y_before, x - x_before);
+                AD<double> ds = CppAD::fabs((x - x_before) / CppAD::cos(heading_before));
+                curvature_by_position = (heading - heading_before) / ds;
+            }
 
-            AD<double> ref_ds_before = seg_s_list_[i] - seg_s_list_[i_before];
-            AD<double> psi_before = (pq - pq_before) / ref_ds_before;
-            AD<double> ps_before = ref_ds_before / CppAD::cos(psi_before) * (1 - pq_before * seg_k_list_[i_before]);
-            AD<double> ref_ds_after = seg_s_list_[i_after] - seg_s_list_[i];
-            AD<double> psi_after = (pq_after - pq) / ref_ds_after;
-            AD<double> curvature_by_position = (psi_after - psi_before) / ps_before + seg_k_list_[i];
+//            AD<double> ref_ds_before = seg_s_list_[i] - seg_s_list_[i_before];
+//            AD<double> psi_before = (pq - pq_before) / ref_ds_before;
+//            AD<double> ps_before = ref_ds_before / CppAD::cos(psi_before) * (1 - pq_before * seg_k_list_[i_before]);
+//            AD<double> ref_ds_after = seg_s_list_[i_after] - seg_s_list_[i];
+//            AD<double> psi_after = (pq_after - pq) / ref_ds_after;
+//            AD<double> curvature_by_position = (psi_after - psi_before) / ps_before + seg_k_list_[i];
 
             fg[cons_curvature_range_begin + i - 1] = curvature - curvature_by_position;
         }
