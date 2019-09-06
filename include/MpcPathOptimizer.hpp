@@ -41,11 +41,12 @@ private:
     double getPointCurvature(const double &x1, const double &y1,
                              const double &x2, const double &y2,
                              const double &x3, const double &y3);
-    double getClearanceWithDirection(hmpl::State state,
+    double getClearanceWithDirection(const hmpl::State &state,
                                      double angle,
                                      const std::vector<double> &car_geometry);
-    double getClearanceWithDirection(hmpl::State state,
+    double getClearanceWithDirection(const hmpl::State &state,
                                      double angle);
+    std::vector<double> getClearance(hmpl::State state, const std::vector<double> &car_geometry);
     // Set angle range to -pi ~ pi.
     inline double constraintAngle(double angle) {
         if (angle > M_PI) {

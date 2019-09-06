@@ -208,20 +208,17 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         state.x = seg_x_list_[i];
         state.y = seg_y_list_[i];
         state.z = seg_angle_list_[i];
-        double left_angle = constraintAngle(seg_angle_list_[i] + M_PI_2);
-        double right_angle = constraintAngle(seg_angle_list_[i] - M_PI_2);
-        double clearance_left = getClearanceWithDirection(state, left_angle, car_geo);
-        double clearance_right = getClearanceWithDirection(state, right_angle, car_geo);
-        std::cout << i << " upper & lower bound: " << clearance_left << ", " << -clearance_right << std::endl;
-
-        double clearance = clearance_left + clearance_right;
+        std::vector<double> clearance_range = getClearance(state, car_geo);
+        double clearance_left = clearance_range[0];
+        double clearance_right = clearance_range[1];
+        std::cout << i << " upper & lower bound: " << clearance_left << ", " << clearance_right << std::endl;
+        double clearance = clearance_left - clearance_right;
         min_clearance = std::min(clearance, min_clearance);
-
         if (i == N - 1) {
             clearance_left = std::min(clearance_left, 1.5);
-            clearance_right = std::min(clearance_right, 1.5);
+            clearance_right = std::max(clearance_right, -1.5);
         }
-        vars_lowerbound[pq_range_begin + i] = -clearance_right;
+        vars_lowerbound[pq_range_begin + i] = clearance_right;
         vars_upperbound[pq_range_begin + i] = clearance_left;
     }
 
@@ -229,8 +226,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // but in narrow environment, such constraint might cause failure. So only
     // constraint end heading when minimum clearance is larger than 4m.
     if (min_clearance > 4) {
-        vars_lowerbound[heading_range_begin] = end_state_.z - 5 * M_PI / 180;
-        vars_upperbound[heading_range_begin] = end_state_.z + 5 * M_PI / 180;
+        vars_lowerbound[heading_range_begin] = constraintAngle(end_state_.z - 5 * M_PI / 180);
+        vars_upperbound[heading_range_begin] = constraintAngle(end_state_.z + 5 * M_PI / 180);
     }
 
     // Costraints inclued the end heading and N - 2 curvatures.
@@ -365,7 +362,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     return true;
 }
 
-double MpcPathOptimizer::getClearanceWithDirection(hmpl::State state,
+double MpcPathOptimizer::getClearanceWithDirection(const hmpl::State &state,
                                                    double angle,
                                                    const std::vector<double> &car_geometry) {
     double s = 0;
@@ -398,7 +395,114 @@ double MpcPathOptimizer::getClearanceWithDirection(hmpl::State state,
     return s;
 }
 
-double MpcPathOptimizer::getClearanceWithDirection(hmpl::State state, double angle) {
+std::vector<double> MpcPathOptimizer::getClearance(hmpl::State state, const std::vector<double> &car_geometry) {
+    // Check if the current state has collision.
+    double rear_center_distance = car_geometry[0];
+    double front_center_distance = car_geometry[1];
+    double rear_front_radius = car_geometry[2];
+    double middle_radius = car_geometry[3];
+    // Calculate the position of the rear center, middle center and front center on current state.
+    grid_map::Position
+        rear_position(state.x - rear_center_distance * cos(state.z), state.y - rear_center_distance * sin(state.z));
+    grid_map::Position
+        middle_position(state.x, state.y);
+    grid_map::Position
+        front_position(state.x + front_center_distance * cos(state.z), state.y + front_center_distance * sin(state.z));
+    double rear_clearance = grid_map_.getObstacleDistance(rear_position);
+    double front_clearance = grid_map_.getObstacleDistance(front_position);
+    double middle_clearance = grid_map_.getObstacleDistance(middle_position);
+    // If the current state is collision free, then expand to left and right.
+    if (std::min(rear_clearance, front_clearance) > rear_front_radius && middle_clearance > middle_radius) {
+        double left_clearance = getClearanceWithDirection(state, constraintAngle(state.z + M_PI_2), car_geometry);
+        double right_clearance = -getClearanceWithDirection(state, constraintAngle(state.z - M_PI_2), car_geometry);
+        std::vector<double> clearance{left_clearance, right_clearance};
+        return clearance;
+    } else {
+        // If the current state has collision, then search to left OR right until find a clear range.
+        double left_limit, right_limit;
+        bool left_exploration_succeed_flag = false;
+        bool right_exploration_succeed_flag = false;
+        // explore left:
+        double s = 0;
+        double delta_s = 0.1;
+        size_t n = 3.0 / delta_s;
+        for (size_t i = 0; i != n; ++i) {
+            s += delta_s;
+            double x = state.x + s * cos(constraintAngle(state.z + M_PI_2));
+            double y = state.y + s * sin(constraintAngle(state.z + M_PI_2));
+            double rear_x = x - rear_center_distance * cos(state.z);
+            double rear_y = y - rear_center_distance * sin(state.z);
+            double front_x = x + front_center_distance * cos(state.z);
+            double front_y = y + front_center_distance * sin(state.z);
+            grid_map::Position new_position(x, y);
+            grid_map::Position new_rear_position(rear_x, rear_y);
+            grid_map::Position new_front_position(front_x, front_y);
+            // Search to left until a clear position is found, then continue searching to left until
+            // a collision position is found.
+            if (grid_map_.maps.isInside(new_position) && grid_map_.maps.isInside(new_rear_position)
+                && grid_map_.maps.isInside(new_front_position)) {
+                double new_rear_clearance = grid_map_.getObstacleDistance(new_rear_position);
+                double new_front_clearance = grid_map_.getObstacleDistance(new_front_position);
+                double new_middle_clearance = grid_map_.getObstacleDistance(new_position);
+                if (std::min(new_rear_clearance, new_front_clearance) > rear_front_radius
+                    && new_middle_clearance > middle_radius) {
+                    left_exploration_succeed_flag = true;
+                    right_limit = s;
+                    hmpl::State new_state;
+                    new_state.x = x;
+                    new_state.y = y;
+                    new_state.z = state.z;
+                    left_limit = right_limit
+                        + getClearanceWithDirection(new_state, constraintAngle(state.z + M_PI_2), car_geometry);
+                }
+
+            }
+        }
+        if (!left_exploration_succeed_flag) {
+            // explore right:
+            double s = 0;
+            double delta_s = 0.1;
+            size_t n = 3.0 / delta_s;
+            for (size_t i = 0; i != n; ++i) {
+                s += delta_s;
+                double x = state.x + s * cos(constraintAngle(state.z - M_PI_2));
+                double y = state.y + s * sin(constraintAngle(state.z - M_PI_2));
+                double rear_x = x - rear_center_distance * cos(state.z);
+                double rear_y = y - rear_center_distance * sin(state.z);
+                double front_x = x + front_center_distance * cos(state.z);
+                double front_y = y + front_center_distance * sin(state.z);
+                grid_map::Position new_position(x, y);
+                grid_map::Position new_rear_position(rear_x, rear_y);
+                grid_map::Position new_front_position(front_x, front_y);
+                if (grid_map_.maps.isInside(new_position) && grid_map_.maps.isInside(new_rear_position)
+                    && grid_map_.maps.isInside(new_front_position)) {
+                    double new_rear_clearance = grid_map_.getObstacleDistance(new_rear_position);
+                    double new_front_clearance = grid_map_.getObstacleDistance(new_front_position);
+                    double new_middle_clearance = grid_map_.getObstacleDistance(new_position);
+                    if (std::min(new_rear_clearance, new_front_clearance) > rear_front_radius
+                        && new_middle_clearance > middle_radius) {
+                        right_exploration_succeed_flag = true;
+                        left_limit = -s;
+                        hmpl::State new_state;
+                        new_state.x = x;
+                        new_state.y = y;
+                        new_state.z = state.z;
+                        right_limit = left_limit
+                            - getClearanceWithDirection(new_state, constraintAngle(state.z - M_PI_2), car_geometry);
+                    }
+
+                }
+            }
+        }
+        if (left_exploration_succeed_flag || right_exploration_succeed_flag) {
+            return std::vector<double>{left_limit, right_limit};
+        } else {
+            return std::vector<double>{0, 0};
+        }
+    }
+}
+
+double MpcPathOptimizer::getClearanceWithDirection(const hmpl::State &state, double angle) {
     double s = 0;
     double delta_s = 0.1;
     size_t n = 3.0 / delta_s;
