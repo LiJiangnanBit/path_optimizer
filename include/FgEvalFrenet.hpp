@@ -28,6 +28,18 @@ public:
         cost_func_curvature_rate_weight_(cost_func[1]) {}
 
 public:
+
+    AD<double> constraintAngle(AD<double> angle) {
+        if (angle > M_PI) {
+            angle -= 2 * M_PI;
+            return constraintAngle(angle);
+        } else if (angle < -M_PI) {
+            angle += 2 * M_PI;
+            return constraintAngle(angle);
+        } else {
+            return angle;
+        }
+    }
     size_t N;
     const std::vector<double> &seg_s_list_;
     const std::vector<double> &seg_x_list_;
@@ -111,7 +123,7 @@ public:
 //            AD<double> ps_before = ref_ds_before / CppAD::cos(psi_before) * (1 - pq_before * seg_k_list_[i_before]);
 //            AD<double> ref_ds_after = seg_s_list_[i_after] - seg_s_list_[i];
 //            AD<double> psi_after = (pq_after - pq) / ref_ds_after;
-//            AD<double> curvature_by_position = (psi_after - psi_before) / ps_before + seg_k_list_[i];
+//            AD<double> curvature_by_position = (psi_after - psi_before + constraintAngle(ref_angle - ref_angle_before)) / ps_before;
 
             fg[cons_curvature_range_begin + i - 1] = curvature - curvature_by_position;
         }
