@@ -198,6 +198,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     vars_upperbound[pq_range_begin] = pq;
     vars_lowerbound[pq_range_begin + 1] = second_pq;
     vars_upperbound[pq_range_begin + 1] = second_pq;
+    vars_lowerbound[curvature_range_begin] = start_state_.k;
+    vars_upperbound[curvature_range_begin] = start_state_.k;
 
     // Set pq bounds according to the distance to obstacles.
     // Start from the third point, because the first two points are fixed.
