@@ -262,7 +262,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // todo: use a config file
     std::vector<double> weights;
     weights.push_back(80); //cost_func_curvature_weight_
-    weights.push_back(800); //cost_func_curvature_rate_weight_
+    weights.push_back(1800); //cost_func_curvature_rate_weight_
 
     FgEvalFrenet fg_eval_frenet(seg_x_list_, seg_y_list_, seg_angle_list_, seg_k_list_, seg_s_list_, N, weights);
     // solve the problem
@@ -285,6 +285,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         double tmp[2] = {solution.x[pq_range_begin + i], double(i)};
         std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
         this->predicted_path_in_frenet_.push_back(v);
+        std::cout << "cur " << i << ": " << solution.x[curvature_range_begin + i] << std::endl;
     }
 
     tinyspline::BSpline b_spline(N);
