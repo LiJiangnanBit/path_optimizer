@@ -106,7 +106,9 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
 
     // Divide reference path.
-    large_init_psi_flag_ = true;
+    if (epsi_ >= 30 * M_PI / 180) {
+        large_init_psi_flag_ = true;
+    }
     double delta_s = 1.6;
     size_t N = max_s / delta_s + 1;
     if (large_init_psi_flag_) {
@@ -203,7 +205,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 
     // Set pq bounds according to the distance to obstacles.
     // Start from the third point, because the first two points are fixed.
-    double min_clearance = DBL_MAX;
+    auto min_clearance = DBL_MAX;
     for (size_t i = 2; i != N; ++i) {
         double length_on_ref = seg_s_list_[i];
         hmpl::State state;
@@ -236,7 +238,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     size_t n_constraints = 1 + (N - 2);
     Dvector constraints_lowerbound(n_constraints);
     Dvector constraints_upperbound(n_constraints);
-    for (size_t i = 0; i < n_constraints; i++) {
+    for (size_t i = 0; i != n_constraints; i++) {
         constraints_lowerbound[i] = 0.0;
         constraints_upperbound[i] = 0.0;
     }
@@ -261,8 +263,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // weights of the cost function
     // todo: use a config file
     std::vector<double> weights;
-    weights.push_back(80); //cost_func_curvature_weight_
-    weights.push_back(1800); //cost_func_curvature_rate_weight_
+    weights.push_back(1); //cost_func_curvature_weight_
+    weights.push_back(20); //cost_func_curvature_rate_weight_
 
     FgEvalFrenet fg_eval_frenet(seg_x_list_, seg_y_list_, seg_angle_list_, seg_k_list_, seg_s_list_, N, weights);
     // solve the problem
