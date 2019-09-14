@@ -53,8 +53,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         if (i == 0) {
             s_list_.push_back(0);
         } else {
-            double ds = sqrt(
-                pow(points_list_[i].x - points_list_[i - 1].x, 2) + pow(points_list_[i].y - points_list_[i - 1].y, 2));
+            double ds = hmpl::distance(points_list_[i], points_list_[i - 1]);
             s += ds;
             s_list_.push_back(s);
         }
