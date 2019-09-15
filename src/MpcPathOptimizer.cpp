@@ -205,6 +205,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // Set pq bounds according to the distance to obstacles.
     // Start from the third point, because the first two points are fixed.
     auto min_clearance = DBL_MAX;
+    std::vector<double> left_bound, right_bound;
     for (size_t i = 2; i != N; ++i) {
         double length_on_ref = seg_s_list_[i];
         hmpl::State state;
@@ -217,6 +218,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 //        std::cout << i << " upper & lower bound: " << clearance_left << ", " << clearance_right << std::endl;
         double clearance = clearance_left - clearance_right;
         min_clearance = std::min(clearance, min_clearance);
+        left_bound.push_back(clearance_left);
+        right_bound.push_back(clearance_right);
         if (i == N - 1) {
             clearance_left = std::min(clearance_left, 1.5);
             clearance_right = std::max(clearance_right, -1.5);
@@ -229,8 +232,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // but in narrow environment, such constraint might cause failure. So only
     // constraint end heading when minimum clearance is larger than 4m.
     if (min_clearance > 4) {
-        vars_lowerbound[heading_range_begin] = constraintAngle(end_state_.z - 5 * M_PI / 180);
-        vars_upperbound[heading_range_begin] = constraintAngle(end_state_.z + 5 * M_PI / 180);
+        vars_lowerbound[heading_range_begin] = constraintAngle(end_state_.z);
+        vars_upperbound[heading_range_begin] = constraintAngle(end_state_.z);
     }
 
     // Costraints inclued the end heading and N - 2 curvatures.
@@ -262,10 +265,19 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // weights of the cost function
     // todo: use a config file
     std::vector<double> weights;
-    weights.push_back(1); //cost_func_curvature_weight_
-    weights.push_back(20); //cost_func_curvature_rate_weight_
+    weights.push_back(1); //curvature weight
+    weights.push_back(20); //curvature rate weight
+    weights.push_back(0.01); //distance to boundary weight
 
-    FgEvalFrenet fg_eval_frenet(seg_x_list_, seg_y_list_, seg_angle_list_, seg_k_list_, seg_s_list_, N, weights);
+    FgEvalFrenet fg_eval_frenet(seg_x_list_,
+                                seg_y_list_,
+                                seg_angle_list_,
+                                seg_k_list_,
+                                seg_s_list_,
+                                N,
+                                weights,
+                                left_bound,
+                                right_bound);
     // solve the problem
     CppAD::ipopt::solve<Dvector, FgEvalFrenet>(options, vars,
                                                vars_lowerbound, vars_upperbound,
@@ -286,7 +298,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         double tmp[2] = {solution.x[pq_range_begin + i], double(i)};
         std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
         this->predicted_path_in_frenet_.push_back(v);
-        std::cout << "cur " << i << ": " << solution.x[curvature_range_begin + i] << std::endl;
+//        std::cout << "cur " << i << ": " << solution.x[curvature_range_begin + i] << std::endl;
     }
 
     tinyspline::BSpline b_spline(N);
@@ -371,7 +383,7 @@ double MpcPathOptimizer::getClearanceWithDirection(const hmpl::State &state,
                                                    const std::vector<double> &car_geometry) {
     double s = 0;
     double delta_s = 0.1;
-    size_t n = 3.0 / delta_s;
+    size_t n = 5.0 / delta_s;
     for (size_t i = 0; i != n; ++i) {
         s += delta_s;
         double x = state.x + s * cos(angle);
@@ -429,7 +441,7 @@ std::vector<double> MpcPathOptimizer::getClearance(hmpl::State state, const std:
         // explore left:
         double s = 0;
         double delta_s = 0.1;
-        size_t n = 3.0 / delta_s;
+        size_t n = 5.0 / delta_s;
         for (size_t i = 0; i != n; ++i) {
             s += delta_s;
             double x = state.x + s * cos(constraintAngle(state.z + M_PI_2));
@@ -466,7 +478,7 @@ std::vector<double> MpcPathOptimizer::getClearance(hmpl::State state, const std:
             // explore right:
             double s = 0;
             double delta_s = 0.1;
-            size_t n = 3.0 / delta_s;
+            size_t n = 5.0 / delta_s;
             for (size_t i = 0; i != n; ++i) {
                 s += delta_s;
                 double x = state.x + s * cos(constraintAngle(state.z - M_PI_2));
@@ -510,7 +522,7 @@ std::vector<double> MpcPathOptimizer::getClearance(hmpl::State state, const std:
 double MpcPathOptimizer::getClearanceWithDirection(const hmpl::State &state, double angle) {
     double s = 0;
     double delta_s = 0.1;
-    size_t n = 3.0 / delta_s;
+    size_t n = 5.0 / delta_s;
     for (size_t i = 0; i != n; ++i) {
         s += delta_s;
         double x = state.x + s * cos(angle);

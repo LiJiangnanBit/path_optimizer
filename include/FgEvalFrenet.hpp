@@ -17,7 +17,9 @@ public:
                  const std::vector<double> &seg_k_list,
                  const std::vector<double> &seg_s_list,
                  const int &N,
-                 const std::vector<double> &cost_func) :
+                 const std::vector<double> &cost_func,
+                 const std::vector<double> &left_bound,
+                 const std::vector<double> &right_bound) :
         N(N),
         seg_s_list_(seg_s_list),
         seg_x_list_(seg_x_list),
@@ -25,7 +27,10 @@ public:
         seg_angle_list_(seg_angle_list),
         seg_k_list_(seg_k_list),
         cost_func_curvature_weight_(cost_func[0]),
-        cost_func_curvature_rate_weight_(cost_func[1]) {}
+        cost_func_curvature_rate_weight_(cost_func[1]),
+        cost_func_bound_weight_(cost_func[2]),
+        left_bound_(left_bound),
+        right_bound_(right_bound) {}
 
 public:
 
@@ -49,6 +54,10 @@ public:
 
     double cost_func_curvature_weight_;
     double cost_func_curvature_rate_weight_;
+    double cost_func_bound_weight_;
+
+    const std::vector<double> &left_bound_;
+    const std::vector<double> &right_bound_;
 
     typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
 
@@ -61,12 +70,17 @@ public:
         const size_t cons_heading_range_begin = 1;
         const size_t cons_curvature_range_begin = cons_heading_range_begin + 1;
 
-        for (int t = 0; t < N - 2; t++) {
+        for (size_t t = 0; t < N - 2; t++) {
             fg[0] += cost_func_curvature_weight_ * pow(vars[curvature_range_begin + t], 2);
         }
-        for (int t = 0; t < N - 3; t++) {
+        for (size_t t = 0; t < N - 3; t++) {
             fg[0] += cost_func_curvature_rate_weight_
                 * pow(vars[curvature_range_begin + t + 1] - vars[curvature_range_begin + t], 2);
+        }
+        for (size_t t = 2; t < N; ++t) {
+            fg[0] += cost_func_bound_weight_ *
+                (1 / (pow((vars[pq_range_begin + t] - left_bound_[t - 2]), 2) + 0.1) +
+                 1 / (pow((vars[pq_range_begin + t] - right_bound_[t - 2]), 2) + 0.1));
         }
 
         // The rest of the constraints
