@@ -24,6 +24,8 @@
 
 namespace MpcSmoother {
 
+enum CarType {ACKERMANN_STEERING = 0, SKID_STEERING = 1,};
+
 class MpcPathOptimizer {
 public:
     MpcPathOptimizer() = delete;
@@ -63,6 +65,10 @@ private:
     hmpl::InternalGridMap grid_map_;
     CollisionChecker collision_checker_;
     bool large_init_psi_flag_;
+    CarType car_type;
+    // rear_axle_to_center_dis is needed only when using ackermann steering.
+    double rear_axle_to_center_dis;
+
 
     const std::vector<hmpl::State>& points_list_;
     std::vector<double> x_list_;
@@ -75,8 +81,6 @@ private:
     std::vector<double> seg_y_list_;
     std::vector<double> seg_angle_list_;
 
-    double cte_;  // lateral error
-    double epsi_; // navigable error
     size_t point_num_;
     hmpl::State start_state_;
     hmpl::State end_state_;

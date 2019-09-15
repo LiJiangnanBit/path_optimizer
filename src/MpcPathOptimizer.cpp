@@ -15,7 +15,9 @@ MpcPathOptimizer::MpcPathOptimizer(const std::vector<hmpl::State> &points_list,
     points_list_(points_list),
     point_num_(points_list.size()),
     start_state_(start_state),
-    end_state_(end_state) {}
+    end_state_(end_state),
+    car_type(ACKERMANN_STEERING),
+    rear_axle_to_center_dis(1.2) {}
 
 bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     //
@@ -25,7 +27,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         LOG(INFO) << "path input is empty!";
         return false;
     }
-    // Set the car geometry.
+    // Set the car geometry. Use 3 circles to approximate the car.
     // todo: use a config file.
     // todo: consider back up situation
     double car_width = 2.2;
@@ -97,15 +99,18 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     } else {
         start_ref_angle = atan2(y_spline_.deriv(1, 0), x_spline_.deriv(1, 0));
     }
+
+    double cte;  // lateral error
+    double epsi; // navigable error
     // calculate the difference between the start angle of the reference path ande the angle of start state.
-    epsi_ = constraintAngle(start_state_.z - start_ref_angle);
-    if (fabs(epsi_) > 80 * M_PI / 180) {
+    epsi = constraintAngle(start_state_.z - start_ref_angle);
+    if (fabs(epsi) > 80 * M_PI / 180) {
         LOG(WARNING) << "initial epsi is larger than 80°, quit mpc path optimization!";
         return false;
     }
 
     // Divide reference path.
-    if (epsi_ >= 30 * M_PI / 180) {
+    if (epsi >= 30 * M_PI / 180) {
         large_init_psi_flag_ = true;
     }
     double delta_s = 1.6;
@@ -145,11 +150,11 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
 
     // pq denotes the offset from ref path.
-    cte_ = 0;
-    double pq = cte_;
+    cte = 0;
+    double pq = cte;
     // For the start position and heading are fixed, the second pq is also a fixed value.
     // Calculate the second state. It will be used as a constraint later.
-    double second_pq = pq + seg_s_list_[1] * tan(epsi_);
+    double second_pq = pq + seg_s_list_[1] * tan(epsi);
     double end_ref_angle;
     // If the end heading differs a lot with the ref path, quit.
     if (x_spline_.deriv(1, s_list_.back()) == 0) {
@@ -207,12 +212,16 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     auto min_clearance = DBL_MAX;
     std::vector<double> left_bound, right_bound;
     for (size_t i = 2; i != N; ++i) {
-        double length_on_ref = seg_s_list_[i];
-        hmpl::State state;
-        state.x = seg_x_list_[i];
-        state.y = seg_y_list_[i];
-        state.z = seg_angle_list_[i];
-        std::vector<double> clearance_range = getClearance(state, car_geo);
+        hmpl::State center_state;
+        center_state.x = seg_x_list_[i];
+        center_state.y = seg_y_list_[i];
+        center_state.z = seg_angle_list_[i];
+        // Function getClearance uses the center position as input.
+        if (car_type == ACKERMANN_STEERING) {
+            center_state.x += rear_axle_to_center_dis * cos(center_state.z);
+            center_state.y += rear_axle_to_center_dis * sin(center_state.z);
+        }
+        std::vector<double> clearance_range = getClearance(center_state, car_geo);
         double clearance_left = clearance_range[0];
         double clearance_right = clearance_range[1];
 //        std::cout << i << " upper & lower bound: " << clearance_left << ", " << clearance_right << std::endl;
