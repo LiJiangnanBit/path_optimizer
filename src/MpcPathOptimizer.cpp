@@ -354,7 +354,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
     // B spline
     b_spline.setControlPoints(ctrlp);
-    final_path->clear();
+    std::vector<hmpl::State> tmp_final_path;
     double total_s = 0;
     double step_t = 1.0 / (3.0 * N);
     for (size_t i = 0; i < 3 * N; ++i) {
@@ -374,16 +374,17 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             state.s = total_s;
         }
         if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
-            final_path->push_back(state);
+            tmp_final_path.push_back(state);
         } else {
             if (state.s > 30) {
-                return true;
+                break;
             }
             LOG(WARNING) << "collision check of path optimization failed!";
-            final_path->clear();
             return false;
         }
     }
+    final_path->clear();
+    std::copy(tmp_final_path.begin(), tmp_final_path.end(), std::back_inserter(*final_path));
     return true;
 }
 
