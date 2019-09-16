@@ -17,7 +17,7 @@ MpcPathOptimizer::MpcPathOptimizer(const std::vector<hmpl::State> &points_list,
     start_state_(start_state),
     end_state_(end_state),
     car_type(ACKERMANN_STEERING),
-    rear_axle_to_center_dis(1.2) {}
+    rear_axle_to_center_dis(1.3) {}
 
 bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     //
@@ -307,7 +307,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         double tmp[2] = {solution.x[pq_range_begin + i], double(i)};
         std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
         this->predicted_path_in_frenet_.push_back(v);
-//        std::cout << "cur " << i << ": " << solution.x[curvature_range_begin + i] << std::endl;
     }
 
     tinyspline::BSpline b_spline(N);
@@ -367,8 +366,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             state.z = start_state_.z;
             state.s = 0;
         } else {
-            double dx = result[0] - (*final_path)[i - 1].x;
-            double dy = result[1] - (*final_path)[i - 1].y;
+            double dx = result[0] - (tmp_final_path)[i - 1].x;
+            double dy = result[1] - (tmp_final_path)[i - 1].y;
             state.z = atan2(dy, dx);
             total_s += sqrt(pow(dx, 2) + pow(dy, 2));
             state.s = total_s;
@@ -385,7 +384,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
     final_path->clear();
     std::copy(tmp_final_path.begin(), tmp_final_path.end(), std::back_inserter(*final_path));
-    return true;
 }
 
 double MpcPathOptimizer::getClearanceWithDirection(const hmpl::State &state,
