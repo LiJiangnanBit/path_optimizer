@@ -171,7 +171,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     typedef CPPAD_TESTVECTOR(double) Dvector;
     // n_vars: Set the number of model variables.
     // There are N pqs, 1 heading (the last heading) and N -2 curvatures in the variables.
-    size_t n_vars = N + (1) + (N - 2);
+    size_t n_vars = N + (1) + (N - 2) + (N - 2);
     // Set the number of constraints
     Dvector vars(n_vars);
     for (size_t i = 0; i < n_vars; i++) {
@@ -179,7 +179,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
     const size_t pq_range_begin = 0;
     const size_t heading_range_begin = pq_range_begin + N;
-    const size_t curvature_range_begin = heading_range_begin + 1;
+    const size_t ps_range_begin = heading_range_begin + 1;
+    const size_t curvature_range_begin = ps_range_begin + N - 2;
     vars[pq_range_begin] = pq;
     vars[pq_range_begin + 1] = second_pq;
     vars[curvature_range_begin] = start_state_.k;
@@ -240,13 +241,13 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // The calculated path should have the same end heading with the end state,
     // but in narrow environment, such constraint might cause failure. So only
     // constraint end heading when minimum clearance is larger than 4m.
-//    if (min_clearance > 4) {
+    if (min_clearance > 4) {
         vars_lowerbound[heading_range_begin] = constraintAngle(end_state_.z);
         vars_upperbound[heading_range_begin] = constraintAngle(end_state_.z);
-//    }
+    }
 
     // Costraints inclued the end heading and N - 2 curvatures.
-    size_t n_constraints = 1 + (N - 2);
+    size_t n_constraints = 1 + (N - 2) + (N - 2);
     Dvector constraints_lowerbound(n_constraints);
     Dvector constraints_upperbound(n_constraints);
     for (size_t i = 0; i != n_constraints; i++) {
@@ -274,9 +275,10 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // weights of the cost function
     // todo: use a config file
     std::vector<double> weights;
-    weights.push_back(1); //curvature weight
-    weights.push_back(20); //curvature rate weight
+    weights.push_back(2); //curvature weight
+    weights.push_back(30); //curvature rate weight
     weights.push_back(0.01); //distance to boundary weight
+    weights.push_back(0.05); //s weight
 
     FgEvalFrenet fg_eval_frenet(seg_x_list_,
                                 seg_y_list_,
