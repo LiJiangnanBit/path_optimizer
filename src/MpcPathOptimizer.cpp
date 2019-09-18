@@ -30,7 +30,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // Set the car geometry. Use 3 circles to approximate the car.
     // todo: use a config file.
     // todo: consider back up situation
-    double car_width = 2.2;
+    double car_width = 2.4;
     double car_length = 5;
     double rear_l = 2.5;
     double front_l = 2.5;
@@ -240,10 +240,10 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // The calculated path should have the same end heading with the end state,
     // but in narrow environment, such constraint might cause failure. So only
     // constraint end heading when minimum clearance is larger than 4m.
-    if (min_clearance > 4) {
+//    if (min_clearance > 4) {
         vars_lowerbound[heading_range_begin] = constraintAngle(end_state_.z);
         vars_upperbound[heading_range_begin] = constraintAngle(end_state_.z);
-    }
+//    }
 
     // Costraints inclued the end heading and N - 2 curvatures.
     size_t n_constraints = 1 + (N - 2);
@@ -384,6 +384,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
     final_path->clear();
     std::copy(tmp_final_path.begin(), tmp_final_path.end(), std::back_inserter(*final_path));
+    return true;
 }
 
 double MpcPathOptimizer::getClearanceWithDirection(const hmpl::State &state,
