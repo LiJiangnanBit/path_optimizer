@@ -50,6 +50,35 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     car_geo.push_back(rear_front_r);
     car_geo.push_back(middle_r);
 
+    double cte = 0;  // lateral error
+    double epsi = 0; // navigable error
+    auto min_distance = DBL_MAX;
+    double min_index = 0;
+    // If the start state is not on the path, find the closest point to the vehicle on path.
+    if (hmpl::distance(points_list_.front(), start_state_) < 0.001) {
+       min_distance = 0;
+       min_index = 0;
+       cte = 0;
+    } else {
+        for (size_t i = 0; i != point_num_; ++i) {
+            double tmp_distance = hmpl::distance(points_list_[i], start_state_);
+            if (tmp_distance < min_distance) {
+                min_distance = tmp_distance;
+                min_index = i;
+            } else if (tmp_distance > 15 && min_distance < 15) {
+                break;
+            }
+        }
+        points_list_.erase(points_list_.begin(), points_list_.begin() + min_index);
+        point_num_ = points_list_.size();
+        auto first_point_local = hmpl::globalToLocal(start_state_, points_list_.front());
+        if (first_point_local.y < 0) {
+            cte = min_distance;
+        } else {
+            cte = -min_distance;
+        }
+    }
+
     double s = 0;
     for (size_t i = 0; i != point_num_; ++i) {
         if (i == 0) {
@@ -82,9 +111,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
     point_num_ = x_list_.size();
 
-    // check if there are points whose curvature or curvature change is too large. if such point does exist, the result
-    // might be not natural.
-    // todo: when large curvature or curvature change is detected, try to generate a shorter path instead of quiting this method.
     double max_curvature_abs;
     double max_curvature_change_abs;
     getCurvature(x_list_, y_list_, &k_list_, &max_curvature_abs, &max_curvature_change_abs);
@@ -100,8 +126,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         start_ref_angle = atan2(y_spline_.deriv(1, 0), x_spline_.deriv(1, 0));
     }
 
-    double cte;  // lateral error
-    double epsi; // navigable error
     // calculate the difference between the start angle of the reference path ande the angle of start state.
     epsi = constraintAngle(start_state_.z - start_ref_angle);
     if (fabs(epsi) > 80 * M_PI / 180) {
@@ -150,7 +174,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
 
     // pq denotes the offset from ref path.
-    cte = 0;
     double pq = cte;
     // For the start position and heading are fixed, the second pq is also a fixed value.
     // Calculate the second state. It will be used as a constraint later.
@@ -241,10 +264,10 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // The calculated path should have the same end heading with the end state,
     // but in narrow environment, such constraint might cause failure. So only
     // constraint end heading when minimum clearance is larger than 4m.
-    if (min_clearance > 4) {
-        vars_lowerbound[heading_range_begin] = constraintAngle(end_state_.z);
-        vars_upperbound[heading_range_begin] = constraintAngle(end_state_.z);
-    }
+//    if (min_clearance > 4) {
+//        vars_lowerbound[heading_range_begin] = constraintAngle(end_state_.z);
+//        vars_upperbound[heading_range_begin] = constraintAngle(end_state_.z);
+//    }
 
     // Costraints inclued the end heading and N - 2 curvatures.
     size_t n_constraints = 1 + (N - 2) + (N - 2);

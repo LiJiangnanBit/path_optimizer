@@ -70,7 +70,7 @@ private:
     double rear_axle_to_center_dis;
 
 
-    const std::vector<hmpl::State>& points_list_;
+    std::vector<hmpl::State> points_list_;
     std::vector<double> x_list_;
     std::vector<double> y_list_;
     std::vector<double> k_list_;
