@@ -55,9 +55,9 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     double min_index = 0;
     // If the start state is not on the path, find the closest point to the vehicle on path.
     if (hmpl::distance(points_list_.front(), start_state_) < 0.001) {
-       min_distance = 0;
-       min_index = 0;
-       cte = 0;
+        min_distance = 0;
+        min_index = 0;
+        cte = 0;
     } else {
         for (size_t i = 0; i != point_num_; ++i) {
             double tmp_distance = hmpl::distance(points_list_[i], start_state_);
@@ -70,6 +70,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         }
         points_list_.erase(points_list_.begin(), points_list_.begin() + min_index);
         point_num_ = points_list_.size();
+        // Car on the left: cte > 0; car on the right: cte < 0.
         auto first_point_local = hmpl::globalToLocal(start_state_, points_list_.front());
         if (first_point_local.y < 0) {
             cte = min_distance;
@@ -123,7 +124,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     } else {
         start_ref_angle = atan2(y_spline_.deriv(1, 0), x_spline_.deriv(1, 0));
     }
-
     // calculate the difference between the start angle of the reference path ande the angle of start state.
     epsi = constraintAngle(start_state_.z - start_ref_angle);
     if (fabs(epsi) > M_PI_2) {
@@ -133,11 +133,11 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // Divid the reference path. Intervals are smaller at the beginning.
     double delta_s_smaller = 0.5;
     double delta_s_larger = 1.6;
-    double first_piece = 0.5 * cos(epsi);
+    double first_length = 0.5;
     seg_s_list_.push_back(0);
-    seg_s_list_.push_back(first_piece);
+    seg_s_list_.push_back(first_length * cos(epsi));
     double tmp_max_s = seg_s_list_.back() + delta_s_smaller;
-    while (tmp_max_s  < max_s) {
+    while (tmp_max_s < max_s) {
         seg_s_list_.push_back(tmp_max_s);
         if (tmp_max_s < 4) {
             tmp_max_s += delta_s_smaller;
@@ -166,26 +166,29 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
 
     // pq denotes the offset from ref path.
-    double pq = cte;
-    // For the start position and heading are fixed, the second pq is also a fixed value.
-    // Calculate the second state. It will be used as a constraint later.
-    double second_pq = pq + seg_s_list_[1] * tan(epsi);
+    double second_x = start_state_.x + first_length * cos(start_state_.z);
+    double second_y = start_state_.y + first_length * sin(start_state_.z);
+    hmpl::State second_state;
+    second_state.x = second_x;
+    second_state.y = second_y;
+    second_state.s = hmpl::distance(start_state_, second_state);
 
     typedef CPPAD_TESTVECTOR(double) Dvector;
     // n_vars: Set the number of model variables.
-    // There are N pqs, 1 heading (the last heading), N -2 curvatures and N - 2 ps in the variables.
-    size_t n_vars = N + (1) + (N - 2) + (N - 2);
+    // There are N - 2 pqs, 1 heading (the last heading), N -2 curvatures and N - 2 ps in the variables.
+    // Note that there are supposed to be N states, but the first two points are fixed. So they are not optimized.
+    size_t n_vars = (N - 2) + (1) + (N - 2) + (N - 2);
     // Set the number of constraints
     Dvector vars(n_vars);
     for (size_t i = 0; i < n_vars; i++) {
         vars[i] = 0;
     }
     const size_t pq_range_begin = 0;
-    const size_t heading_range_begin = pq_range_begin + N;
+    const size_t heading_range_begin = pq_range_begin + N - 2;
     const size_t ps_range_begin = heading_range_begin + 1;
     const size_t curvature_range_begin = ps_range_begin + N - 2;
-    vars[pq_range_begin] = pq;
-    vars[pq_range_begin + 1] = second_pq;
+
+    // Set initial curvature.
     vars[curvature_range_begin] = start_state_.k;
 
     // bounds of variables
@@ -204,10 +207,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
 
     // Set bounds for known points, which are fixed.
-    vars_lowerbound[pq_range_begin] = pq;
-    vars_upperbound[pq_range_begin] = pq;
-    vars_lowerbound[pq_range_begin + 1] = second_pq;
-    vars_upperbound[pq_range_begin + 1] = second_pq;
     vars_lowerbound[curvature_range_begin] = start_state_.k;
     vars_upperbound[curvature_range_begin] = start_state_.k;
     // The end heading can also be constrained too. Just add lower and upper bound for heading_range_begin here.
@@ -274,7 +273,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     weights.push_back(2); //curvature weight
     weights.push_back(30); //curvature rate weight
     weights.push_back(0.01); //distance to boundary weight
-    weights.push_back(0.05); //s weight
+    weights.push_back(0.05); //path length weight
 
     FgEvalFrenet fg_eval_frenet(seg_x_list_,
                                 seg_y_list_,
@@ -283,6 +282,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                                 seg_s_list_,
                                 N,
                                 weights,
+                                start_state_,
+                                second_state,
                                 left_bound,
                                 right_bound);
     // solve the problem
@@ -301,7 +302,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     LOG(INFO) << "mpc path optimization solver succeeded!";
 
     // output
-    for (size_t i = 0; i != N; i++) {
+    for (size_t i = 0; i != N - 2; i++) {
         double tmp[2] = {solution.x[pq_range_begin + i], double(i)};
         std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
         this->predicted_path_in_frenet_.push_back(v);
@@ -309,9 +310,14 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 
     tinyspline::BSpline b_spline(N);
     std::vector<tinyspline::real> ctrlp = b_spline.controlPoints();
-    for (size_t i = 0; i != N; ++i) {
-        double length_on_ref_path = seg_s_list_[i];
-        double angle = seg_angle_list_[i];
+    // The first two points are fixed. They are not in the optimized variables.
+    ctrlp[0] = start_state_.x;
+    ctrlp[1] = start_state_.y;
+    ctrlp[2] = second_state.x;
+    ctrlp[3] = second_state.y;
+    for (size_t i = 0; i != N - 2; ++i) {
+        double length_on_ref_path = seg_s_list_[i + 2];
+        double angle = seg_angle_list_[i + 2];
         double new_angle = constraintAngle(angle + M_PI_2);
         double tmp_x = x_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][0] * cos(new_angle);
         double tmp_y = y_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][0] * sin(new_angle);
@@ -346,8 +352,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 //            final_path->clear();
 //            return false;
 //        }
-        ctrlp[2 * i] = tmp_x;
-        ctrlp[2 * i + 1] = tmp_y;
+        ctrlp[2 * (i + 2)] = tmp_x;
+        ctrlp[2 * (i + 2) + 1] = tmp_y;
     }
     // B spline
     b_spline.setControlPoints(ctrlp);
