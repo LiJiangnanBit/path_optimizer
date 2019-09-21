@@ -11,7 +11,6 @@ MpcPathOptimizer::MpcPathOptimizer(const std::vector<hmpl::State> &points_list,
                                    const hmpl::InternalGridMap &map) :
     grid_map_(map),
     collision_checker_(map),
-    large_init_psi_flag_(false),
     points_list_(points_list),
     point_num_(points_list.size()),
     start_state_(start_state),
@@ -114,7 +113,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     double max_curvature_abs;
     double max_curvature_change_abs;
     getCurvature(x_list_, y_list_, &k_list_, &max_curvature_abs, &max_curvature_change_abs);
-
     k_spline_.set_points(s_list_, k_list_);
 
     // If the start heading differs a lot with the ref path, quit.
@@ -128,35 +126,29 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 
     // calculate the difference between the start angle of the reference path ande the angle of start state.
     epsi = constraintAngle(start_state_.z - start_ref_angle);
-    if (fabs(epsi) > 80 * M_PI / 180) {
-        LOG(WARNING) << "initial epsi is larger than 80°, quit mpc path optimization!";
+    if (fabs(epsi) > M_PI_2) {
+        LOG(WARNING) << "initial epsi is larger than 90°, quit mpc path optimization!";
         return false;
     }
-
-    // Divide reference path.
-    if (epsi >= 30 * M_PI / 180) {
-        large_init_psi_flag_ = true;
-    }
-    double delta_s = 1.6;
-    size_t N = max_s / delta_s + 1;
-    if (large_init_psi_flag_) {
-        LOG(INFO) << "large initial psi mode";
-        N += 4;
-    }
-    double length = 0;
+    // Divid the reference path. Intervals are smaller at the beginning.
+    double delta_s_smaller = 0.5;
+    double delta_s_larger = 1.6;
+    double first_piece = 0.5 * cos(epsi);
     seg_s_list_.push_back(0);
-    for (size_t i = 0; i != N - 1; ++i) {
-        if (large_init_psi_flag_ && i <= 5) {
-            length += delta_s / 3;
+    seg_s_list_.push_back(first_piece);
+    double tmp_max_s = seg_s_list_.back() + delta_s_smaller;
+    while (tmp_max_s  < max_s) {
+        seg_s_list_.push_back(tmp_max_s);
+        if (tmp_max_s < 4) {
+            tmp_max_s += delta_s_smaller;
         } else {
-            length += delta_s;
+            tmp_max_s += delta_s_larger;
         }
-        seg_s_list_.push_back(length);
     }
-    if (max_s - length > delta_s * 0.2) {
-        ++N;
+    if (max_s - seg_s_list_.back() > 1) {
         seg_s_list_.push_back(max_s);
     }
+    auto N = seg_s_list_.size();
 
     // Store reference states in vectors. They will be used later.
     for (size_t i = 0; i != N; ++i) {
@@ -178,22 +170,10 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // For the start position and heading are fixed, the second pq is also a fixed value.
     // Calculate the second state. It will be used as a constraint later.
     double second_pq = pq + seg_s_list_[1] * tan(epsi);
-    double end_ref_angle;
-    // If the end heading differs a lot with the ref path, quit.
-    if (x_spline_.deriv(1, s_list_.back()) == 0) {
-        end_ref_angle = M_PI_2;
-    } else {
-        end_ref_angle = atan2(y_spline_.deriv(1, s_list_.back()), x_spline_.deriv(1, s_list_.back()));
-    }
-    double end_psi = constraintAngle(end_state_.z - end_ref_angle);
-    if (fabs(end_psi) > M_PI_2) {
-        LOG(WARNING) << "end psi is larger than 90°, quit mpc path optimization!";
-        return false;
-    }
 
     typedef CPPAD_TESTVECTOR(double) Dvector;
     // n_vars: Set the number of model variables.
-    // There are N pqs, 1 heading (the last heading) and N -2 curvatures in the variables.
+    // There are N pqs, 1 heading (the last heading), N -2 curvatures and N - 2 ps in the variables.
     size_t n_vars = N + (1) + (N - 2) + (N - 2);
     // Set the number of constraints
     Dvector vars(n_vars);
@@ -230,6 +210,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     vars_upperbound[pq_range_begin + 1] = second_pq;
     vars_lowerbound[curvature_range_begin] = start_state_.k;
     vars_upperbound[curvature_range_begin] = start_state_.k;
+    // The end heading can also be constrained too. Just add lower and upper bound for heading_range_begin here.
 
     // Set pq bounds according to the distance to obstacles.
     // Start from the third point, because the first two points are fixed.
@@ -260,14 +241,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         vars_lowerbound[pq_range_begin + i] = clearance_right;
         vars_upperbound[pq_range_begin + i] = clearance_left;
     }
-
-    // The calculated path should have the same end heading with the end state,
-    // but in narrow environment, such constraint might cause failure. So only
-    // constraint end heading when minimum clearance is larger than 4m.
-//    if (min_clearance > 4) {
-//        vars_lowerbound[heading_range_begin] = constraintAngle(end_state_.z);
-//        vars_upperbound[heading_range_begin] = constraintAngle(end_state_.z);
-//    }
 
     // Costraints inclued the end heading and N - 2 curvatures.
     size_t n_constraints = 1 + (N - 2) + (N - 2);

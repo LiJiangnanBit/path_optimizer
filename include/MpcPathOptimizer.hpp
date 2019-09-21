@@ -64,7 +64,6 @@ private:
 
     hmpl::InternalGridMap grid_map_;
     CollisionChecker collision_checker_;
-    bool large_init_psi_flag_;
     CarType car_type;
     // rear_axle_to_center_dis is needed only when using ackermann steering.
     double rear_axle_to_center_dis;
