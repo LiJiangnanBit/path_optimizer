@@ -130,13 +130,31 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         LOG(WARNING) << "initial epsi is larger than 90°, quit mpc path optimization!";
         return false;
     }
+    // Calculate the second and the third state, which depends on the initial heading and curvature of the vehicle.
+    // Therefore, the first 3 states are fixed. We only optimize the rest of the states.
+    double fixed_length = 0.5;
+    double second_x = start_state_.x + fixed_length * cos(start_state_.z);
+    double second_y = start_state_.y + fixed_length * sin(start_state_.z);
+    double second_heading = constraintAngle(start_state_.k * fixed_length + start_state_.z);
+    double third_x = second_x + fixed_length * cos(second_heading);
+    double third_y = second_y + fixed_length * sin(second_heading);
+    hmpl::State second_state, third_state;
+    second_state.x = second_x;
+    second_state.y = second_y;
+    second_state.s = hmpl::distance(start_state_, second_state);
+    second_state.z = second_heading;
+    third_state.x = third_x;
+    third_state.y = third_y;
+    third_state.s = hmpl::distance(second_state, third_state);
+
     // Divid the reference path. Intervals are smaller at the beginning.
     double delta_s_smaller = 0.5;
     double delta_s_larger = 1.6;
-    double fixed_length = 0.5;
     seg_s_list_.push_back(0);
-    seg_s_list_.push_back(fixed_length * cos(epsi));
-    seg_s_list_.push_back(2 * fixed_length * cos(epsi));
+    double second_s_on_ref = fixed_length * cos(epsi);
+    seg_s_list_.push_back(second_s_on_ref);
+    double second_ref_heading = atan2(y_spline_.deriv(1, second_s_on_ref), x_spline_.deriv(1, second_s_on_ref));
+    seg_s_list_.push_back(second_s_on_ref + fixed_length * cos(constraintAngle(second_state.z - second_ref_heading)));
     double tmp_max_s = seg_s_list_.back() + delta_s_smaller;
     while (tmp_max_s < max_s) {
         seg_s_list_.push_back(tmp_max_s);
@@ -204,20 +222,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         seg_angle_list_.erase(seg_angle_list_.begin() + valid_N, seg_angle_list_.end());
     }
     std::cout << "seg size: " << seg_x_list_.size() << " N: " << N << std::endl;
-
-    // pq denotes the offset from ref path.
-    double second_x = start_state_.x + fixed_length * cos(start_state_.z);
-    double second_y = start_state_.y + fixed_length * sin(start_state_.z);
-    double second_heading = start_state_.k * fixed_length + start_state_.z;
-    double third_x = second_x + fixed_length * cos(second_heading);
-    double third_y = second_y + fixed_length * sin(second_heading);
-    hmpl::State second_state, third_state;
-    second_state.x = second_x;
-    second_state.y = second_y;
-    second_state.s = hmpl::distance(start_state_, second_state);
-    third_state.x = third_x;
-    third_state.y = third_y;
-    third_state.s = hmpl::distance(second_state, third_state);
 
     typedef CPPAD_TESTVECTOR(double) Dvector;
     // n_vars: Set the number of model variables.

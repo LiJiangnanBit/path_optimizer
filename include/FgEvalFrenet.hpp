@@ -95,21 +95,6 @@ public:
             fg[0] += cost_func_curvature_rate_weight_
                 * pow(vars[curvature_range_begin + t + 1] - vars[curvature_range_begin + t], 2);
         }
-
-//        AD<double> curvature_0 = vars[curvature_range_begin];
-//        AD<double> curvature_1 = vars[curvature_range_begin + 1];
-//        AD<double> ps_0 = vars[ps_range_begin];
-//        AD<double> ps_1 = vars[ps_range_begin + 1];
-//        AD<double> pq_0 = vars[pq_range_begin];
-//        AD<double> pq_1 = vars[pq_range_begin + 1];
-//        AD<double> ref_x_0 = seg_x_list_[2];
-//        AD<double> ref_y_0 = seg_y_list_[2];
-//        AD<double> ref_angle_0 = seg_angle_list_[2];
-//        AD<double> ref_x_1 = seg_x_list_[3];
-//        AD<double> ref_y_1 = seg_y_list_[3];
-//        AD<double> ref_angle_1 = seg_angle_list_[3];
-
-
         // The rest of the constraints
         for (size_t i = 0; i != N - 3; ++i) {
             size_t i_for_lists = i + 3;
