@@ -79,6 +79,9 @@ private:
     std::vector<double> seg_x_list_;
     std::vector<double> seg_y_list_;
     std::vector<double> seg_angle_list_;
+    std::vector<double> seg_clearance_left_list_;
+    std::vector<double> seg_clearance_right_list_;
+
 
     size_t point_num_;
     hmpl::State start_state_;

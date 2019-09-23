@@ -29,7 +29,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // Set the car geometry. Use 3 circles to approximate the car.
     // todo: use a config file.
     // todo: consider back up situation
-    double car_width = 2.4;
+    double car_width = 2.0;
     double car_length = 5;
     double rear_l = 2.5;
     double front_l = 2.5;
@@ -165,6 +165,46 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         seg_k_list_.push_back(k_spline_(length_on_ref_path));
     }
 
+    std::cout << "N " << N << std::endl;
+    auto min_clearance = DBL_MAX;
+    size_t valid_N = 0;
+    for (size_t i = 0; i != N; ++i) {
+        hmpl::State center_state;
+        center_state.x = seg_x_list_[i];
+        center_state.y = seg_y_list_[i];
+        center_state.z = seg_angle_list_[i];
+        center_state.s = seg_s_list_[i];
+        // Function getClearance uses the center position as input.
+        if (car_type == ACKERMANN_STEERING) {
+            center_state.x += rear_axle_to_center_dis * cos(center_state.z);
+            center_state.y += rear_axle_to_center_dis * sin(center_state.z);
+        }
+        std::vector<double> clearance_range = getClearance(center_state, car_geo);
+        double clearance_left = clearance_range[0];
+        double clearance_right = clearance_range[1];
+        double clearance = clearance_left - clearance_right;
+        min_clearance = std::min(clearance, min_clearance);
+        seg_clearance_left_list_.push_back(clearance_left);
+        seg_clearance_right_list_.push_back(clearance_right);
+        if (clearance_left * clearance_right > 0 && center_state.s > 0.75 * max_s) {
+            std::cout << (center_state.s > 0.75 * max_s) << std::endl;
+            std::cout << "delete points, max_s: " << max_s << ", center state: " << center_state.s << std::endl;
+            valid_N = i;
+            break;
+        }
+        std::cout << i << " upper & lower bound: " << clearance_left << ", " << clearance_right << std::endl;
+    }
+    if (valid_N != 0) {
+        N = valid_N;
+        seg_x_list_.erase(seg_x_list_.begin() + valid_N, seg_x_list_.end());
+        seg_y_list_.erase(seg_y_list_.begin() + valid_N, seg_y_list_.end());
+        seg_s_list_.erase(seg_s_list_.begin() + valid_N, seg_s_list_.end());
+        seg_k_list_.erase(seg_k_list_.begin() + valid_N, seg_k_list_.end());
+        seg_angle_list_.erase(seg_angle_list_.begin() + valid_N, seg_angle_list_.end());
+    }
+    std::cout << "seg size: " << seg_x_list_.size() << " N: " << N << std::endl;
+
+
     // pq denotes the offset from ref path.
     double second_x = start_state_.x + first_length * cos(start_state_.z);
     double second_y = start_state_.y + first_length * sin(start_state_.z);
@@ -196,7 +236,11 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     Dvector vars_upperbound(n_vars);
 
     // state variables bounds
-    for (size_t i = 0; i < curvature_range_begin; i++) {
+    for (size_t i = pq_range_begin; i != heading_range_begin; ++i) {
+        vars_lowerbound[i] = seg_clearance_right_list_[i + 2];
+        vars_upperbound[i] = seg_clearance_left_list_[i + 2];
+    }
+    for (size_t i = heading_range_begin; i < curvature_range_begin; i++) {
         vars_lowerbound[i] = -DBL_MAX;
         vars_upperbound[i] = DBL_MAX;
     }
@@ -205,41 +249,10 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         vars_lowerbound[i] = -MAX_CURVATURE;
         vars_upperbound[i] = MAX_CURVATURE;
     }
-
     // Set bounds for known points, which are fixed.
     vars_lowerbound[curvature_range_begin] = start_state_.k;
     vars_upperbound[curvature_range_begin] = start_state_.k;
     // The end heading can also be constrained too. Just add lower and upper bound for heading_range_begin here.
-
-    // Set pq bounds according to the distance to obstacles.
-    // Start from the third point, because the first two points are fixed.
-    auto min_clearance = DBL_MAX;
-    std::vector<double> left_bound, right_bound;
-    for (size_t i = 2; i != N; ++i) {
-        hmpl::State center_state;
-        center_state.x = seg_x_list_[i];
-        center_state.y = seg_y_list_[i];
-        center_state.z = seg_angle_list_[i];
-        // Function getClearance uses the center position as input.
-        if (car_type == ACKERMANN_STEERING) {
-            center_state.x += rear_axle_to_center_dis * cos(center_state.z);
-            center_state.y += rear_axle_to_center_dis * sin(center_state.z);
-        }
-        std::vector<double> clearance_range = getClearance(center_state, car_geo);
-        double clearance_left = clearance_range[0];
-        double clearance_right = clearance_range[1];
-//        std::cout << i << " upper & lower bound: " << clearance_left << ", " << clearance_right << std::endl;
-        double clearance = clearance_left - clearance_right;
-        min_clearance = std::min(clearance, min_clearance);
-        left_bound.push_back(clearance_left);
-        right_bound.push_back(clearance_right);
-        if (i == N - 1) {
-            clearance_left = std::min(clearance_left, 1.5);
-            clearance_right = std::max(clearance_right, -1.5);
-        }
-        vars_lowerbound[pq_range_begin + i] = clearance_right;
-        vars_upperbound[pq_range_begin + i] = clearance_left;
-    }
 
     // Costraints inclued the end heading and N - 2 curvatures.
     size_t n_constraints = 1 + (N - 2) + (N - 2);
@@ -284,8 +297,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                                 weights,
                                 start_state_,
                                 second_state,
-                                left_bound,
-                                right_bound);
+                                seg_clearance_left_list_,
+                                seg_clearance_right_list_);
     // solve the problem
     CppAD::ipopt::solve<Dvector, FgEvalFrenet>(options, vars,
                                                vars_lowerbound, vars_upperbound,

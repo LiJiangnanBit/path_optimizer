@@ -83,8 +83,8 @@ public:
         for (size_t t = 0; t < N - 2; t++) {
             fg[0] += cost_func_curvature_weight_ * pow(vars[curvature_range_begin + t], 2);
             fg[0] += cost_func_bound_weight_ *
-                (1 / (pow((vars[pq_range_begin + t] - left_bound_[t]), 2) + 0.1) +
-                    1 / (pow((vars[pq_range_begin + t] - right_bound_[t]), 2) + 0.1));
+                (1 / (pow((vars[pq_range_begin + t] - left_bound_[t + 2]), 2) + 0.1) +
+                    1 / (pow((vars[pq_range_begin + t] - right_bound_[t + 2]), 2) + 0.1));
             fg[0] += cost_func_s_weight_ * pow(vars[ps_range_begin + t], 2);
         }
         for (size_t t = 0; t < N - 3; t++) {
