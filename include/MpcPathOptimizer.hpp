@@ -48,7 +48,9 @@ private:
                                      const std::vector<double> &car_geometry);
     double getClearanceWithDirection(const hmpl::State &state,
                                      double angle);
-    std::vector<double> getClearance(hmpl::State state, const std::vector<double> &car_geometry);
+    std::vector<double> getClearance(hmpl::State state,
+                                     double ref_angle,
+                                     const std::vector<double> &car_geometry);
     // Set angle range to -pi ~ pi.
     inline double constraintAngle(double angle) {
         if (angle > M_PI) {

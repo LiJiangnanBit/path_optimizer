@@ -133,6 +133,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // Calculate the second and the third state, which depends on the initial heading and curvature of the vehicle.
     // Therefore, the first 3 states are fixed. We only optimize the rest of the states.
     double fixed_length = 0.5;
+//    if (epsi > 30 * M_PI / 180) fixed_length = 0.25;
     double second_x = start_state_.x + fixed_length * cos(start_state_.z);
     double second_y = start_state_.y + fixed_length * sin(start_state_.z);
     double second_heading = constraintAngle(start_state_.k * fixed_length + start_state_.z);
@@ -149,7 +150,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 
     // Divid the reference path. Intervals are smaller at the beginning.
     double delta_s_smaller = 0.5;
-    double delta_s_larger = 1.6;
+    if (fabs(epsi) < 20 * M_PI / 180) delta_s_smaller = 1;
+    double delta_s_larger = 1.5;
     seg_s_list_.push_back(0);
     double second_s_on_ref = fixed_length * cos(epsi);
     seg_s_list_.push_back(second_s_on_ref);
@@ -187,18 +189,33 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     std::cout << "N " << N << std::endl;
     auto min_clearance = DBL_MAX;
     size_t valid_N = 0;
+    bool large_init_epsi_mode = false;
+    grid_map::Position start_position(start_state_.x, start_state_.y);
+    if (grid_map_.getObstacleDistance(start_position) < 2 && fabs(epsi) > 10 * M_PI / 180) {
+        large_init_epsi_mode = true;
+        std::cout << "large epsi!" << std::endl;
+    }
     for (size_t i = 0; i != N; ++i) {
         hmpl::State center_state;
         center_state.x = seg_x_list_[i];
         center_state.y = seg_y_list_[i];
-        center_state.z = seg_angle_list_[i];
         center_state.s = seg_s_list_[i];
+        if (large_init_epsi_mode && (fabs(constraintAngle(start_state_.z - seg_angle_list_[i])) < 5 * M_PI / 180 || center_state.s > 4)) {
+            large_init_epsi_mode = false;
+            std::cout << "quit large epsi mode" << std::endl;
+        }
+        if (large_init_epsi_mode) {
+            center_state.z = start_state_.z;
+            std::cout << "in large epsi mode" << std::endl;
+        } else {
+            center_state.z = seg_angle_list_[i];
+        }
         // Function getClearance uses the center position as input.
         if (car_type == ACKERMANN_STEERING) {
             center_state.x += rear_axle_to_center_dis * cos(center_state.z);
             center_state.y += rear_axle_to_center_dis * sin(center_state.z);
         }
-        std::vector<double> clearance_range = getClearance(center_state, car_geo);
+        std::vector<double> clearance_range = getClearance(center_state, seg_angle_list_[i], car_geo);
         double clearance_left = clearance_range[0];
         double clearance_right = clearance_range[1];
         double clearance = clearance_left - clearance_right;
@@ -211,7 +228,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             valid_N = i;
             break;
         }
-        std::cout << i << " upper & lower bound: " << clearance_left << ", " << clearance_right << std::endl;
+//        std::cout << i << " upper & lower bound: " << clearance_left << ", " << clearance_right << std::endl;
     }
     if (valid_N != 0) {
         N = valid_N;
@@ -416,7 +433,9 @@ double MpcPathOptimizer::getClearanceWithDirection(const hmpl::State &state,
     return s;
 }
 
-std::vector<double> MpcPathOptimizer::getClearance(hmpl::State state, const std::vector<double> &car_geometry) {
+std::vector<double> MpcPathOptimizer::getClearance(hmpl::State state,
+                                                   double ref_angle,
+                                                   const std::vector<double> &car_geometry) {
     // Check if the current state has collision.
     double rear_center_distance = car_geometry[0];
     double front_center_distance = car_geometry[1];
@@ -434,8 +453,8 @@ std::vector<double> MpcPathOptimizer::getClearance(hmpl::State state, const std:
     double middle_clearance = grid_map_.getObstacleDistance(middle_position);
     // If the current state is collision free, then expand to left and right.
     if (std::min(rear_clearance, front_clearance) > rear_front_radius && middle_clearance > middle_radius) {
-        double left_clearance = getClearanceWithDirection(state, constraintAngle(state.z + M_PI_2), car_geometry);
-        double right_clearance = -getClearanceWithDirection(state, constraintAngle(state.z - M_PI_2), car_geometry);
+        double left_clearance = getClearanceWithDirection(state, constraintAngle(ref_angle + M_PI_2), car_geometry);
+        double right_clearance = -getClearanceWithDirection(state, constraintAngle(ref_angle - M_PI_2), car_geometry);
         std::vector<double> clearance{left_clearance, right_clearance};
         return clearance;
     } else {
@@ -449,8 +468,8 @@ std::vector<double> MpcPathOptimizer::getClearance(hmpl::State state, const std:
         size_t n = 5.0 / delta_s;
         for (size_t i = 0; i != n; ++i) {
             s += delta_s;
-            double x = state.x + s * cos(constraintAngle(state.z + M_PI_2));
-            double y = state.y + s * sin(constraintAngle(state.z + M_PI_2));
+            double x = state.x + s * cos(constraintAngle(ref_angle + M_PI_2));
+            double y = state.y + s * sin(constraintAngle(ref_angle + M_PI_2));
             double rear_x = x - rear_center_distance * cos(state.z);
             double rear_y = y - rear_center_distance * sin(state.z);
             double front_x = x + front_center_distance * cos(state.z);
@@ -474,7 +493,7 @@ std::vector<double> MpcPathOptimizer::getClearance(hmpl::State state, const std:
                     new_state.y = y;
                     new_state.z = state.z;
                     left_limit = right_limit
-                        + getClearanceWithDirection(new_state, constraintAngle(state.z + M_PI_2), car_geometry);
+                        + getClearanceWithDirection(new_state, constraintAngle(ref_angle + M_PI_2), car_geometry);
                     break;
                 }
             }
@@ -486,8 +505,8 @@ std::vector<double> MpcPathOptimizer::getClearance(hmpl::State state, const std:
             size_t n = 5.0 / delta_s;
             for (size_t i = 0; i != n; ++i) {
                 s += delta_s;
-                double x = state.x + s * cos(constraintAngle(state.z - M_PI_2));
-                double y = state.y + s * sin(constraintAngle(state.z - M_PI_2));
+                double x = state.x + s * cos(constraintAngle(ref_angle - M_PI_2));
+                double y = state.y + s * sin(constraintAngle(ref_angle - M_PI_2));
                 double rear_x = x - rear_center_distance * cos(state.z);
                 double rear_y = y - rear_center_distance * sin(state.z);
                 double front_x = x + front_center_distance * cos(state.z);
@@ -509,7 +528,7 @@ std::vector<double> MpcPathOptimizer::getClearance(hmpl::State state, const std:
                         new_state.y = y;
                         new_state.z = state.z;
                         right_limit = left_limit
-                            - getClearanceWithDirection(new_state, constraintAngle(state.z - M_PI_2), car_geometry);
+                            - getClearanceWithDirection(new_state, constraintAngle(ref_angle - M_PI_2), car_geometry);
                         break;
                     }
 
