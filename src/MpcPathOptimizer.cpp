@@ -20,15 +20,15 @@ MpcPathOptimizer::MpcPathOptimizer(const std::vector<hmpl::State> &points_list,
 
 bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     //
-    // todo: the result path should be different for various initial velocity!
+    // TODO: the result path should be different for various initial velocity!
     //
     if (point_num_ == 0) {
         LOG(INFO) << "path input is empty!";
         return false;
     }
     // Set the car geometry. Use 3 circles to approximate the car.
-    // todo: use a config file.
-    // todo: consider back up situation
+    // TODO: use a config file.
+    // TODO: consider back up situation
     double car_width = 2.0;
     double car_length = 5;
     double rear_l = 2.5;
@@ -65,7 +65,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             } else {
                 max_ds = 4;
             }
-            printf("max ds is %f \n", max_ds);
             double sampling_length = 2;
             while (sampling_length <= max_ds) {
                 G2lib::ClothoidCurve curve;
@@ -107,6 +106,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                 }
                 double ref_angle = hmpl::angle(points_list_[min_index], points_list_[min_index + 1]);
                 double angle_diff = fabs(constraintAngle(ref_angle - last_state.z));
+                // TODO: path choosing strategy should be improved!
                 if (angle_diff < min_angle_diff) {
                     min_angle_diff = angle_diff;
                     best_index = i;
@@ -115,7 +115,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             if (min_angle_diff > 45 * M_PI / 180) {
                 control_sampling_first_flag = false;
                 best_path.clear();
-                printf("path set is not empty, but no good end state.\n min angle diff: %f", min_angle_diff);
+//                printf("path set is not empty, but no good end state.\n min angle diff: %f", min_angle_diff);
             } else {
                 control_sampling_first_flag = true;
                 best_path.clear();
@@ -123,11 +123,11 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                     best_path.push_back(state);
                 }
                 start_state_ = best_path.back();
-                printf("control sampling succeeded!\n");
+//                printf("control sampling before path optimization succeeded!\n");
             }
         } else {
             control_sampling_first_flag = false;
-            printf("empty path set\n");
+//            printf("empty path set\n");
         }
     }
 
@@ -137,6 +137,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     auto min_distance = DBL_MAX;
     double min_index = 0;
     // If the start state is not on the path, find the closest point to the vehicle on path.
+    // TODO: if control sampling is done, min_index and min_distance are already known.
     if (hmpl::distance(points_list_.front(), start_state_) < 0.001) {
         min_distance = 0;
         min_index = 0;
@@ -269,7 +270,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         seg_k_list_.push_back(k_spline_(length_on_ref_path));
     }
 
-    std::cout << "N " << N << std::endl;
     auto min_clearance = DBL_MAX;
     size_t valid_N = 0;
     bool large_init_epsi_mode = false;
@@ -308,7 +308,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         seg_clearance_right_list_.push_back(clearance_right);
         if (clearance_left * clearance_right > 0 && center_state.s > 0.75 * max_s) {
             std::cout << (center_state.s > 0.75 * max_s) << std::endl;
-            std::cout << "delete points, max_s: " << max_s << ", center state: " << center_state.s << std::endl;
             valid_N = i;
             break;
         }
@@ -384,7 +383,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // place to return solution
     CppAD::ipopt::solve_result<Dvector> solution;
     // weights of the cost function
-    // todo: use a config file
+    // TODO: use a config file
     std::vector<double> weights;
     weights.push_back(2); //curvature weight
     weights.push_back(30); //curvature rate weight
@@ -433,10 +432,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     std::vector<tinyspline::real> ctrlp = b_spline.controlPoints();
     size_t control_sampling_point_count = 0;
     if (control_sampling_first_flag) {
-        printf("best path size: %d\n", best_path.size());
         for (; control_sampling_point_count != best_path.size() - 1; ++control_sampling_point_count) {
-            printf("control count: %d\n", control_sampling_point_count);
-            printf("x: %f, y: %f \n", best_path.at(control_sampling_point_count).x, best_path.at(control_sampling_point_count).y);
             ctrlp[2 * control_sampling_point_count] = best_path.at(control_sampling_point_count).x;
             ctrlp[2 * control_sampling_point_count + 1] = best_path.at(control_sampling_point_count).y;
         }
@@ -445,7 +441,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     size_t count = 0;
     if (control_sampling_first_flag) {
         count = 2 * (control_sampling_point_count);
-        printf("sampling count: %d \n", count);
     };
     ctrlp[count + 0] = start_state_.x;
     ctrlp[count + 1] = start_state_.y;
@@ -453,7 +448,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     ctrlp[count + 3] = second_state.y;
     ctrlp[count + 4] = third_state.x;
     ctrlp[count + 5] = third_state.y;
-    printf("no crush 1\n");
     for (size_t i = 0; i != N - 3; ++i) {
         double length_on_ref_path = seg_s_list_[i + 3];
         double angle = seg_angle_list_[i + 3];
@@ -466,9 +460,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         }
         ctrlp[count + 2 * (i + 3)] = tmp_x;
         ctrlp[count + 2 * (i + 3) + 1] = tmp_y;
-        printf("count: %d\n", count + 2 * (i + 3));
     }
-    printf("no crush 2\n");
     // B spline
     b_spline.setControlPoints(ctrlp);
     std::vector<hmpl::State> tmp_final_path;
