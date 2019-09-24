@@ -4,7 +4,6 @@
 ## 依赖
 IPOPT  
 Benckmark  
-OpenCV  
 Clothoids https://github.com/ebertolazzi/Clothoids
 ## 未完成内容
 - [x] ~~检查结果是否存在碰撞~~  
