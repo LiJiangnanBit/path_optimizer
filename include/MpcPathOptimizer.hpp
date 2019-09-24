@@ -13,6 +13,8 @@
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
 #include <chrono>
+#include <Clothoid.hh>
+#include <ClothoidList.hh>
 #include <opt_utils/utils.hpp>
 #include <internal_grid_map/internal_grid_map.hpp>
 #include "tinyspline_ros/tinysplinecpp.h"
@@ -34,6 +36,7 @@ public:
                      const hmpl::State &end_state,
                      const hmpl::InternalGridMap &map);
     bool solve(std::vector<hmpl::State> *final_path);
+    const std::vector<std::vector<hmpl::State> > &getControlSamplingPathSet();
 private:
     void getCurvature(const std::vector<double> &local_x,
                       const std::vector<double> &local_y,
@@ -94,7 +97,7 @@ private:
     tk::spline k_spline_;
 
     std::vector<std::vector<double> > predicted_path_in_frenet_;
-
+    std::vector<std::vector<hmpl::State> > sampling_path_set_;
 };
 
 }

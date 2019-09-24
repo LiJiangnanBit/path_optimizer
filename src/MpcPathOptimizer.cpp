@@ -35,7 +35,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     double front_l = 2.5;
     double rear_circle_distance = rear_l - car_width / 2;
     double front_circle_distance = front_l - car_width / 2;
-    // vector car_geo is for function getClearanceWithDirection.
+    // Vector car_geo is for function getClearanceWithDirection.
     std::vector<double> car_geo;
     car_geo.push_back(rear_circle_distance);
     car_geo.push_back(front_circle_distance);
@@ -49,6 +49,89 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     car_geo.push_back(rear_front_r);
     car_geo.push_back(middle_r);
 
+    bool control_sampling_first_flag = false;
+    std::vector<hmpl::State> best_path;
+    grid_map::Position start_position(start_state_.x, start_state_.y);
+    if (grid_map_.getObstacleDistance(start_position) < 2) {
+        printf("start point is close to obstacle, control sampling first!\n");
+        if (start_state_.k < -MAX_CURVATURE || start_state_.k > MAX_CURVATURE) goto normal_procedure;
+        double dk = -0.1;
+        while (dk <= 0.1) {
+            double max_ds = 0;
+            if (dk < 0) {
+                max_ds = std::min((start_state_.k + MAX_CURVATURE) / fabs(dk), 5.0);
+            } else if (dk > 0) {
+                max_ds = std::min((MAX_CURVATURE - start_state_.k) / fabs(dk), 5.0);
+            } else {
+                max_ds = 4;
+            }
+            printf("max ds is %f \n", max_ds);
+            double sampling_length = 2;
+            while (sampling_length <= max_ds) {
+                G2lib::ClothoidCurve curve;
+                curve.build(start_state_.x, start_state_.y, start_state_.z, start_state_.k, dk, sampling_length);
+                hmpl::State tmp_state;
+                double delta_s = 0.4;
+                std::vector<hmpl::State> sampling_result;
+                for (size_t i = 0; i * delta_s < max_ds; ++i) {
+                    curve.evaluate(i * delta_s, tmp_state.z, tmp_state.k, tmp_state.x, tmp_state.y);
+                    if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
+                        sampling_result.push_back(tmp_state);
+                    } else {
+                        goto try_new_dk;
+                    }
+                    sampling_path_set_.push_back(sampling_result);
+                }
+                sampling_length += 0.8;
+            }
+            try_new_dk :
+            dk += 0.025;
+        }
+        printf("get %d paths\n",
+               sampling_path_set_.size());
+        auto min_angle_diff = DBL_MAX;
+        size_t best_index = 0;
+        if (!sampling_path_set_.empty()) {
+            for (size_t i = 0; i != sampling_path_set_.size(); ++i) {
+                const auto &last_state = sampling_path_set_[i].back();
+                size_t min_index = 0;
+                auto min_distance = DBL_MAX;
+                for (size_t i = 0; i != point_num_; ++i) {
+                    double tmp_distance = hmpl::distance(last_state, points_list_[i]);
+                    if (tmp_distance < min_distance) {
+                        min_distance = tmp_distance;
+                        min_index = i;
+                    } else if (tmp_distance > 15 && min_distance < 15) {
+                        break;
+                    }
+                }
+                double ref_angle = hmpl::angle(points_list_[min_index], points_list_[min_index + 1]);
+                double angle_diff = fabs(constraintAngle(ref_angle - last_state.z));
+                if (angle_diff < min_angle_diff) {
+                    min_angle_diff = angle_diff;
+                    best_index = i;
+                }
+            }
+            if (min_angle_diff > 45 * M_PI / 180) {
+                control_sampling_first_flag = false;
+                best_path.clear();
+                printf("path set is not empty, but no good end state.\n min angle diff: %f", min_angle_diff);
+            } else {
+                control_sampling_first_flag = true;
+                best_path.clear();
+                for (const auto &state : sampling_path_set_[best_index]) {
+                    best_path.push_back(state);
+                }
+                start_state_ = best_path.back();
+                printf("control sampling succeeded!\n");
+            }
+        } else {
+            control_sampling_first_flag = false;
+            printf("empty path set\n");
+        }
+    }
+
+    normal_procedure:
     double cte = 0;  // lateral error
     double epsi = 0; // navigable error
     auto min_distance = DBL_MAX;
@@ -190,17 +273,18 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     auto min_clearance = DBL_MAX;
     size_t valid_N = 0;
     bool large_init_epsi_mode = false;
-    grid_map::Position start_position(start_state_.x, start_state_.y);
-    if (grid_map_.getObstacleDistance(start_position) < 2 && fabs(epsi) > 10 * M_PI / 180) {
-        large_init_epsi_mode = true;
-        std::cout << "large epsi!" << std::endl;
-    }
+//    grid_map::Position start_position(start_state_.x, start_state_.y);
+//    if (grid_map_.getObstacleDistance(start_position) < 2 && fabs(epsi) > 10 * M_PI / 180) {
+//        large_init_epsi_mode = true;
+//        std::cout << "large epsi!" << std::endl;
+//    }
     for (size_t i = 0; i != N; ++i) {
         hmpl::State center_state;
         center_state.x = seg_x_list_[i];
         center_state.y = seg_y_list_[i];
         center_state.s = seg_s_list_[i];
-        if (large_init_epsi_mode && (fabs(constraintAngle(start_state_.z - seg_angle_list_[i])) < 5 * M_PI / 180 || center_state.s > 4)) {
+        if (large_init_epsi_mode
+            && (fabs(constraintAngle(start_state_.z - seg_angle_list_[i])) < 5 * M_PI / 180 || center_state.s > 4)) {
             large_init_epsi_mode = false;
             std::cout << "quit large epsi mode" << std::endl;
         }
@@ -238,7 +322,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         seg_k_list_.erase(seg_k_list_.begin() + valid_N, seg_k_list_.end());
         seg_angle_list_.erase(seg_angle_list_.begin() + valid_N, seg_angle_list_.end());
     }
-    std::cout << "seg size: " << seg_x_list_.size() << " N: " << N << std::endl;
 
     typedef CPPAD_TESTVECTOR(double) Dvector;
     // n_vars: Set the number of model variables.
@@ -342,15 +425,35 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         this->predicted_path_in_frenet_.push_back(v);
     }
 
-    tinyspline::BSpline b_spline(N);
+    size_t control_points_num = N;
+    if (control_sampling_first_flag) {
+        control_points_num = N + best_path.size() - 1;
+    }
+    tinyspline::BSpline b_spline(control_points_num);
     std::vector<tinyspline::real> ctrlp = b_spline.controlPoints();
+    size_t control_sampling_point_count = 0;
+    if (control_sampling_first_flag) {
+        printf("best path size: %d\n", best_path.size());
+        for (; control_sampling_point_count != best_path.size() - 1; ++control_sampling_point_count) {
+            printf("control count: %d\n", control_sampling_point_count);
+            printf("x: %f, y: %f \n", best_path.at(control_sampling_point_count).x, best_path.at(control_sampling_point_count).y);
+            ctrlp[2 * control_sampling_point_count] = best_path.at(control_sampling_point_count).x;
+            ctrlp[2 * control_sampling_point_count + 1] = best_path.at(control_sampling_point_count).y;
+        }
+    }
     // The first two points are fixed. They are not in the optimized variables.
-    ctrlp[0] = start_state_.x;
-    ctrlp[1] = start_state_.y;
-    ctrlp[2] = second_state.x;
-    ctrlp[3] = second_state.y;
-    ctrlp[4] = third_state.x;
-    ctrlp[5] = third_state.y;
+    size_t count = 0;
+    if (control_sampling_first_flag) {
+        count = 2 * (control_sampling_point_count);
+        printf("sampling count: %d \n", count);
+    };
+    ctrlp[count + 0] = start_state_.x;
+    ctrlp[count + 1] = start_state_.y;
+    ctrlp[count + 2] = second_state.x;
+    ctrlp[count + 3] = second_state.y;
+    ctrlp[count + 4] = third_state.x;
+    ctrlp[count + 5] = third_state.y;
+    printf("no crush 1\n");
     for (size_t i = 0; i != N - 3; ++i) {
         double length_on_ref_path = seg_s_list_[i + 3];
         double angle = seg_angle_list_[i + 3];
@@ -361,9 +464,11 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             LOG(WARNING) << "output is not a number, mpc path opitmization failed!" << std::endl;
             return false;
         }
-        ctrlp[2 * (i + 3)] = tmp_x;
-        ctrlp[2 * (i + 3) + 1] = tmp_y;
+        ctrlp[count + 2 * (i + 3)] = tmp_x;
+        ctrlp[count + 2 * (i + 3) + 1] = tmp_y;
+        printf("count: %d\n", count + 2 * (i + 3));
     }
+    printf("no crush 2\n");
     // B spline
     b_spline.setControlPoints(ctrlp);
     std::vector<hmpl::State> tmp_final_path;
@@ -641,5 +746,10 @@ void MpcPathOptimizer::getCurvature(const std::vector<double> &local_x,
     *max_curvature_abs = max_curvature;
     *max_curvature_change_abs = max_curvature_change;
 }
+
+const std::vector<std::vector<hmpl::State> > &MpcPathOptimizer::getControlSamplingPathSet() {
+    return this->sampling_path_set_;
+};
+
 
 }

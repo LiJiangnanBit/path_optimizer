@@ -29,6 +29,7 @@ message(STATUS "CMAKE SOURCE DIR:" ${CMAKE_MODULE_PATH})
 find_package(IPOPT REQUIRED)
 find_package(benchmark REQUIRED)
 find_package(OpenCV REQUIRED)
+find_library(Clothoids CMAKE_INSTALL_PREFIX)
 
 ###################################
 ## catkin specific configuration ##
@@ -61,9 +62,9 @@ include_directories(
 # Declare a C++ library
 add_library(${PROJECT_NAME}
         src/MpcPathOptimizer.cpp src/collision_checker.cpp)
-target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} Clothoids)
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 add_executable(mpc_path_optimizer_benchmark src/mpc_path_optimizer_benchmark.cpp src/MpcPathOptimizer.cpp src/collision_checker.cpp)
-target_link_libraries(mpc_path_optimizer_benchmark glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark ${OpenCV_LIBRARIES})
+target_link_libraries(mpc_path_optimizer_benchmark glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark ${OpenCV_LIBRARIES} Clothoids)
