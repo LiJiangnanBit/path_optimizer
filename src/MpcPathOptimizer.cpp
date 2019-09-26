@@ -16,7 +16,8 @@ MpcPathOptimizer::MpcPathOptimizer(const std::vector<hmpl::State> &points_list,
     start_state_(start_state),
     end_state_(end_state),
     car_type(ACKERMANN_STEERING),
-    rear_axle_to_center_dis(1.3) {}
+    rear_axle_to_center_dis(1.3),
+    best_sampling_index_(0) {}
 
 bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     //
@@ -80,6 +81,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                     if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
                         sampling_result.push_back(tmp_state);
                     } else {
+                        failed_sampling_path_set_.push_back(sampling_result);
                         goto try_new_dk;
                     }
                 }
@@ -89,9 +91,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             try_new_dk :
             dk += 0.025;
         }
-        printf("get %d paths\n", sampling_path_set_.size());
+        printf("control sampling get %d paths\n", sampling_path_set_.size());
         auto min_angle_diff = DBL_MAX;
-        size_t best_index = 0;
         if (!sampling_path_set_.empty()) {
             for (size_t i = 0; i != sampling_path_set_.size(); ++i) {
                 const auto &last_state = sampling_path_set_[i].back();
@@ -111,7 +112,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                 // TODO: path choosing strategy should be improved!
                 if (angle_diff < min_angle_diff) {
                     min_angle_diff = angle_diff;
-                    best_index = i;
+                    best_sampling_index_ = i;
                     min_distance_for_best_path = min_distance;
                     min_index_for_best_path = min_index;
                 }
@@ -123,7 +124,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             } else {
                 control_sampling_first_flag = true;
                 best_path.clear();
-                for (const auto &state : sampling_path_set_[best_index]) {
+                for (const auto &state : sampling_path_set_[best_sampling_index_]) {
                     best_path.push_back(state);
                 }
                 start_state_ = best_path.back();
@@ -726,4 +727,11 @@ const std::vector<std::vector<hmpl::State> > &MpcPathOptimizer::getControlSampli
     return this->sampling_path_set_;
 };
 
+const std::vector<std::vector<hmpl::State> > &MpcPathOptimizer::getControlSamplingFailedPathSet() {
+    return this->failed_sampling_path_set_;
+};
+
+const std::vector<hmpl::State> &MpcPathOptimizer::getBestSamplingPath() {
+    return this->sampling_path_set_[best_sampling_index_];
+}
 }

@@ -37,6 +37,10 @@ public:
                      const hmpl::InternalGridMap &map);
     bool solve(std::vector<hmpl::State> *final_path);
     const std::vector<std::vector<hmpl::State> > &getControlSamplingPathSet();
+    // Just for visualization purpose.
+    const std::vector<std::vector<hmpl::State> > &getControlSamplingFailedPathSet();
+    const std::vector<hmpl::State> &getBestSamplingPath();
+
 private:
     void getCurvature(const std::vector<double> &local_x,
                       const std::vector<double> &local_y,
@@ -98,6 +102,8 @@ private:
 
     std::vector<std::vector<double> > predicted_path_in_frenet_;
     std::vector<std::vector<hmpl::State> > sampling_path_set_;
+    std::vector<std::vector<hmpl::State> > failed_sampling_path_set_;
+    size_t best_sampling_index_;
 };
 
 }
