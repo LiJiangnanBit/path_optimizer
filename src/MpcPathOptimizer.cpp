@@ -94,6 +94,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         printf("control sampling get %d paths\n", sampling_path_set_.size());
         auto min_angle_diff = DBL_MAX;
         if (!sampling_path_set_.empty()) {
+//            std::vector<double> path_scoring;
+            double min_score = DBL_MAX;
             for (size_t i = 0; i != sampling_path_set_.size(); ++i) {
                 const auto &last_state = sampling_path_set_[i].back();
                 size_t min_index = 0;
@@ -110,11 +112,19 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                 double ref_angle = hmpl::angle(points_list_[min_index], points_list_[min_index + 1]);
                 double angle_diff = fabs(constraintAngle(ref_angle - last_state.z));
                 // TODO: path choosing strategy should be improved!
-                if (angle_diff < min_angle_diff) {
+//                if (angle_diff < min_angle_diff) {
+//                    min_angle_diff = angle_diff;
+//                    best_sampling_index_ = i;
+//                    min_distance_for_best_path = min_distance;
+//                    min_index_for_best_path = min_index;
+//                }
+                double score = 30 * angle_diff + min_distance;
+                if (score < min_score) {
                     min_angle_diff = angle_diff;
                     best_sampling_index_ = i;
                     min_distance_for_best_path = min_distance;
                     min_index_for_best_path = min_index;
+                    min_score = score;
                 }
             }
             if (min_angle_diff > 45 * M_PI / 180) {
