@@ -169,8 +169,8 @@ public:
                 y = ref_y + pq * CppAD::sin(ref_angle + M_PI_2);
             }
 
-            AD<double> heading_by_position;
-            if (i == N - 2) {
+            if (i == N - 4) {
+                AD<double> heading_by_position;
                 heading_by_position = CppAD::atan2(y - y_before, x - x_before);
                 AD<double> heading = vars[heading_range_begin];
                 fg[cons_heading_range_begin] = heading - heading_by_position;

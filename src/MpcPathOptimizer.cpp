@@ -338,6 +338,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         vars_lowerbound[i] = -MAX_CURVATURE;
         vars_upperbound[i] = MAX_CURVATURE;
     }
+    // Comment this if end heading is not to be considered.
     vars_lowerbound[heading_range_begin] = end_state_.z;
     vars_upperbound[heading_range_begin] = end_state_.z;
 
@@ -401,7 +402,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         return false;
     }
     LOG(INFO) << "mpc path optimization solver succeeded!";
-
     // output
     for (size_t i = 0; i != N - 3; i++) {
         double tmp[2] = {solution.x[pq_range_begin + i], double(i)};
