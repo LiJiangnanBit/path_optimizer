@@ -338,7 +338,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         vars_lowerbound[i] = -MAX_CURVATURE;
         vars_upperbound[i] = MAX_CURVATURE;
     }
-    // The end heading can also be constrained too. Just add lower and upper bound for heading_range_begin here.
+    vars_lowerbound[heading_range_begin] = end_state_.z;
+    vars_upperbound[heading_range_begin] = end_state_.z;
 
     // Costraints inclued the end heading, N - 3 ps and N - 3 curvatures.
     size_t n_constraints = 1 + (N - 3) + (N - 3);
