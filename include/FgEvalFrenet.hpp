@@ -169,7 +169,6 @@ public:
                 y = ref_y + pq * CppAD::sin(ref_angle + M_PI_2);
             }
 
-            // Two methods to calculate curvature. The first method is more accurate while the second method runs faster.
             if (seg_x_list_[i_for_lists] - seg_x_list_[i_for_lists - 1] < 0) {
                 AD<double> curvature_by_position;
                 AD<double> heading = CppAD::atan2(-y + y_before, -x + x_before);
@@ -195,14 +194,6 @@ public:
                     fg[cons_heading_range_begin] = heading_vars - heading;
                 }
             }
-
-//            AD<double> ref_ds_before = seg_s_list_[i] - seg_s_list_[i_before_before];
-//            AD<double> psi_before = (pq_before - pq_before_before) / ref_ds_before;
-//            AD<double> ps_before = ref_ds_before / CppAD::cos(psi_before) * (1 - pq_before_before * seg_k_list_[i_before_before]);
-//            AD<double> ref_ds_after = seg_s_list_[i_before] - seg_s_list_[i];
-//            AD<double> psi_after = (pq_after - pq_before) / ref_ds_after;
-//            AD<double> curvature_by_position = (psi_after - psi_before + constraintAngle(ref_angle_before - ref_angle_before_before)) / ps_before;
-
         }
     }
 };

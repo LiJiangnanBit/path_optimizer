@@ -17,7 +17,8 @@ MpcPathOptimizer::MpcPathOptimizer(const std::vector<hmpl::State> &points_list,
     end_state_(end_state),
     car_type(ACKERMANN_STEERING),
     rear_axle_to_center_dis(1.3),
-    best_sampling_index_(0) {}
+    best_sampling_index_(0),
+    control_sampling_first_flag_(false) {}
 
 bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     //
@@ -51,7 +52,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     car_geo.push_back(rear_front_r);
     car_geo.push_back(middle_r);
 
-    bool control_sampling_first_flag = false;
     std::vector<hmpl::State> best_path;
     double min_distance_for_best_path = 0;
     size_t min_index_for_best_path = 0;
@@ -63,11 +63,11 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         while (dk <= 0.1) {
             double max_ds = 0;
             if (dk < 0) {
-                max_ds = std::min((start_state_.k + MAX_CURVATURE) / fabs(dk), 5.0);
+                max_ds = std::min((start_state_.k + MAX_CURVATURE) / fabs(dk), 7.0);
             } else if (dk > 0) {
-                max_ds = std::min((MAX_CURVATURE - start_state_.k) / fabs(dk), 5.0);
+                max_ds = std::min((MAX_CURVATURE - start_state_.k) / fabs(dk), 7.0);
             } else {
-                max_ds = 4;
+                max_ds = 6;
             }
             double sampling_length = 2;
             while (sampling_length <= max_ds) {
@@ -76,7 +76,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                 hmpl::State tmp_state;
                 double delta_s = 0.4;
                 std::vector<hmpl::State> sampling_result;
-                for (size_t i = 0; i * delta_s < max_ds; ++i) {
+                for (size_t i = 0; i * delta_s < sampling_length; ++i) {
                     curve.evaluate(i * delta_s, tmp_state.z, tmp_state.k, tmp_state.x, tmp_state.y);
                     if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
                         sampling_result.push_back(tmp_state);
@@ -86,7 +86,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                     }
                 }
                 sampling_path_set_.push_back(sampling_result);
-                sampling_length += 0.8;
+                sampling_length += 1;
             }
             try_new_dk :
             dk += 0.025;
@@ -118,11 +118,11 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                 }
             }
             if (min_angle_diff > 45 * M_PI / 180) {
-                control_sampling_first_flag = false;
+                control_sampling_first_flag_ = false;
                 best_path.clear();
                 printf("path set is not empty, but no good end state.\n min angle diff: %f", min_angle_diff);
             } else {
-                control_sampling_first_flag = true;
+                control_sampling_first_flag_ = true;
                 best_path.clear();
                 for (const auto &state : sampling_path_set_[best_sampling_index_]) {
                     best_path.push_back(state);
@@ -131,7 +131,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                 printf("control sampling before path optimization succeeded!\n");
             }
         } else {
-            control_sampling_first_flag = false;
+            control_sampling_first_flag_ = false;
             printf("empty path set\n");
         }
     }
@@ -142,7 +142,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // Get the closest point on the ref path and erase the points before this point.
     auto min_distance = DBL_MAX;
     size_t min_index = 0;
-    if (control_sampling_first_flag) {
+    if (control_sampling_first_flag_) {
         min_index = min_index_for_best_path;
         min_distance = min_distance_for_best_path;
     } else if (hmpl::distance(points_list_.front(), start_state_) < 0.001) {
@@ -413,15 +413,14 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
         this->predicted_path_in_frenet_.push_back(v);
     }
-    printf("end heading: %f\n", solution.x[heading_range_begin] * 180 / M_PI);
     size_t control_points_num = N;
-    if (control_sampling_first_flag) {
+    if (control_sampling_first_flag_) {
         control_points_num = N + best_path.size() - 1;
     }
     tinyspline::BSpline b_spline(control_points_num);
     std::vector<tinyspline::real> ctrlp = b_spline.controlPoints();
     size_t control_sampling_point_count = 0;
-    if (control_sampling_first_flag) {
+    if (control_sampling_first_flag_) {
         for (; control_sampling_point_count != best_path.size() - 1; ++control_sampling_point_count) {
             ctrlp[2 * control_sampling_point_count] = best_path.at(control_sampling_point_count).x;
             ctrlp[2 * control_sampling_point_count + 1] = best_path.at(control_sampling_point_count).y;
@@ -429,7 +428,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
     // The first two points are fixed. They are not in the optimized variables.
     size_t count = 0;
-    if (control_sampling_first_flag) {
+    if (control_sampling_first_flag_) {
         count = 2 * (control_sampling_point_count);
     };
     ctrlp[count + 0] = start_state_.x;
@@ -738,6 +737,10 @@ const std::vector<std::vector<hmpl::State> > &MpcPathOptimizer::getControlSampli
 };
 
 const std::vector<hmpl::State> &MpcPathOptimizer::getBestSamplingPath() {
-    return this->sampling_path_set_[best_sampling_index_];
+    if (control_sampling_first_flag_) {
+        return this->sampling_path_set_[best_sampling_index_];
+    } else {
+        return this->empty_;
+    }
 }
 }

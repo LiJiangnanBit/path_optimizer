@@ -104,6 +104,8 @@ private:
     std::vector<std::vector<hmpl::State> > sampling_path_set_;
     std::vector<std::vector<hmpl::State> > failed_sampling_path_set_;
     size_t best_sampling_index_;
+    bool control_sampling_first_flag_;
+    std::vector<hmpl::State> empty_;
 };
 
 }
