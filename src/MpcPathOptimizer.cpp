@@ -26,6 +26,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         LOG(INFO) << "path input is empty!";
         return false;
     }
+    printf("original point num: %d\n", point_num_);
     // Set the car geometry. Use 3 circles to approximate the car.
     // TODO: use a config file.
     // TODO: consider back up situation
@@ -51,6 +52,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 
     bool control_sampling_first_flag = false;
     std::vector<hmpl::State> best_path;
+    double min_distance_for_best_path = 0;
+    size_t min_index_for_best_path = 0;
     grid_map::Position start_position(start_state_.x, start_state_.y);
     if (grid_map_.getObstacleDistance(start_position) < 2) {
         printf("start point is close to obstacle, control sampling first!\n");
@@ -79,15 +82,14 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                     } else {
                         goto try_new_dk;
                     }
-                    sampling_path_set_.push_back(sampling_result);
                 }
+                sampling_path_set_.push_back(sampling_result);
                 sampling_length += 0.8;
             }
             try_new_dk :
             dk += 0.025;
         }
-        printf("get %d paths\n",
-               sampling_path_set_.size());
+        printf("get %d paths\n", sampling_path_set_.size());
         auto min_angle_diff = DBL_MAX;
         size_t best_index = 0;
         if (!sampling_path_set_.empty()) {
@@ -110,12 +112,14 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                 if (angle_diff < min_angle_diff) {
                     min_angle_diff = angle_diff;
                     best_index = i;
+                    min_distance_for_best_path = min_distance;
+                    min_index_for_best_path = min_index;
                 }
             }
             if (min_angle_diff > 45 * M_PI / 180) {
                 control_sampling_first_flag = false;
                 best_path.clear();
-//                printf("path set is not empty, but no good end state.\n min angle diff: %f", min_angle_diff);
+                printf("path set is not empty, but no good end state.\n min angle diff: %f", min_angle_diff);
             } else {
                 control_sampling_first_flag = true;
                 best_path.clear();
@@ -123,25 +127,26 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                     best_path.push_back(state);
                 }
                 start_state_ = best_path.back();
-//                printf("control sampling before path optimization succeeded!\n");
+                printf("control sampling before path optimization succeeded!\n");
             }
         } else {
             control_sampling_first_flag = false;
-//            printf("empty path set\n");
+            printf("empty path set\n");
         }
     }
 
     normal_procedure:
     double cte = 0;  // lateral error
     double epsi = 0; // navigable error
+    // Get the closest point on the ref path and erase the points before this point.
     auto min_distance = DBL_MAX;
-    double min_index = 0;
-    // If the start state is not on the path, find the closest point to the vehicle on path.
-    // TODO: if control sampling is done, min_index and min_distance are already known.
-    if (hmpl::distance(points_list_.front(), start_state_) < 0.001) {
+    size_t min_index = 0;
+    if (control_sampling_first_flag) {
+        min_index = min_index_for_best_path;
+        min_distance = min_distance_for_best_path;
+    } else if (hmpl::distance(points_list_.front(), start_state_) < 0.001) {
         min_distance = 0;
         min_index = 0;
-        cte = 0;
     } else {
         for (size_t i = 0; i != point_num_; ++i) {
             double tmp_distance = hmpl::distance(points_list_[i], start_state_);
@@ -152,6 +157,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                 break;
             }
         }
+    }
+    if (min_distance != 0 || min_index != 0) {
         points_list_.erase(points_list_.begin(), points_list_.begin() + min_index);
         point_num_ = points_list_.size();
         // Car on the left: cte > 0; car on the right: cte < 0.
@@ -179,8 +186,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     std::cout << "ref path length: " << max_s << std::endl;
     x_spline_.set_points(s_list_, x_list_);
     y_spline_.set_points(s_list_, y_list_);
-
-    // make the path dense, the interval being 0.3m
+    // Make the path dense, the interval being 0.3m
     x_list_.clear();
     y_list_.clear();
     s_list_.clear();
@@ -194,7 +200,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         ++new_points_count;
     }
     point_num_ = x_list_.size();
-
     double max_curvature_abs;
     double max_curvature_change_abs;
     getCurvature(x_list_, y_list_, &k_list_, &max_curvature_abs, &max_curvature_change_abs);
@@ -202,7 +207,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 
     // If the start heading differs a lot with the ref path, quit.
     double start_ref_angle;
-    // calculate the start angle of the reference path.
     if (x_spline_.deriv(1, 0) == 0) {
         start_ref_angle = M_PI_2;
     } else {
@@ -217,7 +221,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // Calculate the second and the third state, which depends on the initial heading and curvature of the vehicle.
     // Therefore, the first 3 states are fixed. We only optimize the rest of the states.
     double fixed_length = 0.5;
-//    if (epsi > 30 * M_PI / 180) fixed_length = 0.25;
     double second_x = start_state_.x + fixed_length * cos(start_state_.z);
     double second_y = start_state_.y + fixed_length * sin(start_state_.z);
     double second_heading = constraintAngle(start_state_.k * fixed_length + start_state_.z);
@@ -271,29 +274,12 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
 
     auto min_clearance = DBL_MAX;
-    size_t valid_N = 0;
-    bool large_init_epsi_mode = false;
-//    grid_map::Position start_position(start_state_.x, start_state_.y);
-//    if (grid_map_.getObstacleDistance(start_position) < 2 && fabs(epsi) > 10 * M_PI / 180) {
-//        large_init_epsi_mode = true;
-//        std::cout << "large epsi!" << std::endl;
-//    }
     for (size_t i = 0; i != N; ++i) {
         hmpl::State center_state;
         center_state.x = seg_x_list_[i];
         center_state.y = seg_y_list_[i];
         center_state.s = seg_s_list_[i];
-        if (large_init_epsi_mode
-            && (fabs(constraintAngle(start_state_.z - seg_angle_list_[i])) < 5 * M_PI / 180 || center_state.s > 4)) {
-            large_init_epsi_mode = false;
-            std::cout << "quit large epsi mode" << std::endl;
-        }
-        if (large_init_epsi_mode) {
-            center_state.z = start_state_.z;
-            std::cout << "in large epsi mode" << std::endl;
-        } else {
-            center_state.z = seg_angle_list_[i];
-        }
+        center_state.z = seg_angle_list_[i];
         // Function getClearance uses the center position as input.
         if (car_type == ACKERMANN_STEERING) {
             center_state.x += rear_axle_to_center_dis * cos(center_state.z);
@@ -308,18 +294,15 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         seg_clearance_right_list_.push_back(clearance_right);
         if (clearance_left * clearance_right > 0 && center_state.s > 0.75 * max_s) {
             std::cout << (center_state.s > 0.75 * max_s) << std::endl;
-            valid_N = i;
+            N = i;
+            seg_x_list_.erase(seg_x_list_.begin() + i, seg_x_list_.end());
+            seg_y_list_.erase(seg_y_list_.begin() + i, seg_y_list_.end());
+            seg_s_list_.erase(seg_s_list_.begin() + i, seg_s_list_.end());
+            seg_k_list_.erase(seg_k_list_.begin() + i, seg_k_list_.end());
+            seg_angle_list_.erase(seg_angle_list_.begin() + i, seg_angle_list_.end());
             break;
         }
 //        std::cout << i << " upper & lower bound: " << clearance_left << ", " << clearance_right << std::endl;
-    }
-    if (valid_N != 0) {
-        N = valid_N;
-        seg_x_list_.erase(seg_x_list_.begin() + valid_N, seg_x_list_.end());
-        seg_y_list_.erase(seg_y_list_.begin() + valid_N, seg_y_list_.end());
-        seg_s_list_.erase(seg_s_list_.begin() + valid_N, seg_s_list_.end());
-        seg_k_list_.erase(seg_k_list_.begin() + valid_N, seg_k_list_.end());
-        seg_angle_list_.erase(seg_angle_list_.begin() + valid_N, seg_angle_list_.end());
     }
 
     typedef CPPAD_TESTVECTOR(double) Dvector;
@@ -356,7 +339,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
     // The end heading can also be constrained too. Just add lower and upper bound for heading_range_begin here.
 
-    // Costraints inclued the end heading and N - 3 curvatures.
+    // Costraints inclued the end heading, N - 3 ps and N - 3 curvatures.
     size_t n_constraints = 1 + (N - 3) + (N - 3);
     Dvector constraints_lowerbound(n_constraints);
     Dvector constraints_upperbound(n_constraints);
@@ -742,6 +725,5 @@ void MpcPathOptimizer::getCurvature(const std::vector<double> &local_x,
 const std::vector<std::vector<hmpl::State> > &MpcPathOptimizer::getControlSamplingPathSet() {
     return this->sampling_path_set_;
 };
-
 
 }
