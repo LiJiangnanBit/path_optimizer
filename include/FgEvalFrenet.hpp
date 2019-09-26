@@ -169,13 +169,6 @@ public:
                 y = ref_y + pq * CppAD::sin(ref_angle + M_PI_2);
             }
 
-            if (i == N - 4) {
-                AD<double> heading_by_position;
-                heading_by_position = CppAD::atan2(y - y_before, x - x_before);
-                AD<double> heading = vars[heading_range_begin];
-                fg[cons_heading_range_begin] = heading - heading_by_position;
-            }
-
             // Two methods to calculate curvature. The first method is more accurate while the second method runs faster.
             if (seg_x_list_[i_for_lists] - seg_x_list_[i_for_lists - 1] < 0) {
                 AD<double> curvature_by_position;
@@ -185,6 +178,10 @@ public:
                 curvature_by_position = (heading - heading_before) / ds_before;
                 fg[cons_curvature_range_begin + i] = curvature - curvature_by_position;
                 fg[cons_ps_range_begin + i] = ps - ds_before;
+                if (i == N - 4) {
+                    AD<double> heading_vars = vars[heading_range_begin];
+                    fg[cons_heading_range_begin] = heading_vars - heading;
+                }
             } else {
                 AD<double> curvature_by_position;
                 AD<double> heading = CppAD::atan2(y - y_before, x - x_before);
@@ -193,6 +190,10 @@ public:
                 curvature_by_position = (heading - heading_before) / ds_before;
                 fg[cons_curvature_range_begin + i] = curvature - curvature_by_position;
                 fg[cons_ps_range_begin + i] = ps - ds_before;
+                if (i == N - 4) {
+                    AD<double> heading_vars = vars[heading_range_begin];
+                    fg[cons_heading_range_begin] = heading_vars - heading;
+                }
             }
 
 //            AD<double> ref_ds_before = seg_s_list_[i] - seg_s_list_[i_before_before];

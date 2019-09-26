@@ -339,8 +339,13 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         vars_upperbound[i] = MAX_CURVATURE;
     }
     // Comment this if end heading is not to be considered.
-    vars_lowerbound[heading_range_begin] = end_state_.z;
-    vars_upperbound[heading_range_begin] = end_state_.z;
+    // This is a temporary solution for a bug.
+    double target_heading = end_state_.z;
+    if (seg_x_list_[N - 1] < seg_x_list_[N - 2]) {
+        target_heading = end_state_.z > 0 ? end_state_.z - M_PI : end_state_.z + M_PI;
+    }
+    vars_lowerbound[heading_range_begin] = target_heading;
+    vars_upperbound[heading_range_begin] = target_heading;
 
     // Costraints inclued the end heading, N - 3 ps and N - 3 curvatures.
     size_t n_constraints = 1 + (N - 3) + (N - 3);
@@ -408,7 +413,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
         this->predicted_path_in_frenet_.push_back(v);
     }
-
+    printf("end heading: %f\n", solution.x[heading_range_begin] * 180 / M_PI);
     size_t control_points_num = N;
     if (control_sampling_first_flag) {
         control_points_num = N + best_path.size() - 1;
