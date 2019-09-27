@@ -61,23 +61,33 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         if (start_state_.k < -MAX_CURVATURE || start_state_.k > MAX_CURVATURE) goto normal_procedure;
         double dk = -0.1;
         while (dk <= 0.1) {
-            double max_ds = 0;
+            double max_ds = 10.0;
+            double max_turn_ds = 0;
             if (dk < 0) {
-                max_ds = std::min((start_state_.k + MAX_CURVATURE) / fabs(dk), 7.0);
+                max_turn_ds = (start_state_.k + MAX_CURVATURE) / fabs(dk);
             } else if (dk > 0) {
-                max_ds = std::min((MAX_CURVATURE - start_state_.k) / fabs(dk), 7.0);
+                max_turn_ds = (MAX_CURVATURE - start_state_.k) / fabs(dk);
             } else {
-                max_ds = 6;
+                max_turn_ds = 1;
             }
+            G2lib::ClothoidCurve curve;
+            curve.build(start_state_.x, start_state_.y, start_state_.z, start_state_.k, dk, max_turn_ds);
+            hmpl::State turn_curve_end;
+            curve.evaluate(max_turn_ds, turn_curve_end.z, turn_curve_end.k, turn_curve_end.x, turn_curve_end.y);
+            G2lib::ClothoidCurve curve_keep;
+            curve_keep.build(turn_curve_end.x, turn_curve_end.y, turn_curve_end.z, turn_curve_end.k, 0, std::max(4.0, max_ds - max_turn_ds));
+
             double sampling_length = 2;
             while (sampling_length <= max_ds) {
-                G2lib::ClothoidCurve curve;
-                curve.build(start_state_.x, start_state_.y, start_state_.z, start_state_.k, dk, sampling_length);
                 hmpl::State tmp_state;
                 double delta_s = 0.4;
                 std::vector<hmpl::State> sampling_result;
                 for (size_t i = 0; i * delta_s < sampling_length; ++i) {
-                    curve.evaluate(i * delta_s, tmp_state.z, tmp_state.k, tmp_state.x, tmp_state.y);
+                    if (i * delta_s < max_turn_ds) {
+                        curve.evaluate(i * delta_s, tmp_state.z, tmp_state.k, tmp_state.x, tmp_state.y);
+                    } else {
+                        curve_keep.evaluate(i * delta_s - max_turn_ds, tmp_state.z, tmp_state.k, tmp_state.x, tmp_state.y);
+                    }
                     if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
                         sampling_result.push_back(tmp_state);
                     } else {
@@ -112,13 +122,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                 double ref_angle = hmpl::angle(points_list_[min_index], points_list_[min_index + 1]);
                 double angle_diff = fabs(constraintAngle(ref_angle - last_state.z));
                 // TODO: path choosing strategy should be improved!
-//                if (angle_diff < min_angle_diff) {
-//                    min_angle_diff = angle_diff;
-//                    best_sampling_index_ = i;
-//                    min_distance_for_best_path = min_distance;
-//                    min_index_for_best_path = min_index;
-//                }
-                double score = 30 * angle_diff + min_distance;
+                double score = 5 * angle_diff + min_distance;
                 if (score < min_score) {
                     min_angle_diff = angle_diff;
                     best_sampling_index_ = i;
@@ -251,10 +255,10 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     if (fabs(epsi) < 20 * M_PI / 180) delta_s_smaller = 1;
     double delta_s_larger = 1.5;
     seg_s_list_.push_back(0);
-    double second_s_on_ref = fixed_length * cos(epsi);
-    seg_s_list_.push_back(second_s_on_ref);
-    double second_ref_heading = atan2(y_spline_.deriv(1, second_s_on_ref), x_spline_.deriv(1, second_s_on_ref));
-    seg_s_list_.push_back(second_s_on_ref + fixed_length * cos(constraintAngle(second_state.z - second_ref_heading)));
+    double first_s_on_ref = fixed_length * cos(epsi);
+    seg_s_list_.push_back(first_s_on_ref);
+    double second_ref_heading = atan2(y_spline_.deriv(1, first_s_on_ref), x_spline_.deriv(1, first_s_on_ref));
+    seg_s_list_.push_back(first_s_on_ref + fixed_length * cos(constraintAngle(second_state.z - second_ref_heading)));
     double tmp_max_s = seg_s_list_.back() + delta_s_smaller;
     while (tmp_max_s < max_s) {
         seg_s_list_.push_back(tmp_max_s);
