@@ -22,11 +22,11 @@
 #include "FgEvalFrenet.hpp"
 #include "collosion_checker.hpp"
 
-#define MAX_CURVATURE 0.25
+#define MAX_CURVATURE 0.4
 
 namespace MpcSmoother {
 
-enum CarType {ACKERMANN_STEERING = 0, SKID_STEERING = 1,};
+enum CarType { ACKERMANN_STEERING = 0, SKID_STEERING = 1, };
 
 class MpcPathOptimizer {
 public:
@@ -40,6 +40,10 @@ public:
     // Just for visualization purpose.
     const std::vector<std::vector<hmpl::State> > &getControlSamplingFailedPathSet();
     const std::vector<hmpl::State> &getBestSamplingPath();
+    const std::vector<hmpl::State> &getLeftBound();
+    const std::vector<hmpl::State> &getRightBound();
+    const std::vector<hmpl::State> &getSecondThirdPoint();
+
 
 private:
     void getCurvature(const std::vector<double> &local_x,
@@ -77,7 +81,6 @@ private:
     // rear_axle_to_center_dis is needed only when using ackermann steering.
     double rear_axle_to_center_dis;
 
-
     std::vector<hmpl::State> points_list_;
     std::vector<double> x_list_;
     std::vector<double> y_list_;
@@ -91,18 +94,20 @@ private:
     std::vector<double> seg_clearance_left_list_;
     std::vector<double> seg_clearance_right_list_;
 
-
     size_t point_num_;
     hmpl::State start_state_;
     hmpl::State end_state_;
-    // x_spline and y_spline are in global frame
     tk::spline x_spline_;
     tk::spline y_spline_;
     tk::spline k_spline_;
 
+    // For visualization purpose.
     std::vector<std::vector<double> > predicted_path_in_frenet_;
     std::vector<std::vector<hmpl::State> > sampling_path_set_;
     std::vector<std::vector<hmpl::State> > failed_sampling_path_set_;
+    std::vector<hmpl::State> left_bound_;
+    std::vector<hmpl::State> right_bound_;
+    std::vector<hmpl::State> second_third_point_;
     size_t best_sampling_index_;
     bool control_sampling_first_flag_;
     std::vector<hmpl::State> empty_;

@@ -28,7 +28,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         LOG(INFO) << "path input is empty!";
         return false;
     }
-    printf("original point num: %d\n", point_num_);
     // Set the car geometry. Use 3 circles to approximate the car.
     // TODO: use a config file.
     // TODO: consider back up situation
@@ -249,10 +248,12 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     third_state.x = third_x;
     third_state.y = third_y;
     third_state.s = hmpl::distance(second_state, third_state);
+    second_third_point_.push_back(second_state);
+    second_third_point_.push_back(third_state);
 
     // Divid the reference path. Intervals are smaller at the beginning.
     double delta_s_smaller = 0.5;
-    if (fabs(epsi) < 20 * M_PI / 180) delta_s_smaller = 1;
+//    if (fabs(epsi) < 20 * M_PI / 180) delta_s_smaller = 1;
     double delta_s_larger = 1.5;
     seg_s_list_.push_back(0);
     double first_s_on_ref = fixed_length * cos(epsi);
@@ -272,6 +273,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         seg_s_list_.push_back(max_s);
     }
     auto N = seg_s_list_.size();
+    auto original_N = N;
 
     // Store reference states in vectors. They will be used later.
     for (size_t i = 0; i != N; ++i) {
@@ -317,7 +319,16 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             seg_angle_list_.erase(seg_angle_list_.begin() + i, seg_angle_list_.end());
             break;
         }
-//        std::cout << i << " upper & lower bound: " << clearance_left << ", " << clearance_right << std::endl;
+        std::cout << i << " upper & lower bound: " << clearance_left << ", " << clearance_right << std::endl;
+    }
+    hmpl::State left_bound, right_bound;
+    for (size_t i = 0; i != N; ++i) {
+        left_bound.x = seg_x_list_[i] + seg_clearance_left_list_[i] * cos(seg_angle_list_[i] + M_PI_2);
+        left_bound.y = seg_y_list_[i] + seg_clearance_left_list_[i] * sin(seg_angle_list_[i] + M_PI_2);
+        right_bound.x = seg_x_list_[i] + seg_clearance_right_list_[i] * cos(seg_angle_list_[i] + M_PI_2);
+        right_bound.y = seg_y_list_[i] + seg_clearance_right_list_[i] * sin(seg_angle_list_[i] + M_PI_2);
+        left_bound_.push_back(left_bound);
+        right_bound_.push_back(right_bound);
     }
 
     typedef CPPAD_TESTVECTOR(double) Dvector;
@@ -358,8 +369,10 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     if (seg_x_list_[N - 1] < seg_x_list_[N - 2]) {
         target_heading = end_state_.z > 0 ? end_state_.z - M_PI : end_state_.z + M_PI;
     }
-    vars_lowerbound[heading_range_begin] = target_heading;
-    vars_upperbound[heading_range_begin] = target_heading;
+    if (N == original_N) {
+        vars_lowerbound[heading_range_begin] = target_heading;
+        vars_upperbound[heading_range_begin] = target_heading;
+    }
 
     // Costraints inclued the end heading, N - 3 ps and N - 3 curvatures.
     size_t n_constraints = 1 + (N - 3) + (N - 3);
@@ -756,5 +769,17 @@ const std::vector<hmpl::State> &MpcPathOptimizer::getBestSamplingPath() {
     } else {
         return this->empty_;
     }
+}
+
+const std::vector<hmpl::State> &MpcPathOptimizer::getLeftBound() {
+    return this->left_bound_;
+}
+
+const std::vector<hmpl::State> &MpcPathOptimizer::getRightBound() {
+    return this->right_bound_;
+}
+
+const std::vector<hmpl::State> &MpcPathOptimizer::getSecondThirdPoint() {
+    return this->second_third_point_;
 }
 }
