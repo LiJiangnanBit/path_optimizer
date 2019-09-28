@@ -312,7 +312,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         min_clearance = std::min(clearance, min_clearance);
         seg_clearance_left_list_.push_back(clearance_left);
         seg_clearance_right_list_.push_back(clearance_right);
-        if (clearance_left * clearance_right > 0 && center_state.s > 0.75 * max_s) {
+        if ((clearance_left * clearance_right > 0 || clearance_left == clearance_right) && center_state.s > 0.75 * max_s) {
             std::cout << (center_state.s > 0.75 * max_s) << std::endl;
             N = i;
             seg_x_list_.erase(seg_x_list_.begin() + i, seg_x_list_.end());
@@ -322,7 +322,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             seg_angle_list_.erase(seg_angle_list_.begin() + i, seg_angle_list_.end());
             break;
         }
-        std::cout << i << " upper & lower bound: " << clearance_left << ", " << clearance_right << std::endl;
+//        std::cout << i << " upper & lower bound: " << clearance_left << ", " << clearance_right << std::endl;
     }
     hmpl::State left_bound, right_bound;
     for (size_t i = 0; i != N; ++i) {
@@ -485,7 +485,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     std::vector<hmpl::State> tmp_final_path;
     double total_s = 0;
     double step_t = 1.0 / (3.0 * N);
-    for (size_t i = 0; i < 3 * N; ++i) {
+    for (size_t i = 0; i <= 3 * N; ++i) {
         double t = i * step_t;
         std::vector<tinyspline::real> result = b_spline.eval(t).result();
         hmpl::State state;
