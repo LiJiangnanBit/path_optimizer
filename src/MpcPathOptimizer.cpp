@@ -51,6 +51,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     car_geo.push_back(rear_front_r);
     car_geo.push_back(middle_r);
 
+    auto original_start_state = start_state_;
     std::vector<hmpl::State> best_path;
     double min_distance_for_best_path = 0;
     size_t min_index_for_best_path = 0;
@@ -75,7 +76,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             curve.evaluate(max_turn_ds, turn_curve_end.z, turn_curve_end.k, turn_curve_end.x, turn_curve_end.y);
             G2lib::ClothoidCurve curve_keep;
             curve_keep.build(turn_curve_end.x, turn_curve_end.y, turn_curve_end.z, turn_curve_end.k, 0, std::max(4.0, max_ds - max_turn_ds));
-
             double sampling_length = 2;
             while (sampling_length <= max_ds) {
                 hmpl::State tmp_state;
@@ -120,8 +120,11 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                 }
                 double ref_angle = hmpl::angle(points_list_[min_index], points_list_[min_index + 1]);
                 double angle_diff = fabs(constraintAngle(ref_angle - last_state.z));
+                if (fabs(angle_diff) > 45) continue;
+                grid_map::Position sampling_end_position(last_state.x, last_state.y);
+                double sampling_end_clearance = grid_map_.getObstacleDistance(sampling_end_position);
                 // TODO: path choosing strategy should be improved!
-                double score = 5 * angle_diff + min_distance;
+                double score = 5 * angle_diff + min_distance + 4 / sampling_end_clearance;
                 if (score < min_score) {
                     min_angle_diff = angle_diff;
                     best_sampling_index_ = i;
@@ -130,11 +133,11 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                     min_score = score;
                 }
             }
-            if (min_angle_diff > 45 * M_PI / 180) {
-                control_sampling_first_flag_ = false;
-                best_path.clear();
-                printf("path set is not empty, but no good end state.\n min angle diff: %f", min_angle_diff);
-            } else {
+//            if (min_angle_diff > 45 * M_PI / 180) {
+//                control_sampling_first_flag_ = false;
+//                best_path.clear();
+//                printf("path set is not empty, but no good end state.\n min angle diff: %f", min_angle_diff);
+//            } else {
                 control_sampling_first_flag_ = true;
                 best_path.clear();
                 for (const auto &state : sampling_path_set_[best_sampling_index_]) {
@@ -142,7 +145,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                 }
                 start_state_ = best_path.back();
                 printf("control sampling before path optimization succeeded!\n");
-            }
+//            }
         } else {
             control_sampling_first_flag_ = false;
             printf("empty path set\n");
@@ -489,7 +492,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         state.x = result[0];
         state.y = result[1];
         if (i == 0) {
-            state.z = start_state_.z;
+            state.z = original_start_state.z;
             state.s = 0;
         } else {
             double dx = result[0] - (tmp_final_path)[i - 1].x;
@@ -501,11 +504,12 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
             tmp_final_path.push_back(state);
         } else {
+            printf("path optimization collision check failed at %d of %d\n", i, 3 * N);
             if (state.s > 30) {
                 break;
             }
-            LOG(WARNING) << "collision check of path optimization failed!";
             return false;
+//            tmp_final_path.push_back(state);
         }
     }
     final_path->clear();
