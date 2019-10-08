@@ -314,6 +314,9 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         double clearance_left = clearance_range[0];
         double clearance_right = clearance_range[1];
         double clearance = clearance_left - clearance_right;
+//        double clearance_left = getClearanceWithDirection(center_state, constraintAngle(seg_angle_list_[i] + M_PI_2));
+//        double clearance_right = -getClearanceWithDirection(center_state, constraintAngle(seg_angle_list_[i] - M_PI_2));
+//        double clearance = clearance_left - clearance_right;
         min_clearance = std::min(clearance, min_clearance);
         seg_clearance_left_list_.push_back(clearance_left);
         seg_clearance_right_list_.push_back(clearance_right);
@@ -328,7 +331,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             seg_angle_list_.erase(seg_angle_list_.begin() + i, seg_angle_list_.end());
             break;
         }
-//        std::cout << i << " upper & lower bound: " << clearance_left << ", " << clearance_right << std::endl;
+        std::cout << i << " upper & lower bound: " << clearance_left << ", " << clearance_right << std::endl;
     }
     hmpl::State left_bound, right_bound;
     for (size_t i = 0; i != N; ++i) {
@@ -677,6 +680,7 @@ double MpcPathOptimizer::getClearanceWithDirection(const hmpl::State &state, dou
         grid_map::Position new_position(x, y);
         if (grid_map_.maps.isInside(new_position)) {
             if (grid_map_.maps.atPosition("obstacle", new_position) == 0) {
+//            if (grid_map_.getObstacleDistance(new_position) <= 1.45) {
                 return s - delta_s;
             }
         } else {
