@@ -56,7 +56,10 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     double min_distance_for_best_path = 0;
     size_t min_index_for_best_path = 0;
     grid_map::Position start_position(start_state_.x, start_state_.y);
-    if (grid_map_.getObstacleDistance(start_position) < 2) {
+    double start_ref_angle = hmpl::angle(points_list_[0], points_list_[1]);
+    double start_angle_diff = fabs(constraintAngle(start_state_.z - start_ref_angle));
+    if ((grid_map_.getObstacleDistance(start_position) < 2 && start_angle_diff > 20 * M_PI / 180)
+        || start_angle_diff > 70 * M_PI / 180) {
         printf("start point is close to obstacle, control sampling first!\n");
         if (start_state_.k < -MAX_CURVATURE || start_state_.k > MAX_CURVATURE) goto normal_procedure;
         double dk = -0.1;
@@ -75,7 +78,12 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             hmpl::State turn_curve_end;
             curve.evaluate(max_turn_ds, turn_curve_end.z, turn_curve_end.k, turn_curve_end.x, turn_curve_end.y);
             G2lib::ClothoidCurve curve_keep;
-            curve_keep.build(turn_curve_end.x, turn_curve_end.y, turn_curve_end.z, turn_curve_end.k, 0, std::max(4.0, max_ds - max_turn_ds));
+            curve_keep.build(turn_curve_end.x,
+                             turn_curve_end.y,
+                             turn_curve_end.z,
+                             turn_curve_end.k,
+                             0,
+                             std::max(4.0, max_ds - max_turn_ds));
             double sampling_length = 2;
             while (sampling_length <= max_ds) {
                 hmpl::State tmp_state;
@@ -85,7 +93,11 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                     if (i * delta_s < max_turn_ds) {
                         curve.evaluate(i * delta_s, tmp_state.z, tmp_state.k, tmp_state.x, tmp_state.y);
                     } else {
-                        curve_keep.evaluate(i * delta_s - max_turn_ds, tmp_state.z, tmp_state.k, tmp_state.x, tmp_state.y);
+                        curve_keep.evaluate(i * delta_s - max_turn_ds,
+                                            tmp_state.z,
+                                            tmp_state.k,
+                                            tmp_state.x,
+                                            tmp_state.y);
                     }
                     if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
                         sampling_result.push_back(tmp_state);
@@ -133,19 +145,13 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                     min_score = score;
                 }
             }
-//            if (min_angle_diff > 45 * M_PI / 180) {
-//                control_sampling_first_flag_ = false;
-//                best_path.clear();
-//                printf("path set is not empty, but no good end state.\n min angle diff: %f", min_angle_diff);
-//            } else {
-                control_sampling_first_flag_ = true;
-                best_path.clear();
-                for (const auto &state : sampling_path_set_[best_sampling_index_]) {
-                    best_path.push_back(state);
-                }
-                start_state_ = best_path.back();
-                printf("control sampling before path optimization succeeded!\n");
-//            }
+            control_sampling_first_flag_ = true;
+            best_path.clear();
+            for (const auto &state : sampling_path_set_[best_sampling_index_]) {
+                best_path.push_back(state);
+            }
+            start_state_ = best_path.back();
+            printf("control sampling before path optimization succeeded!\n");
         } else {
             control_sampling_first_flag_ = false;
             printf("empty path set\n");
@@ -223,7 +229,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     k_spline_.set_points(s_list_, k_list_);
 
     // If the start heading differs a lot with the ref path, quit.
-    double start_ref_angle;
     if (x_spline_.deriv(1, 0) == 0) {
         start_ref_angle = M_PI_2;
     } else {
@@ -312,7 +317,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         min_clearance = std::min(clearance, min_clearance);
         seg_clearance_left_list_.push_back(clearance_left);
         seg_clearance_right_list_.push_back(clearance_right);
-        if ((clearance_left * clearance_right > 0 || clearance_left == clearance_right) && center_state.s > 0.75 * max_s) {
+        if ((clearance_left * clearance_right > 0 || clearance_left == clearance_right)
+            && center_state.s > 0.75 * max_s) {
             std::cout << (center_state.s > 0.75 * max_s) << std::endl;
             N = i;
             seg_x_list_.erase(seg_x_list_.begin() + i, seg_x_list_.end());
