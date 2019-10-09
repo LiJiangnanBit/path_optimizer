@@ -64,43 +64,22 @@ public:
     double cost_func_bound_weight_;
     double cost_func_s_weight_;
 
-    const hmpl::State& first_state_;
-    const hmpl::State& second_state_;
-    const hmpl::State& third_state_;
+    const hmpl::State &first_state_;
+    const hmpl::State &second_state_;
+    const hmpl::State &third_state_;
     const std::vector<double> &left_bound_;
     const std::vector<double> &right_bound_;
 
     typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
 
     void operator()(ADvector &fg, const ADvector &vars) {
-
-        const size_t pq_range_begin = 0;
-        const size_t heading_range_begin = pq_range_begin + N - 3;
-        const size_t ps_range_begin = heading_range_begin + 1;
-        const size_t curvature_range_begin = ps_range_begin + N - 3;
-
         const size_t cons_heading_range_begin = 1;
         const size_t cons_curvature_range_begin = cons_heading_range_begin + 1;
-        const size_t cons_ps_range_begin = cons_curvature_range_begin + N - 3;
-
-        for (size_t t = 0; t < N - 3; t++) {
-            fg[0] += cost_func_curvature_weight_ * pow(vars[curvature_range_begin + t], 2);
-            fg[0] += cost_func_bound_weight_ *
-                (1 / (pow((vars[pq_range_begin + t] - left_bound_[t + 3]), 2) + 0.1) +
-                    1 / (pow((vars[pq_range_begin + t] - right_bound_[t + 3]), 2) + 0.1));
-            fg[0] += cost_func_s_weight_ * pow(vars[ps_range_begin + t], 2);
-        }
-        fg[0] += cost_func_curvature_rate_weight_ * pow(vars[curvature_range_begin] - first_state_.k, 2);
-        for (size_t t = 0; t < N - 4; t++) {
-            fg[0] += cost_func_curvature_rate_weight_
-                * pow(vars[curvature_range_begin + t + 1] - vars[curvature_range_begin + t], 2);
-        }
         // The rest of the constraints
+        AD<double> curvature_by_position_before;
         for (size_t i = 0; i != N - 3; ++i) {
             size_t i_for_lists = i + 3;
-            AD<double> curvature = vars[curvature_range_begin + i];
-            AD<double> ps = vars[ps_range_begin + i];
-            AD<double> pq = vars[pq_range_begin + i];
+            AD<double> pq = vars[i];
 
             AD<double> pq_before_before;
             AD<double> pq_before;
@@ -121,8 +100,8 @@ public:
             AD<double> x;
             AD<double> y;
             if (i >= 2) {
-                pq_before_before = vars[pq_range_begin + i - 2];
-                pq_before = vars[pq_range_begin + i - 1];
+                pq_before_before = vars[i - 2];
+                pq_before = vars[i - 1];
 
                 ref_x_before_before = seg_x_list_[i_for_lists - 2];
                 ref_y_before_before = seg_y_list_[i_for_lists - 2];
@@ -152,7 +131,7 @@ public:
                 x = ref_x + pq * CppAD::cos(ref_angle + M_PI_2);
                 y = ref_y + pq * CppAD::sin(ref_angle + M_PI_2);
             } else if (i == 1) {
-                pq_before = vars[pq_range_begin + i - 1];
+                pq_before = vars[i - 1];
 
                 ref_x_before = seg_x_list_[i_for_lists - 1];
                 ref_y_before = seg_y_list_[i_for_lists - 1];
@@ -175,24 +154,39 @@ public:
                 AD<double> heading_before = CppAD::atan2(-y_before + y_before_before, -x_before + x_before_before);
                 AD<double> ds_before = CppAD::fabs((x_before - x_before_before) / CppAD::cos(heading_before));
                 curvature_by_position = (heading - heading_before) / ds_before;
-                fg[cons_curvature_range_begin + i] = curvature - curvature_by_position;
-                fg[cons_ps_range_begin + i] = ps - ds_before;
-                if (i == N - 4) {
-                    AD<double> heading_vars = vars[heading_range_begin];
-                    fg[cons_heading_range_begin] = heading_vars - heading;
+                fg[0] += cost_func_curvature_weight_ * pow(curvature_by_position, 2);
+                fg[0] += cost_func_s_weight_ * pow(ds_before, 2);
+                fg[0] += cost_func_bound_weight_ *
+                    (1 / (pow((vars[i] - left_bound_[i_for_lists]), 2) + 0.1) +
+                        1 / (pow((vars[i] - right_bound_[i_for_lists]), 2) + 0.1));
+                if (i != 0) {
+                    fg[0] += cost_func_curvature_rate_weight_ * pow(curvature_by_position - curvature_by_position_before, 2);
                 }
+                fg[cons_curvature_range_begin + i] = curvature_by_position;
+                if (i == N - 4) {
+                    fg[cons_heading_range_begin] = heading;
+                }
+                curvature_by_position_before = curvature_by_position;
             } else {
                 AD<double> curvature_by_position;
                 AD<double> heading = CppAD::atan2(y - y_before, x - x_before);
                 AD<double> heading_before = CppAD::atan2(y_before - y_before_before, x_before - x_before_before);
                 AD<double> ds_before = CppAD::fabs((x_before - x_before_before) / CppAD::cos(heading_before));
                 curvature_by_position = (heading - heading_before) / ds_before;
-                fg[cons_curvature_range_begin + i] = curvature - curvature_by_position;
-                fg[cons_ps_range_begin + i] = ps - ds_before;
-                if (i == N - 4) {
-                    AD<double> heading_vars = vars[heading_range_begin];
-                    fg[cons_heading_range_begin] = heading_vars - heading;
+
+                fg[0] += cost_func_curvature_weight_ * pow(curvature_by_position, 2);
+                fg[0] += cost_func_s_weight_ * pow(ds_before, 2);
+                fg[0] += cost_func_bound_weight_ *
+                    (1 / (pow((vars[i] - left_bound_[i_for_lists]), 2) + 0.1) +
+                        1 / (pow((vars[i] - right_bound_[i_for_lists]), 2) + 0.1));
+                if (i != 0) {
+                    fg[0] += cost_func_curvature_rate_weight_ * pow(curvature_by_position - curvature_by_position_before, 2);
                 }
+                fg[cons_curvature_range_begin + i] = curvature_by_position;
+                if (i == N - 4) {
+                    fg[cons_heading_range_begin] = heading;
+                }
+                curvature_by_position_before = curvature_by_position;
             }
         }
     }

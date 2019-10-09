@@ -347,52 +347,29 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // n_vars: Set the number of model variables.
     // There are N - 3 pqs, 1 heading (the last heading), N -3 curvatures and N - 3 ps in the variables.
     // Note that there are supposed to be N states, but the first 3 points are fixed. So they are not optimized.
-    size_t n_vars = (N - 3) + (1) + (N - 3) + (N - 3);
+    size_t n_vars = (N - 3);
     // Set the number of constraints
     Dvector vars(n_vars);
     for (size_t i = 0; i < n_vars; i++) {
         vars[i] = 0;
     }
-    const size_t pq_range_begin = 0;
-    const size_t heading_range_begin = pq_range_begin + N - 3;
-    const size_t ps_range_begin = heading_range_begin + 1;
-    const size_t curvature_range_begin = ps_range_begin + N - 3;
-
     // bounds of variables
     Dvector vars_lowerbound(n_vars);
     Dvector vars_upperbound(n_vars);
-    // state variables bounds
-    for (size_t i = pq_range_begin; i != heading_range_begin; ++i) {
+    for (size_t i = 0; i != n_vars; ++i) {
         vars_lowerbound[i] = seg_clearance_right_list_[i + 3];
         vars_upperbound[i] = seg_clearance_left_list_[i + 3];
     }
-    for (size_t i = heading_range_begin; i < curvature_range_begin; i++) {
-        vars_lowerbound[i] = -DBL_MAX;
-        vars_upperbound[i] = DBL_MAX;
-    }
-    // set bounds for curvature variables
-    for (size_t i = curvature_range_begin; i < n_vars; i++) {
-        vars_lowerbound[i] = -MAX_CURVATURE;
-        vars_upperbound[i] = MAX_CURVATURE;
-    }
-    // Comment this if end heading is not to be considered.
-    // This is a temporary solution for a bug.
-    double target_heading = end_state_.z;
-    if (seg_x_list_[N - 1] < seg_x_list_[N - 2]) {
-        target_heading = end_state_.z > 0 ? end_state_.z - M_PI : end_state_.z + M_PI;
-    }
-    if (N == original_N) {
-        vars_lowerbound[heading_range_begin] = target_heading;
-        vars_upperbound[heading_range_begin] = target_heading;
-    }
 
     // Costraints inclued the end heading, N - 3 ps and N - 3 curvatures.
-    size_t n_constraints = 1 + (N - 3) + (N - 3);
+    size_t n_constraints = 1 + (N - 3);
     Dvector constraints_lowerbound(n_constraints);
     Dvector constraints_upperbound(n_constraints);
-    for (size_t i = 0; i != n_constraints; i++) {
-        constraints_lowerbound[i] = 0.0;
-        constraints_upperbound[i] = 0.0;
+    constraints_lowerbound[0] = -DBL_MAX;
+    constraints_upperbound[0] = DBL_MAX;
+    for (size_t i = 1; i != n_constraints; ++i) {
+        constraints_lowerbound[i] = -MAX_CURVATURE;
+        constraints_upperbound[i] = MAX_CURVATURE;
     }
 
     // options for IPOPT solver
@@ -448,7 +425,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     LOG(INFO) << "mpc path optimization solver succeeded!";
     // output
     for (size_t i = 0; i != N - 3; i++) {
-        double tmp[2] = {solution.x[pq_range_begin + i], double(i)};
+        double tmp[2] = {solution.x[i], double(i)};
         std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
         this->predicted_path_in_frenet_.push_back(v);
     }
