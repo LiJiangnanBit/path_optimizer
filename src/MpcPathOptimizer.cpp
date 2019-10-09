@@ -361,12 +361,20 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         vars_upperbound[i] = seg_clearance_left_list_[i + 3];
     }
 
-    // Costraints inclued the end heading, N - 3 ps and N - 3 curvatures.
+    // Costraints inclued the end heading and N - 3 curvatures.
     size_t n_constraints = 1 + (N - 3);
     Dvector constraints_lowerbound(n_constraints);
     Dvector constraints_upperbound(n_constraints);
-    constraints_lowerbound[0] = -DBL_MAX;
-    constraints_upperbound[0] = DBL_MAX;
+    // heading constraint
+    double target_heading = end_state_.z;
+    if (seg_x_list_[N - 1] < seg_x_list_[N - 2]) {
+        target_heading = end_state_.z > 0 ? end_state_.z - M_PI : end_state_.z + M_PI;
+    }
+    if (N == original_N) {
+        constraints_lowerbound[0] = target_heading;
+        constraints_upperbound[0] = target_heading;
+    }
+    // curvature constraints
     for (size_t i = 1; i != n_constraints; ++i) {
         constraints_lowerbound[i] = -MAX_CURVATURE;
         constraints_upperbound[i] = MAX_CURVATURE;
@@ -382,7 +390,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // if you uncomment both the computation time should go up in orders of
     // magnitude.
     options += "Sparse  true        forward\n";
-    options += "Sparse  true        reverse\n";
+//    options += "Sparse  true        reverse\n";
     // NOTE: Currently the solver has a maximum time limit of 0.5 seconds.
     // Change this as you see fit.
     options += "Numeric max_cpu_time          0.02\n";
