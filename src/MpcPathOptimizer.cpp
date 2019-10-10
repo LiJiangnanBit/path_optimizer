@@ -415,9 +415,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                                 start_state_,
                                 second_state,
                                 third_state,
-                                seg_clearance_left_list_,
-                                seg_clearance_right_list_,
-                                car_geo);
+                                car_geo,
+                                seg_clearance_list_);
     // solve the problem
     CppAD::ipopt::solve<Dvector, FgEvalFrenet>(options, vars,
                                                vars_lowerbound, vars_upperbound,
@@ -489,17 +488,18 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             state.z = original_start_state.z;
             state.s = 0;
         } else {
-            double dx = result[0] - (tmp_final_path)[i - 1].x;
-            double dy = result[1] - (tmp_final_path)[i - 1].y;
+            double dx = result[0] - tmp_final_path[i - 1].x;
+            double dy = result[1] - tmp_final_path[i - 1].y;
             state.z = atan2(dy, dx);
             total_s += sqrt(pow(dx, 2) + pow(dy, 2));
             state.s = total_s;
         }
+        printf("at %d of %d, z: %f\n", i, 3*N, state.z * 180 / M_PI);
         if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
             tmp_final_path.push_back(state);
         } else {
             printf("path optimization collision check failed at %d of %d\n", i, 3 * N);
-            if (state.s > 30) {
+            if (i >= 3 * N - 2 || state.s > 30) {
                 break;
             }
             return false;

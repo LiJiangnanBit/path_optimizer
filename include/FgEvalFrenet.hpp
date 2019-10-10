@@ -21,9 +21,8 @@ public:
                  const hmpl::State &first_state,
                  const hmpl::State &second_state,
                  const hmpl::State &third_state,
-                 const std::vector<double> &left_bound,
-                 const std::vector<double> &right_bound,
-                 const std::vector<double> &car_geometry) :
+                 const std::vector<double> &car_geometry,
+                 const std::vector<std::vector<double>> &bounds) :
         N(N),
         seg_s_list_(seg_s_list),
         seg_x_list_(seg_x_list),
@@ -37,9 +36,8 @@ public:
         first_state_(first_state),
         second_state_(second_state),
         third_state_(third_state),
-        left_bound_(left_bound),
-        right_bound_(right_bound),
-        car_geometry_(car_geometry) {}
+        car_geometry_(car_geometry),
+        bounds_(bounds) {}
 public:
 
     AD<double> constraintAngle(AD<double> angle) {
@@ -68,9 +66,8 @@ public:
     const hmpl::State &first_state_;
     const hmpl::State &second_state_;
     const hmpl::State &third_state_;
-    const std::vector<double> &left_bound_;
-    const std::vector<double> &right_bound_;
     const std::vector<double> &car_geometry_;
+    const std::vector<std::vector<double> > &bounds_;
 
     typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
 
@@ -166,7 +163,8 @@ public:
                 heading_before = CppAD::atan2(-y_before + y_before_before, -x_before + x_before_before);
                 ds_before = CppAD::fabs((x_before - x_before_before) / CppAD::cos(heading_before));
                 curvature_by_position = (heading - heading_before) / ds_before;
-                if (seg_angle_list_[i_for_lists - 1] >= 0) psi_before = heading_before
+                if (seg_angle_list_[i_for_lists - 1] >= 0)
+                    psi_before = heading_before
                         - (seg_angle_list_[i_for_lists - 1] - M_PI);
                 else psi_before = heading_before - (seg_angle_list_[i_for_lists - 1] + M_PI);
             } else {
@@ -178,9 +176,6 @@ public:
             }
             fg[0] += cost_func_curvature_weight_ * pow(curvature_by_position, 2);
             fg[0] += cost_func_s_weight_ * pow(ds_before, 2);
-//            fg[0] += cost_func_bound_weight_ *
-//                (1 / (pow((vars[i] - left_bound_[i_for_lists]), 2) + 0.1) +
-//                    1 / (pow((vars[i] - right_bound_[i_for_lists]), 2) + 0.1));
             if (i != 0) {
                 fg[0] +=
                     cost_func_curvature_rate_weight_ * pow(curvature_by_position - curvature_by_position_before, 2);
@@ -195,6 +190,9 @@ public:
             fg[cons_rear_range_begin + i] = rear_pq_before;
             fg[cons_center_range_begin + i] = center_pq_before;
             fg[cons_front_range_begin + i] = front_pq_before;
+            // TODO: for skid steering vehicle, use center pq.
+            fg[0] += cost_func_bound_weight_ * (1 / (pow(rear_pq_before - bounds_[i_for_lists - 1][0], 2) + 0.1)
+                + 1 / (pow(rear_pq_before - bounds_[i_for_lists - 1][1], 2) + 0.1));
             curvature_by_position_before = curvature_by_position;
         }
     }
