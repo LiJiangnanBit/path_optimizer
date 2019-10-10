@@ -22,7 +22,8 @@ public:
                  const hmpl::State &second_state,
                  const hmpl::State &third_state,
                  const std::vector<double> &left_bound,
-                 const std::vector<double> &right_bound) :
+                 const std::vector<double> &right_bound,
+                 const std::vector<double> &car_geometry) :
         N(N),
         seg_s_list_(seg_s_list),
         seg_x_list_(seg_x_list),
@@ -37,8 +38,8 @@ public:
         second_state_(second_state),
         third_state_(third_state),
         left_bound_(left_bound),
-        right_bound_(right_bound) {}
-
+        right_bound_(right_bound),
+        car_geometry_(car_geometry) {}
 public:
 
     AD<double> constraintAngle(AD<double> angle) {
@@ -69,18 +70,22 @@ public:
     const hmpl::State &third_state_;
     const std::vector<double> &left_bound_;
     const std::vector<double> &right_bound_;
+    const std::vector<double> &car_geometry_;
 
     typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
 
     void operator()(ADvector &fg, const ADvector &vars) {
         const size_t cons_heading_range_begin = 1;
         const size_t cons_curvature_range_begin = cons_heading_range_begin + 1;
+        const size_t cons_rear_range_begin = cons_curvature_range_begin + N - 3;
+        const size_t cons_center_range_begin = cons_rear_range_begin + N - 3;
+        const size_t cons_front_range_begin = cons_center_range_begin + N - 3;
+
         // The rest of the constraints
         AD<double> curvature_by_position_before;
         for (size_t i = 0; i != N - 3; ++i) {
             size_t i_for_lists = i + 3;
             AD<double> pq = vars[i];
-
             AD<double> pq_before_before;
             AD<double> pq_before;
             AD<double> ref_x_before_before;
@@ -151,30 +156,45 @@ public:
             AD<double> heading;
             AD<double> heading_before;
             AD<double> ds_before;
+            AD<double> rear_pq_before, center_pq_before, front_pq_before, psi_before;
 
+            AD<double> rear_axle_to_center_circle = car_geometry_[4];
+            AD<double> rear_axle_to_rear_circle = rear_axle_to_center_circle - car_geometry_[0];
+            AD<double> rear_axle_to_front_circle = rear_axle_to_center_circle + car_geometry_[1];
             if (seg_x_list_[i_for_lists] - seg_x_list_[i_for_lists - 1] < 0) {
                 heading = CppAD::atan2(-y + y_before, -x + x_before);
                 heading_before = CppAD::atan2(-y_before + y_before_before, -x_before + x_before_before);
                 ds_before = CppAD::fabs((x_before - x_before_before) / CppAD::cos(heading_before));
                 curvature_by_position = (heading - heading_before) / ds_before;
+                if (seg_angle_list_[i_for_lists - 1] >= 0) psi_before = heading_before
+                        - (seg_angle_list_[i_for_lists - 1] - M_PI);
+                else psi_before = heading_before - (seg_angle_list_[i_for_lists - 1] + M_PI);
             } else {
                 heading = CppAD::atan2(y - y_before, x - x_before);
                 heading_before = CppAD::atan2(y_before - y_before_before, x_before - x_before_before);
                 ds_before = CppAD::fabs((x_before - x_before_before) / CppAD::cos(heading_before));
                 curvature_by_position = (heading - heading_before) / ds_before;
+                psi_before = heading_before - seg_angle_list_[i_for_lists - 1];
             }
             fg[0] += cost_func_curvature_weight_ * pow(curvature_by_position, 2);
             fg[0] += cost_func_s_weight_ * pow(ds_before, 2);
-            fg[0] += cost_func_bound_weight_ *
-                (1 / (pow((vars[i] - left_bound_[i_for_lists]), 2) + 0.1) +
-                    1 / (pow((vars[i] - right_bound_[i_for_lists]), 2) + 0.1));
+//            fg[0] += cost_func_bound_weight_ *
+//                (1 / (pow((vars[i] - left_bound_[i_for_lists]), 2) + 0.1) +
+//                    1 / (pow((vars[i] - right_bound_[i_for_lists]), 2) + 0.1));
             if (i != 0) {
-                fg[0] += cost_func_curvature_rate_weight_ * pow(curvature_by_position - curvature_by_position_before, 2);
+                fg[0] +=
+                    cost_func_curvature_rate_weight_ * pow(curvature_by_position - curvature_by_position_before, 2);
             }
             fg[cons_curvature_range_begin + i] = curvature_by_position;
             if (i == N - 4) {
                 fg[cons_heading_range_begin] = heading;
             }
+            rear_pq_before = rear_axle_to_rear_circle * sin(psi_before) + pq_before;
+            center_pq_before = rear_axle_to_center_circle * sin(psi_before) + pq_before;
+            front_pq_before = rear_axle_to_front_circle * sin(psi_before) + pq_before;
+            fg[cons_rear_range_begin + i] = rear_pq_before;
+            fg[cons_center_range_begin + i] = center_pq_before;
+            fg[cons_front_range_begin + i] = front_pq_before;
             curvature_by_position_before = curvature_by_position;
         }
     }
