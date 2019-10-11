@@ -164,15 +164,15 @@ public:
                 ds_before = CppAD::fabs((x_before - x_before_before) / CppAD::cos(heading_before));
                 curvature_by_position = (heading - heading_before) / ds_before;
                 if (seg_angle_list_[i_for_lists - 1] >= 0)
-                    psi_before = heading_before
+                    psi_before = heading
                         - (seg_angle_list_[i_for_lists - 1] - M_PI);
-                else psi_before = heading_before - (seg_angle_list_[i_for_lists - 1] + M_PI);
+                else psi_before = heading - (seg_angle_list_[i_for_lists - 1] + M_PI);
             } else {
                 heading = CppAD::atan2(y - y_before, x - x_before);
                 heading_before = CppAD::atan2(y_before - y_before_before, x_before - x_before_before);
                 ds_before = CppAD::fabs((x_before - x_before_before) / CppAD::cos(heading_before));
                 curvature_by_position = (heading - heading_before) / ds_before;
-                psi_before = heading_before - seg_angle_list_[i_for_lists - 1];
+                psi_before = heading - seg_angle_list_[i_for_lists - 1];
             }
             fg[0] += cost_func_curvature_weight_ * pow(curvature_by_position, 2);
             fg[0] += cost_func_s_weight_ * pow(ds_before, 2);

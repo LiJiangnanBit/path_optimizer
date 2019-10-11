@@ -63,6 +63,7 @@ private:
     double getClearanceWithDirection(const hmpl::State &state,
                                      double angle);
     double getClearanceWithDirectionStrict(hmpl::State state, double angle, double radius);
+    std::vector<double> getClearanceWithDirectionStrict(hmpl::State state, double radius);
     std::vector<double> getClearanceFor3Circles(const hmpl::State &state, const std::vector<double> &car_geometry);
     std::vector<double> getClearance(hmpl::State state,
                                      double ref_angle,
