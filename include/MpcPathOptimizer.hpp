@@ -43,6 +43,9 @@ public:
     const std::vector<hmpl::State> &getLeftBound();
     const std::vector<hmpl::State> &getRightBound();
     const std::vector<hmpl::State> &getSecondThirdPoint();
+    const std::vector<hmpl::State> &getRearBounds();
+    const std::vector<hmpl::State> &getCenterBounds();
+    const std::vector<hmpl::State> &getFrontBounds();
 
 
 private:
@@ -114,6 +117,9 @@ private:
     size_t best_sampling_index_;
     bool control_sampling_first_flag_;
     std::vector<hmpl::State> empty_;
+    std::vector<hmpl::State> rear_bounds_;
+    std::vector<hmpl::State> center_bounds_;
+    std::vector<hmpl::State> front_bounds_;
 };
 
 }

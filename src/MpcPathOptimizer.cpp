@@ -16,7 +16,7 @@ MpcPathOptimizer::MpcPathOptimizer(const std::vector<hmpl::State> &points_list,
     start_state_(start_state),
     end_state_(end_state),
     car_type(ACKERMANN_STEERING),
-    rear_axle_to_center_dis(1.3),
+    rear_axle_to_center_dis(1.6),
     best_sampling_index_(0),
     control_sampling_first_flag_(false) {}
 
@@ -554,6 +554,26 @@ std::vector<double> MpcPathOptimizer::getClearanceFor3Circles(const hmpl::State 
     result.push_back(-getClearanceWithDirectionStrict(center, right_angle, middle_radius));
     result.push_back(getClearanceWithDirectionStrict(front, left_angle, rear_front_radius));
     result.push_back(-getClearanceWithDirectionStrict(front, right_angle, rear_front_radius));
+    // For visualization purpoose:
+    hmpl::State rear_bound_l, center_bound_l, front_bound_l, rear_bound_r, center_bound_r, front_bound_r;
+    rear_bound_l.x = rear_x + result[0] * cos(state.z + M_PI_2);
+    rear_bound_l.y = rear_y + result[0] * sin(state.z + M_PI_2);
+    rear_bound_r.x = rear_x + result[1] * cos(state.z + M_PI_2);
+    rear_bound_r.y = rear_y + result[1] * sin(state.z + M_PI_2);
+    center_bound_l.x = center_x + result[2] * cos(state.z + M_PI_2);
+    center_bound_l.y = center_y + result[2] * sin(state.z + M_PI_2);
+    center_bound_r.x = center_x + result[3] * cos(state.z + M_PI_2);
+    center_bound_r.y = center_y + result[3] * sin(state.z + M_PI_2);
+    front_bound_l.x = front_x + result[4] * cos(state.z + M_PI_2);
+    front_bound_l.y = front_y + result[4] * sin(state.z + M_PI_2);
+    front_bound_r.x = front_x + result[5] * cos(state.z + M_PI_2);
+    front_bound_r.y = front_y + result[5] * sin(state.z + M_PI_2);
+    rear_bounds_.push_back(rear_bound_l);
+    rear_bounds_.push_back(rear_bound_r);
+    center_bounds_.push_back(center_bound_l);
+    center_bounds_.push_back(center_bound_r);
+    front_bounds_.push_back(front_bound_l);
+    front_bounds_.push_back(front_bound_r);
     return result;
 
 }
@@ -827,5 +847,17 @@ const std::vector<hmpl::State> &MpcPathOptimizer::getRightBound() {
 
 const std::vector<hmpl::State> &MpcPathOptimizer::getSecondThirdPoint() {
     return this->second_third_point_;
+}
+
+const std::vector<hmpl::State> &MpcPathOptimizer::getRearBounds() {
+    return this->rear_bounds_;
+}
+
+const std::vector<hmpl::State> &MpcPathOptimizer::getCenterBounds() {
+    return this->center_bounds_;
+}
+
+const std::vector<hmpl::State> &MpcPathOptimizer::getFrontBounds() {
+    return this->front_bounds_;
 }
 }
