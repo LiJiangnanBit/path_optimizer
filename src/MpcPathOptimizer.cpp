@@ -393,7 +393,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 //    options += "Sparse  true        reverse\n";
     // NOTE: Currently the solver has a maximum time limit of 0.5 seconds.
     // Change this as you see fit.
-    options += "Numeric max_cpu_time          0.02\n";
+    options += "Numeric max_cpu_time          0.1\n";
 
     // place to return solution
     CppAD::ipopt::solve_result<Dvector> solution;
