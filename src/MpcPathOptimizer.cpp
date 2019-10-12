@@ -263,7 +263,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // Divid the reference path. Intervals are smaller at the beginning.
     double delta_s_smaller = 0.5;
 //    if (fabs(epsi) < 20 * M_PI / 180) delta_s_smaller = 1;
-    double delta_s_larger = 1.8;
+    double delta_s_larger = 1.5;
     seg_s_list_.push_back(0);
     double first_s_on_ref = fixed_length * cos(epsi);
     seg_s_list_.push_back(first_s_on_ref);
@@ -355,17 +355,17 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     size_t cons_center_range_begin = cons_rear_range_begin + N - 3;
     size_t cons_front_range_begin = cons_center_range_begin + N - 3;
     // heading constraint
-//    double target_heading = end_state_.z;
-//    if (seg_x_list_[N - 1] < seg_x_list_[N - 2]) {
-//        target_heading = end_state_.z > 0 ? end_state_.z - M_PI : end_state_.z + M_PI;
-//    }
-//    if (N == original_N) {
-//        constraints_lowerbound[cons_heading_range_begin] = target_heading;
-//        constraints_upperbound[cons_heading_range_begin] = target_heading;
-//    } else {
+    double target_heading = end_state_.z;
+    if (seg_x_list_[N - 1] < seg_x_list_[N - 2]) {
+        target_heading = end_state_.z > 0 ? end_state_.z - M_PI : end_state_.z + M_PI;
+    }
+    if (N == original_N) {
+        constraints_lowerbound[cons_heading_range_begin] = target_heading;
+        constraints_upperbound[cons_heading_range_begin] = target_heading;
+    } else {
         constraints_lowerbound[cons_heading_range_begin] = -DBL_MAX;
         constraints_upperbound[cons_heading_range_begin] = DBL_MAX;
-//    }
+    }
     // curvature constraints
     for (size_t i = cons_curvature_range_begin; i != cons_rear_range_begin; ++i) {
         constraints_lowerbound[i] = -MAX_CURVATURE;
