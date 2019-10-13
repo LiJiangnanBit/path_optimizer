@@ -60,7 +60,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     double start_ref_angle = hmpl::angle(points_list_[0], points_list_[1]);
     double start_angle_diff = fabs(constraintAngle(start_state_.z - start_ref_angle));
     if ((grid_map_.getObstacleDistance(start_position) < 2 && start_angle_diff > 20 * M_PI / 180)
-        || start_angle_diff > 70 * M_PI / 180) {
+        || start_angle_diff > 60 * M_PI / 180) {
         printf("start point is close to obstacle, control sampling first!\n");
         if (start_state_.k < -MAX_CURVATURE || start_state_.k > MAX_CURVATURE) goto normal_procedure;
         double dk = -0.1;
@@ -137,7 +137,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                 grid_map::Position sampling_end_position(last_state.x, last_state.y);
                 double sampling_end_clearance = grid_map_.getObstacleDistance(sampling_end_position);
                 // TODO: path choosing strategy should be improved!
-                double score = 5 * angle_diff + min_distance + 4 / sampling_end_clearance;
+                double score = 5 * angle_diff + min_distance + 7 / sampling_end_clearance;
                 if (score < min_score) {
                     min_angle_diff = angle_diff;
                     best_sampling_index_ = i;
@@ -237,7 +237,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
     // calculate the difference between the start angle of the reference path ande the angle of start state.
     epsi = constraintAngle(start_state_.z - start_ref_angle);
-    if (fabs(epsi) > M_PI_2) {
+    if (fabs(epsi) > 75 * M_PI / 180) {
         LOG(WARNING) << "initial epsi is larger than 90°, quit mpc path optimization!";
         return false;
     }
@@ -543,7 +543,6 @@ std::vector<double> MpcPathOptimizer::getClearanceWithDirectionStrict(hmpl::Stat
         double clearance = grid_map_.getObstacleDistance(new_position);
         if (clearance <= radius && i != 0) {
             left_bound = left_s - delta_s;
-//            printf("get a normal left bound \n");
             break;
         } else if (clearance <= radius && i == 0) {
             double right_s = 0;
@@ -555,12 +554,8 @@ std::vector<double> MpcPathOptimizer::getClearanceWithDirectionStrict(hmpl::Stat
                 double clearance = grid_map_.getObstacleDistance(new_position);
                 if (clearance > radius) {
                     left_bound = -right_s;
-//                    printf("get a left bound on right\n");
                     break;
                 } else if (j == n / 2 - 1) {
-//                    std::vector<double> failed_result{0, 0};
-//                    printf("get a failure\n");
-//                    return failed_result;
                     double tmp_s = 0;
                     for (size_t k = 0; k != n; ++k) {
                         tmp_s += delta_s;
@@ -577,17 +572,22 @@ std::vector<double> MpcPathOptimizer::getClearanceWithDirectionStrict(hmpl::Stat
                             return failed_result;
                         }
                     }
+//                    printf("tmp_s: %f\n", tmp_s);
                     for (size_t k = 0; k != n; ++k) {
                         tmp_s += delta_s;
                         double x = state.x + tmp_s * cos(left_angle);
                         double y = state.y + tmp_s * sin(left_angle);
                         grid_map::Position new_position(x, y);
                         double clearance = grid_map_.getObstacleDistance(new_position);
+//                        printf("new tmp_s: %f\n", tmp_s);
                         if (clearance <= radius) {
                             left_bound = tmp_s - delta_s;
                             break;
+                        } else if (k == n - 1) {
+                            left_bound = tmp_s;
                         }
                     }
+//                    printf("get range: %f to %f \n", left_bound, right_bound);
                     std::vector<double> result{left_bound, right_bound};
                     return result;
                 }
@@ -613,6 +613,7 @@ std::vector<double> MpcPathOptimizer::getClearanceWithDirectionStrict(hmpl::Stat
         }
     }
     std::vector<double> result{left_bound, right_bound};
+//    printf("get range: %f to %f \n", left_bound, right_bound);
     return result;
 }
 
