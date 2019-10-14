@@ -11,11 +11,11 @@ Clothoids https://github.com/ebertolazzi/Clothoids
 ## 运行
 ### 编译
 ```
-catkin build mpc_path_optimizer  
+catkin build path_optimizer  
 ```
 ### Benchmark效率测试
 ```
-rosrun mpc_path_optimizer mpc_path_optimizer_benchmark
+rosrun mpc_path_optimizer path_optimizer_benchmark
 ```
 ### 显示对比
 切换到分支mpc_path_optimization_display
