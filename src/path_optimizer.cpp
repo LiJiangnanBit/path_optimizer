@@ -2,10 +2,10 @@
 // Created by ljn on 19-8-16.
 //
 
-#include "../include/MpcPathOptimizer.hpp"
-namespace MpcSmoother {
+#include "path_optimizer.hpp"
+namespace PathOptimizationNS {
 
-MpcPathOptimizer::MpcPathOptimizer(const std::vector<hmpl::State> &points_list,
+PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
                                    const hmpl::State &start_state,
                                    const hmpl::State &end_state,
                                    const hmpl::InternalGridMap &map) :
@@ -20,7 +20,7 @@ MpcPathOptimizer::MpcPathOptimizer(const std::vector<hmpl::State> &points_list,
     best_sampling_index_(0),
     control_sampling_first_flag_(false) {}
 
-bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
+bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     //
     // TODO: the result path should be different for various initial velocity!
     //
@@ -509,7 +509,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     return true;
 }
 
-double MpcPathOptimizer::getClearanceWithDirectionStrict(hmpl::State state, double angle, double radius) {
+double PathOptimizer::getClearanceWithDirectionStrict(hmpl::State state, double angle, double radius) {
     double s = 0;
     double delta_s = 0.1;
     size_t n = 5.0 / delta_s;
@@ -526,7 +526,7 @@ double MpcPathOptimizer::getClearanceWithDirectionStrict(hmpl::State state, doub
     return s;
 }
 
-std::vector<double> MpcPathOptimizer::getClearanceWithDirectionStrict(hmpl::State state, double radius) {
+std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State state, double radius) {
     double left_bound = 0;
     double right_bound = 0;
     double left_s = 0;
@@ -616,7 +616,7 @@ std::vector<double> MpcPathOptimizer::getClearanceWithDirectionStrict(hmpl::Stat
     return result;
 }
 
-std::vector<double> MpcPathOptimizer::getClearanceFor3Circles(const hmpl::State &state,
+std::vector<double> PathOptimizer::getClearanceFor3Circles(const hmpl::State &state,
                                                               const std::vector<double> &car_geometry) {
     double rear_front_radius = car_geometry[2];
     double middle_radius = car_geometry[3];
@@ -678,7 +678,7 @@ std::vector<double> MpcPathOptimizer::getClearanceFor3Circles(const hmpl::State 
 
 }
 
-double MpcPathOptimizer::getClearanceWithDirection(const hmpl::State &state,
+double PathOptimizer::getClearanceWithDirection(const hmpl::State &state,
                                                    double angle,
                                                    const std::vector<double> &car_geometry) {
     double s = 0;
@@ -711,7 +711,7 @@ double MpcPathOptimizer::getClearanceWithDirection(const hmpl::State &state,
     return s;
 }
 
-std::vector<double> MpcPathOptimizer::getClearance(hmpl::State state,
+std::vector<double> PathOptimizer::getClearance(hmpl::State state,
                                                    double ref_angle,
                                                    const std::vector<double> &car_geometry) {
     // Check if the current state has collision.
@@ -821,7 +821,7 @@ std::vector<double> MpcPathOptimizer::getClearance(hmpl::State state,
     }
 }
 
-double MpcPathOptimizer::getClearanceWithDirection(const hmpl::State &state, double angle) {
+double PathOptimizer::getClearanceWithDirection(const hmpl::State &state, double angle) {
     double s = 0;
     double delta_s = 0.1;
     size_t n = 5.0 / delta_s;
@@ -842,7 +842,7 @@ double MpcPathOptimizer::getClearanceWithDirection(const hmpl::State &state, dou
     return s;
 }
 
-double MpcPathOptimizer::getPointCurvature(const double &x1,
+double PathOptimizer::getPointCurvature(const double &x1,
                                            const double &y1,
                                            const double &x2,
                                            const double &y2,
@@ -882,7 +882,7 @@ double MpcPathOptimizer::getPointCurvature(const double &x1,
     return curv;
 }
 
-void MpcPathOptimizer::getCurvature(const std::vector<double> &local_x,
+void PathOptimizer::getCurvature(const std::vector<double> &local_x,
                                     const std::vector<double> &local_y,
                                     std::vector<double> *pt_curvature_out,
                                     double *max_curvature_abs,
@@ -921,15 +921,15 @@ void MpcPathOptimizer::getCurvature(const std::vector<double> &local_x,
     *max_curvature_change_abs = max_curvature_change;
 }
 
-const std::vector<std::vector<hmpl::State> > &MpcPathOptimizer::getControlSamplingPathSet() {
+const std::vector<std::vector<hmpl::State> > &PathOptimizer::getControlSamplingPathSet() {
     return this->sampling_path_set_;
 };
 
-const std::vector<std::vector<hmpl::State> > &MpcPathOptimizer::getControlSamplingFailedPathSet() {
+const std::vector<std::vector<hmpl::State> > &PathOptimizer::getControlSamplingFailedPathSet() {
     return this->failed_sampling_path_set_;
 };
 
-const std::vector<hmpl::State> &MpcPathOptimizer::getBestSamplingPath() {
+const std::vector<hmpl::State> &PathOptimizer::getBestSamplingPath() {
     if (control_sampling_first_flag_) {
         return this->sampling_path_set_[best_sampling_index_];
     } else {
@@ -937,27 +937,27 @@ const std::vector<hmpl::State> &MpcPathOptimizer::getBestSamplingPath() {
     }
 }
 
-const std::vector<hmpl::State> &MpcPathOptimizer::getLeftBound() {
+const std::vector<hmpl::State> &PathOptimizer::getLeftBound() {
     return this->left_bound_;
 }
 
-const std::vector<hmpl::State> &MpcPathOptimizer::getRightBound() {
+const std::vector<hmpl::State> &PathOptimizer::getRightBound() {
     return this->right_bound_;
 }
 
-const std::vector<hmpl::State> &MpcPathOptimizer::getSecondThirdPoint() {
+const std::vector<hmpl::State> &PathOptimizer::getSecondThirdPoint() {
     return this->second_third_point_;
 }
 
-const std::vector<hmpl::State> &MpcPathOptimizer::getRearBounds() {
+const std::vector<hmpl::State> &PathOptimizer::getRearBounds() {
     return this->rear_bounds_;
 }
 
-const std::vector<hmpl::State> &MpcPathOptimizer::getCenterBounds() {
+const std::vector<hmpl::State> &PathOptimizer::getCenterBounds() {
     return this->center_bounds_;
 }
 
-const std::vector<hmpl::State> &MpcPathOptimizer::getFrontBounds() {
+const std::vector<hmpl::State> &PathOptimizer::getFrontBounds() {
     return this->front_bounds_;
 }
 }

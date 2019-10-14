@@ -6,7 +6,7 @@
 #define MPC_PATH_OPTIMIZER__FGEVALFRENET_HPP_
 #include <vector>
 
-namespace MpcSmoother {
+namespace PathOptimizationNS {
 using CppAD::AD;
 
 class FgEvalFrenet {

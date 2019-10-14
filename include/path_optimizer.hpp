@@ -2,8 +2,8 @@
 // Created by ljn on 19-8-16.
 //
 
-#ifndef MPC_PATH_OPTIMIZER__MPCPATHOPTIMIZER_HPP_
-#define MPC_PATH_OPTIMIZER__MPCPATHOPTIMIZER_HPP_
+#ifndef PATH_OPTIMIZER__PATHOPTIMIZER_HPP_
+#define PATH_OPTIMIZER__PATHOPTIMIZER_HPP_
 
 #include <iostream>
 #include <string>
@@ -24,14 +24,14 @@
 
 #define MAX_CURVATURE 0.25
 
-namespace MpcSmoother {
+namespace PathOptimizationNS {
 
 enum CarType { ACKERMANN_STEERING = 0, SKID_STEERING = 1, };
 
-class MpcPathOptimizer {
+class PathOptimizer {
 public:
-    MpcPathOptimizer() = delete;
-    MpcPathOptimizer(const std::vector<hmpl::State> &points_list,
+    PathOptimizer() = delete;
+    PathOptimizer(const std::vector<hmpl::State> &points_list,
                      const hmpl::State &start_state,
                      const hmpl::State &end_state,
                      const hmpl::InternalGridMap &map);
@@ -125,4 +125,4 @@ private:
 
 }
 
-#endif //MPC_PATH_OPTIMIZER__MPCPATHOPTIMIZER_HPP_
+#endif //PATH_OPTIMIZER__PATHOPTIMIZER_HPP_

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(mpc_path_optimizer)
+project(path_optimizer)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_definitions(-std=c++11)
@@ -59,10 +59,10 @@ include_directories(
 
 # Declare a C++ library
 add_library(${PROJECT_NAME}
-        src/MpcPathOptimizer.cpp src/collision_checker.cpp)
+        src/path_optimizer.cpp src/collision_checker.cpp)
 target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} Clothoids)
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
-add_executable(mpc_path_optimizer_benchmark src/mpc_path_optimizer_benchmark.cpp src/MpcPathOptimizer.cpp src/collision_checker.cpp)
-target_link_libraries(mpc_path_optimizer_benchmark glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark Clothoids)
+add_executable(path_optimizer_benchmark src/path_optimizer_benchmark.cpp src/path_optimizer.cpp src/collision_checker.cpp)
+target_link_libraries(path_optimizer_benchmark glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark Clothoids)

@@ -1,6 +1,4 @@
-# mpc_path_optimization
-### A substitute for state sampling; path optimization using MPC.
-为了解决路径规划中的状态采样有时结果不太自然的问题(S形晃动，过大的偏差等)，改善路径质量，并提高成功率，尝试改用MPC的方法对搜索结果进行优化。
+# path_optimization
 ## 依赖
 IPOPT  
 Benckmark  
@@ -25,4 +23,4 @@ rosrun mpc_path_optimizer mpc_path_optimizer_benchmark
 catkin build state_sampling
 roslaunch state_sampling state_sampling.launch
 ```
-在rviz中使用工具栏上的2D Pose Estimate和2D Nav Goal作为规划起点和终点进行测试。黄色为MPC优化结果，蓝色为状态采样。
+在rviz中使用工具栏上的2D Pose Estimate和2D Nav Goal作为规划起点和终点进行测试。黄色为路径优化结果，蓝色为状态采样。

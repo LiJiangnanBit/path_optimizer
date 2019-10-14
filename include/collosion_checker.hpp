@@ -8,7 +8,7 @@
 #include <internal_grid_map/internal_grid_map.hpp>
 #include <car_model/car_geometry.hpp>
 
-namespace MpcSmoother {
+namespace PathOptimizationNS {
 
 class CollisionChecker {
  public:

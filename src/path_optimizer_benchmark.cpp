@@ -6,7 +6,7 @@
 #include <benchmark/benchmark.h>
 #include <vector>
 #include <opencv/cv.hpp>
-#include <MpcPathOptimizer.hpp>
+#include <path_optimizer.hpp>
 
 static void BM_optimizePath(benchmark::State &state) {
     cv::Mat1b image = cv::imread(
@@ -53,7 +53,7 @@ static void BM_optimizePath(benchmark::State &state) {
     goal_state.z = -1.30825;
     goal_state.k = 0;
     for (auto _:state) {
-        MpcSmoother::MpcPathOptimizer mpc_path_optimizer(points, start_state, goal_state, in_gm);
+        PathOptimizationNS::PathOptimizer mpc_path_optimizer(points, start_state, goal_state, in_gm);
         bool ok = mpc_path_optimizer.solve(&final_path);
     }
 }

@@ -3,7 +3,7 @@
 //
 #include "../include/collosion_checker.hpp"
 
-namespace MpcSmoother {
+namespace PathOptimizationNS {
 
 CollisionChecker::CollisionChecker(const hmpl::InternalGridMap &in_gm)
     : in_gm_(in_gm),
