@@ -262,7 +262,7 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 
     // Divid the reference path. Intervals are smaller at the beginning.
     double delta_s_smaller = 0.5;
-//    if (fabs(epsi) < 20 * M_PI / 180) delta_s_smaller = 1;
+    if (fabs(epsi) < 10 * M_PI / 180) delta_s_smaller = 1;
     double delta_s_larger = 1.5;
     seg_s_list_.push_back(0);
     double first_s_on_ref = fixed_length * cos(epsi);
@@ -299,7 +299,6 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         seg_k_list_.push_back(k_spline_(length_on_ref_path));
     }
 
-    auto min_clearance = DBL_MAX;
     for (size_t i = 0; i != N; ++i) {
         hmpl::State center_state;
         center_state.x = seg_x_list_[i];
@@ -313,17 +312,17 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         }
         std::vector<double> clearance;
         clearance = getClearanceFor3Circles(center_state, car_geo);
-//        if ((clearance[0] * clearance[1] >= 0 || clearance[2] * clearance[3] >= 0 || clearance[4] * clearance[5] >= 0)
-//            && center_state.s > 0.75 * max_s) {
-//            printf("some states near end are not satisfying\n");
-//            N = i;
-//            seg_x_list_.erase(seg_x_list_.begin() + i, seg_x_list_.end());
-//            seg_y_list_.erase(seg_y_list_.begin() + i, seg_y_list_.end());
-//            seg_s_list_.erase(seg_s_list_.begin() + i, seg_s_list_.end());
-//            seg_k_list_.erase(seg_k_list_.begin() + i, seg_k_list_.end());
-//            seg_angle_list_.erase(seg_angle_list_.begin() + i, seg_angle_list_.end());
-//            break;
-//        }
+        if ((clearance[0] == clearance[1] || clearance[2] == clearance[3] || clearance[4] == clearance[5])
+            && center_state.s > 0.75 * max_s) {
+            printf("some states near end are not satisfying\n");
+            N = i;
+            seg_x_list_.erase(seg_x_list_.begin() + i, seg_x_list_.end());
+            seg_y_list_.erase(seg_y_list_.begin() + i, seg_y_list_.end());
+            seg_s_list_.erase(seg_s_list_.begin() + i, seg_s_list_.end());
+            seg_k_list_.erase(seg_k_list_.begin() + i, seg_k_list_.end());
+            seg_angle_list_.erase(seg_angle_list_.begin() + i, seg_angle_list_.end());
+            break;
+        }
         seg_clearance_list_.push_back(clearance);
     }
 
@@ -360,8 +359,8 @@ bool MpcPathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         target_heading = end_state_.z > 0 ? end_state_.z - M_PI : end_state_.z + M_PI;
     }
     if (N == original_N) {
-        constraints_lowerbound[cons_heading_range_begin] = target_heading;
-        constraints_upperbound[cons_heading_range_begin] = target_heading;
+        constraints_lowerbound[cons_heading_range_begin] = std::max(target_heading - 10 * M_PI / 180, -M_PI);
+        constraints_upperbound[cons_heading_range_begin] = std::min(target_heading + 10 * M_PI / 180, M_PI);
     } else {
         constraints_lowerbound[cons_heading_range_begin] = -DBL_MAX;
         constraints_upperbound[cons_heading_range_begin] = DBL_MAX;
@@ -638,8 +637,8 @@ std::vector<double> MpcPathOptimizer::getClearanceFor3Circles(const hmpl::State 
     rear.y = rear_y;
     rear.z = state.z;
     std::vector<double> result;
-    double left_angle = constraintAngle(state.z + M_PI_2);
-    double right_angle = constraintAngle(state.z - M_PI_2);
+//    double left_angle = constraintAngle(state.z + M_PI_2);
+//    double right_angle = constraintAngle(state.z - M_PI_2);
 //    result.push_back(getClearanceWithDirectionStrict(rear, left_angle, rear_front_radius));
 //    result.push_back(-getClearanceWithDirectionStrict(rear, right_angle, rear_front_radius));
 //    result.push_back(getClearanceWithDirectionStrict(center, left_angle, middle_radius));
