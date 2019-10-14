@@ -16,7 +16,7 @@ catkin build path_optimizer
 ```
 ### Benchmark效率测试
 ```
-rosrun mpc_path_optimizer path_optimizer_benchmark
+rosrun path_optimizer path_optimizer_benchmark
 ```
 ### 显示对比
 切换到分支mpc_path_optimization_display
