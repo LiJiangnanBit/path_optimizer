@@ -1,4 +1,5 @@
 # path_optimization
+![image](https://github.com/bit-ivrc/mpc_path_optimization/blob/master/picture/result.png)  
 ## 依赖
 IPOPT  
 Benckmark  
