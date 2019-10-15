@@ -28,7 +28,6 @@ message(STATUS "CMAKE SOURCE DIR:" ${CMAKE_MODULE_PATH})
 ## find system depends libraries
 find_package(IPOPT REQUIRED)
 find_package(benchmark REQUIRED)
-find_library(Clothoids CMAKE_INSTALL_PREFIX)
 
 ###################################
 ## catkin specific configuration ##
@@ -39,11 +38,13 @@ find_library(Clothoids CMAKE_INSTALL_PREFIX)
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
+set(Clothoids_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/libClothoids/include")
+set(Clothoids_LIBRARIES "${CMAKE_SOURCE_DIR}/libClothoids/lib/libClothoids_linux.so")
 catkin_package(
         INCLUDE_DIRS include
         LIBRARIES ${PROJECT_NAME}
         CATKIN_DEPENDS ${catkin_deps}
-        DEPENDS
+        DEPENDS Clothoids
 )
 
 ###########
@@ -55,14 +56,17 @@ catkin_package(
 include_directories(
         include
         ${catkin_INCLUDE_DIRS}
+        ${Clothoids_INCLUDE_DIRS}
 )
 
 # Declare a C++ library
 add_library(${PROJECT_NAME}
         src/path_optimizer.cpp src/collision_checker.cpp)
-target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} Clothoids)
+target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} ${Clothoids_LIBRARIES}
+        )
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
-add_executable(path_optimizer_benchmark src/path_optimizer_benchmark.cpp src/path_optimizer.cpp src/collision_checker.cpp)
-target_link_libraries(path_optimizer_benchmark glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark Clothoids)
+add_executable(${PROJECT_NAME}_benchmark src/path_optimizer_benchmark.cpp src/path_optimizer.cpp src/collision_checker.cpp)
+target_link_libraries(path_optimizer_benchmark glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark ${Clothoids_LIBRARIES}
+        )
