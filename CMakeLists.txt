@@ -68,5 +68,5 @@ target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 add_executable(${PROJECT_NAME}_benchmark src/path_optimizer_benchmark.cpp src/path_optimizer.cpp src/collision_checker.cpp)
-target_link_libraries(path_optimizer_benchmark glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark ${Clothoids_LIBRARIES}
+target_link_libraries(${PROJECT_NAME}_benchmark glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark ${Clothoids_LIBRARIES}
         )
