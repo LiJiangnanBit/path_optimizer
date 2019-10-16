@@ -1,5 +1,6 @@
 # path_optimization
-![image](https://github.com/bit-ivrc/path_optimizer/blob/master/picture/car_geo.png)  
+![image](https://github.com/bit-ivrc/path_optimizer/blob/master/picture/car_geo_result.png)  
+![image](https://github.com/bit-ivrc/path_optimizer/blob/master/picture/contrast.png)  
 ## 依赖
 - IPOPT    
 - google [benckmark](https://github.com/google/benchmark)   
