@@ -16,7 +16,7 @@ PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
     start_state_(start_state),
     end_state_(end_state),
     car_type(ACKERMANN_STEERING),
-    rear_axle_to_center_dis(1.6),
+    rear_axle_to_center_dis(1.15),
     best_sampling_index_(0),
     control_sampling_first_flag_(false) {}
 
@@ -32,9 +32,9 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // TODO: use a config file.
     // TODO: consider back up situation
     double car_width = 2.0;
-    double car_length = 5;
-    double rear_l = 2.5;
-    double front_l = 2.5;
+    double car_length = 4.9;
+    double rear_l = 2.45;
+    double front_l = 2.45;
     double rear_circle_distance = rear_l - car_width / 2;
     double front_circle_distance = front_l - car_width / 2;
     // Vector car_geo is for function getClearanceWithDirection.
@@ -50,7 +50,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
     car_geo.push_back(rear_front_r);
     car_geo.push_back(middle_r);
-    car_geo.push_back(1.3);
+    car_geo.push_back(rear_axle_to_center_dis);
 
     auto original_start_state = start_state_;
     std::vector<hmpl::State> best_path;
@@ -263,7 +263,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // Divid the reference path. Intervals are smaller at the beginning.
     double delta_s_smaller = 0.5;
     if (fabs(epsi) < 10 * M_PI / 180) delta_s_smaller = 1;
-    double delta_s_larger = 1.5;
+    double delta_s_larger = 1.2;
     seg_s_list_.push_back(0);
     double first_s_on_ref = fixed_length * cos(epsi);
     seg_s_list_.push_back(first_s_on_ref);
@@ -497,10 +497,10 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             tmp_final_path.push_back(state);
         } else {
             printf("path optimization collision check failed at %d of %d\n", i, 3 * N);
-            if (i >= 3 * N - 2 || state.s > 30) {
+//            if (i >= 3 * N - 2 || state.s > 30) {
                 break;
-            }
-            return false;
+//            }
+//            return false;
 //            tmp_final_path.push_back(state);
         }
     }
