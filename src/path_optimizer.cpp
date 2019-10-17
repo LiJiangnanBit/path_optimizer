@@ -6,9 +6,9 @@
 namespace PathOptimizationNS {
 
 PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
-                                   const hmpl::State &start_state,
-                                   const hmpl::State &end_state,
-                                   const hmpl::InternalGridMap &map) :
+                             const hmpl::State &start_state,
+                             const hmpl::State &end_state,
+                             const hmpl::InternalGridMap &map) :
     grid_map_(map),
     collision_checker_(map),
     points_list_(points_list),
@@ -160,40 +160,6 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
 
     normal_procedure:
-    double cte = 0;  // lateral error
-    double epsi = 0; // navigable error
-    // Get the closest point on the ref path and erase the points before this point.
-    auto min_distance = DBL_MAX;
-    size_t min_index = 0;
-    if (control_sampling_first_flag_) {
-        min_index = min_index_for_best_path;
-        min_distance = min_distance_for_best_path;
-    } else if (hmpl::distance(points_list_.front(), start_state_) < 0.001) {
-        min_distance = 0;
-        min_index = 0;
-    } else {
-        for (size_t i = 0; i != point_num_; ++i) {
-            double tmp_distance = hmpl::distance(points_list_[i], start_state_);
-            if (tmp_distance < min_distance) {
-                min_distance = tmp_distance;
-                min_index = i;
-            } else if (tmp_distance > 15 && min_distance < 15) {
-                break;
-            }
-        }
-    }
-    if (min_distance != 0 || min_index != 0) {
-        points_list_.erase(points_list_.begin(), points_list_.begin() + min_index);
-        point_num_ = points_list_.size();
-        // Car on the left: cte > 0; car on the right: cte < 0.
-        auto first_point_local = hmpl::globalToLocal(start_state_, points_list_.front());
-        if (first_point_local.y < 0) {
-            cte = min_distance;
-        } else {
-            cte = -min_distance;
-        }
-    }
-
     double s = 0;
     for (size_t i = 0; i != point_num_; ++i) {
         if (i == 0) {
@@ -229,14 +195,10 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     getCurvature(x_list_, y_list_, &k_list_, &max_curvature_abs, &max_curvature_change_abs);
     k_spline_.set_points(s_list_, k_list_);
 
-    // If the start heading differs a lot with the ref path, quit.
-    if (x_spline_.deriv(1, 0) == 0) {
-        start_ref_angle = M_PI_2;
-    } else {
-        start_ref_angle = atan2(y_spline_.deriv(1, 0), x_spline_.deriv(1, 0));
-    }
-    // calculate the difference between the start angle of the reference path ande the angle of start state.
+    start_ref_angle = atan2(y_spline_.deriv(1, 0), x_spline_.deriv(1, 0));
+    double epsi = 0; // navigable error
     epsi = constraintAngle(start_state_.z - start_ref_angle);
+    // If the start heading differs a lot with the ref path, quit.
     if (fabs(epsi) > 75 * M_PI / 180) {
         LOG(WARNING) << "initial epsi is larger than 90°, quit mpc path optimization!";
         return false;
@@ -288,17 +250,14 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     for (size_t i = 0; i != N; ++i) {
         double length_on_ref_path = seg_s_list_[i];
         double angle;
-        if (x_spline_.deriv(1, length_on_ref_path) == 0) {
-            angle = M_PI_2;
-        } else {
-            angle = atan2(y_spline_.deriv(1, length_on_ref_path), x_spline_.deriv(1, length_on_ref_path));
-        }
+        angle = atan2(y_spline_.deriv(1, length_on_ref_path), x_spline_.deriv(1, length_on_ref_path));
         seg_angle_list_.push_back(angle);
         seg_x_list_.push_back(x_spline_(length_on_ref_path));
         seg_y_list_.push_back(y_spline_(length_on_ref_path));
         seg_k_list_.push_back(k_spline_(length_on_ref_path));
     }
 
+    // Get clearance of front, center and rear circles.
     for (size_t i = 0; i != N; ++i) {
         hmpl::State center_state;
         center_state.x = seg_x_list_[i];
@@ -328,8 +287,8 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 
     typedef CPPAD_TESTVECTOR(double) Dvector;
     // n_vars: Set the number of model variables.
-    // There are N - 3 pqs, 1 heading (the last heading), N -3 curvatures and N - 3 ps in the variables.
-    // Note that there are supposed to be N states, but the first 3 points are fixed. So they are not optimized.
+    // There are N - 3 shifts(pq) in the variables, representing vehicle positions.
+    // Note that there are supposed to be N states, but the first 3 points are fixed. So they are not counted.
     size_t n_vars = (N - 3);
     // Set the number of constraints
     Dvector vars(n_vars);
@@ -344,7 +303,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         vars_upperbound[i] = DBL_MAX;
     }
 
-    // Costraints inclued the end heading and N - 3 curvatures.
+    // Costraints inclued the end heading, N - 3 curvatures and N - 3 shifts for front, center and rear circles.
     size_t n_constraints = 1 + (N - 3) + 3 * (N - 3);
     Dvector constraints_lowerbound(n_constraints);
     Dvector constraints_upperbound(n_constraints);
@@ -362,6 +321,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         constraints_lowerbound[cons_heading_range_begin] = std::max(target_heading - 10 * M_PI / 180, -M_PI);
         constraints_upperbound[cons_heading_range_begin] = std::min(target_heading + 10 * M_PI / 180, M_PI);
     } else {
+        // If some end points are deleted, do not set end heading constraint.
         constraints_lowerbound[cons_heading_range_begin] = -DBL_MAX;
         constraints_upperbound[cons_heading_range_begin] = DBL_MAX;
     }
@@ -370,6 +330,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         constraints_lowerbound[i] = -MAX_CURVATURE;
         constraints_upperbound[i] = MAX_CURVATURE;
     }
+    // clearance constraints for front, center and rear circles.
     for (size_t i = 0; i != N - 3; ++i) {
         constraints_upperbound[cons_rear_range_begin + i] = seg_clearance_list_[i + 2][0];
         constraints_lowerbound[cons_rear_range_begin + i] = seg_clearance_list_[i + 2][1];
@@ -389,8 +350,8 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // if you uncomment both the computation time should go up in orders of
     // magnitude.
     options += "Sparse  true        forward\n";
-//    options += "Sparse  true        reverse\n";
-    // NOTE: Currently the solver has a maximum time limit of 0.5 seconds.
+    options += "Sparse  true        reverse\n";
+    // NOTE: Currently the solver has a maximum time limit of 0.1 seconds.
     // Change this as you see fit.
     options += "Numeric max_cpu_time          0.1\n";
 
@@ -498,7 +459,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         } else {
             printf("path optimization collision check failed at %d of %d\n", i, 3 * N);
 //            if (i >= 3 * N - 2 || state.s > 30) {
-                break;
+            break;
 //            }
 //            return false;
 //            tmp_final_path.push_back(state);
@@ -617,7 +578,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
 }
 
 std::vector<double> PathOptimizer::getClearanceFor3Circles(const hmpl::State &state,
-                                                              const std::vector<double> &car_geometry) {
+                                                           const std::vector<double> &car_geometry) {
     double rear_front_radius = car_geometry[2];
     double middle_radius = car_geometry[3];
     hmpl::State front, center, rear;
@@ -637,14 +598,6 @@ std::vector<double> PathOptimizer::getClearanceFor3Circles(const hmpl::State &st
     rear.y = rear_y;
     rear.z = state.z;
     std::vector<double> result;
-//    double left_angle = constraintAngle(state.z + M_PI_2);
-//    double right_angle = constraintAngle(state.z - M_PI_2);
-//    result.push_back(getClearanceWithDirectionStrict(rear, left_angle, rear_front_radius));
-//    result.push_back(-getClearanceWithDirectionStrict(rear, right_angle, rear_front_radius));
-//    result.push_back(getClearanceWithDirectionStrict(center, left_angle, middle_radius));
-//    result.push_back(-getClearanceWithDirectionStrict(center, right_angle, middle_radius));
-//    result.push_back(getClearanceWithDirectionStrict(front, left_angle, rear_front_radius));
-//    result.push_back(-getClearanceWithDirectionStrict(front, right_angle, rear_front_radius));
     std::vector<double> rear_bounds = getClearanceWithDirectionStrict(rear, rear_front_radius);
     std::vector<double> center_bounds = getClearanceWithDirectionStrict(center, middle_radius);
     std::vector<double> front_bounds = getClearanceWithDirectionStrict(front, rear_front_radius);
@@ -679,8 +632,8 @@ std::vector<double> PathOptimizer::getClearanceFor3Circles(const hmpl::State &st
 }
 
 double PathOptimizer::getClearanceWithDirection(const hmpl::State &state,
-                                                   double angle,
-                                                   const std::vector<double> &car_geometry) {
+                                                double angle,
+                                                const std::vector<double> &car_geometry) {
     double s = 0;
     double delta_s = 0.1;
     size_t n = 5.0 / delta_s;
@@ -712,8 +665,8 @@ double PathOptimizer::getClearanceWithDirection(const hmpl::State &state,
 }
 
 std::vector<double> PathOptimizer::getClearance(hmpl::State state,
-                                                   double ref_angle,
-                                                   const std::vector<double> &car_geometry) {
+                                                double ref_angle,
+                                                const std::vector<double> &car_geometry) {
     // Check if the current state has collision.
     double rear_center_distance = car_geometry[0];
     double front_center_distance = car_geometry[1];
@@ -843,11 +796,11 @@ double PathOptimizer::getClearanceWithDirection(const hmpl::State &state, double
 }
 
 double PathOptimizer::getPointCurvature(const double &x1,
-                                           const double &y1,
-                                           const double &x2,
-                                           const double &y2,
-                                           const double &x3,
-                                           const double &y3) {
+                                        const double &y1,
+                                        const double &x2,
+                                        const double &y2,
+                                        const double &x3,
+                                        const double &y3) {
     double_t a, b, c;
     double_t delta_x, delta_y;
     double_t s;
@@ -883,10 +836,10 @@ double PathOptimizer::getPointCurvature(const double &x1,
 }
 
 void PathOptimizer::getCurvature(const std::vector<double> &local_x,
-                                    const std::vector<double> &local_y,
-                                    std::vector<double> *pt_curvature_out,
-                                    double *max_curvature_abs,
-                                    double *max_curvature_change_abs) {
+                                 const std::vector<double> &local_y,
+                                 std::vector<double> *pt_curvature_out,
+                                 double *max_curvature_abs,
+                                 double *max_curvature_change_abs) {
     assert(local_x.size() == local_y.size());
     unsigned long size_n = local_x.size();
     std::vector<double> curvature = std::vector<double>(size_n);
