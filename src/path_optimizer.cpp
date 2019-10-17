@@ -16,7 +16,7 @@ PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
     start_state_(start_state),
     end_state_(end_state),
     car_type(ACKERMANN_STEERING),
-    rear_axle_to_center_dis(1.15),
+    rear_axle_to_center_dis(1.45),
     best_sampling_index_(0),
     control_sampling_first_flag_(false) {}
 
