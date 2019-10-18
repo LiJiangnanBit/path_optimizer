@@ -454,7 +454,12 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 //        state.x = ctrlp[2*i];
 //        state.y = ctrlp[2*i + 1];
         if (i == 3 * N) {
-            state.z = solution.x[end_heading_range_begin];
+            if (seg_x_list_[N - 1] - seg_x_list_[N - 2] < 0) {
+                state.z = solution.x[end_heading_range_begin] > 0 ? solution.x[end_heading_range_begin] - M_PI :
+                          solution.x[end_heading_range_begin] + M_PI;
+            } else {
+                state.z = solution.x[end_heading_range_begin];
+            }
 //            state.s = 0;
         } else {
             result_next = b_spline.eval((i + 1) * step_t).result();
