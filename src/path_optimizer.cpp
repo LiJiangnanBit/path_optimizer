@@ -225,7 +225,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // Divid the reference path. Intervals are smaller at the beginning.
     double delta_s_smaller = 0.5;
     if (fabs(epsi) < 10 * M_PI / 180) delta_s_smaller = 1;
-    double delta_s_larger = 1.2;
+    double delta_s_larger = 1.4;
     seg_s_list_.push_back(0);
     double first_s_on_ref = fixed_length * cos(epsi);
     seg_s_list_.push_back(first_s_on_ref);
@@ -309,8 +309,8 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         target_heading = end_state_.z > 0 ? end_state_.z - M_PI : end_state_.z + M_PI;
     }
     if (N == original_N) {
-        vars_lowerbound[end_heading_range_begin] = std::max(target_heading - 10 * M_PI / 180, -M_PI);
-        vars_upperbound[end_heading_range_begin] = std::min(target_heading + 10 * M_PI / 180, M_PI);
+        vars_lowerbound[end_heading_range_begin] = std::max(target_heading - 5 * M_PI / 180, -M_PI);
+        vars_upperbound[end_heading_range_begin] = std::min(target_heading + 5 * M_PI / 180, M_PI);
     } else {
         // If some end points are deleted, do not set end heading constraint.
         vars_lowerbound[end_heading_range_begin] = -DBL_MAX;
@@ -440,24 +440,41 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // B spline
     b_spline.setControlPoints(ctrlp);
     std::vector<hmpl::State> tmp_final_path;
-    double total_s = 0;
+//    double total_s = 0;
     double step_t = 1.0 / (3.0 * N);
+    std::vector<tinyspline::real> result;
+    std::vector<tinyspline::real> result_next;
     for (size_t i = 0; i <= 3 * N; ++i) {
+//    for (size_t i = 0; i < N; ++i) {
         double t = i * step_t;
-        std::vector<tinyspline::real> result = b_spline.eval(t).result();
+        if (i == 0) result = b_spline.eval(t).result();
         hmpl::State state;
         state.x = result[0];
         state.y = result[1];
-        if (i == 0) {
-            state.z = original_start_state.z;
-            state.s = 0;
+//        state.x = ctrlp[2*i];
+//        state.y = ctrlp[2*i + 1];
+        if (i == 3 * N) {
+            state.z = solution.x[end_heading_range_begin];
+//            state.s = 0;
         } else {
-            double dx = result[0] - tmp_final_path[i - 1].x;
-            double dy = result[1] - tmp_final_path[i - 1].y;
+            result_next = b_spline.eval((i + 1) * step_t).result();
+            double dx = result_next[0] - result[0];
+            double dy = result_next[1] - result[1];
             state.z = atan2(dy, dx);
-            total_s += sqrt(pow(dx, 2) + pow(dy, 2));
-            state.s = total_s;
+//            total_s += sqrt(pow(dx, 2) + pow(dy, 2));
+//            state.s = total_s;
         }
+//        if (i == N - 1) {
+//            state.z = tmp_final_path[i-1].z;
+//        } else {
+////            double dx = result[0] - tmp_final_path[i - 1].x;
+////            double dy = result[1] - tmp_final_path[i - 1].y;
+//            double dx = ctrlp[2*i+2] - state.x;
+//            double dy = ctrlp[2*i+3] - state.y;
+//            state.z = atan2(dy, dx);
+//            total_s += sqrt(pow(dx, 2) + pow(dy, 2));;
+//        }
+        result = result_next;
         if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
             tmp_final_path.push_back(state);
         } else {

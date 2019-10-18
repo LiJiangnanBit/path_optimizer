@@ -187,9 +187,9 @@ public:
                     cost_func_curvature_rate_weight_ * pow(curvature_by_position - curvature_by_position_before, 2);
             }
             fg[cons_curvature_range_begin + i] = curvature_by_position;
-            rear_pq_before = rear_axle_to_rear_circle * sin(psi_before) + pq_before;
-            center_pq_before = rear_axle_to_center_circle * sin(psi_before) + pq_before;
-            front_pq_before = rear_axle_to_front_circle * sin(psi_before) + pq_before;
+            rear_pq_before = rear_axle_to_rear_circle * tan(psi_before) + pq_before;
+            center_pq_before = rear_axle_to_center_circle * tan(psi_before) + pq_before;
+            front_pq_before = rear_axle_to_front_circle * tan(psi_before) + pq_before;
             fg[cons_rear_range_begin + i] = rear_pq_before;
             fg[cons_center_range_begin + i] = center_pq_before;
             fg[cons_front_range_begin + i] = front_pq_before;
@@ -211,12 +211,15 @@ public:
                 } else {
                     end_psi = end_heading - seg_angle_list_[i_for_lists];
                 }
-                end_rear_pq = rear_axle_to_rear_circle * sin(end_psi) + pq;
-                end_center_pq = rear_axle_to_center_circle * sin(end_psi) + pq;
-                end_front_pq = rear_axle_to_front_circle * sin(end_psi) + pq;
+                end_rear_pq = rear_axle_to_rear_circle * tan(end_psi) + pq;
+                end_center_pq = rear_axle_to_center_circle * tan(end_psi) + pq;
+                end_front_pq = rear_axle_to_front_circle * tan(end_psi) + pq;
                 fg[cons_rear_range_begin + i + 1] = end_rear_pq;
                 fg[cons_center_range_begin + i + 1] = end_center_pq;
                 fg[cons_front_range_begin + i + 1] = end_front_pq;
+                fg[0] += cost_func_curvature_weight_ * pow(curvature_by_position, 2);
+                fg[0] +=
+                    cost_func_curvature_rate_weight_ * pow(curvature_by_position - curvature_by_position_before, 2);
             }
         }
     }
