@@ -289,7 +289,9 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // n_vars: Set the number of model variables.
     // There are N - 3 shifts(pq) in the variables, representing vehicle positions.
     // Note that there are supposed to be N states, but the first 3 points are fixed. So they are not counted.
-    size_t n_vars = (N - 3);
+    size_t n_vars = (N - 3) + 1;
+    const size_t pq_range_begin = 0;
+    const size_t end_heading_range_begin = pq_range_begin + N - 3;
     // Set the number of constraints
     Dvector vars(n_vars);
     for (size_t i = 0; i < n_vars; i++) {
@@ -298,40 +300,42 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // bounds of variables
     Dvector vars_lowerbound(n_vars);
     Dvector vars_upperbound(n_vars);
-    for (size_t i = 0; i != n_vars; ++i) {
+    for (size_t i = 0; i != end_heading_range_begin; ++i) {
         vars_lowerbound[i] = -DBL_MAX;
         vars_upperbound[i] = DBL_MAX;
     }
-
-    // Costraints inclued the end heading, N - 3 curvatures and N - 3 shifts for front, center and rear circles.
-    size_t n_constraints = 1 + (N - 3) + 3 * (N - 3);
-    Dvector constraints_lowerbound(n_constraints);
-    Dvector constraints_upperbound(n_constraints);
-    size_t cons_heading_range_begin = 0;
-    size_t cons_curvature_range_begin = cons_heading_range_begin + 1;
-    size_t cons_rear_range_begin = cons_curvature_range_begin + N - 3;
-    size_t cons_center_range_begin = cons_rear_range_begin + N - 3;
-    size_t cons_front_range_begin = cons_center_range_begin + N - 3;
-    // heading constraint
     double target_heading = end_state_.z;
     if (seg_x_list_[N - 1] < seg_x_list_[N - 2]) {
         target_heading = end_state_.z > 0 ? end_state_.z - M_PI : end_state_.z + M_PI;
     }
     if (N == original_N) {
-        constraints_lowerbound[cons_heading_range_begin] = std::max(target_heading - 10 * M_PI / 180, -M_PI);
-        constraints_upperbound[cons_heading_range_begin] = std::min(target_heading + 10 * M_PI / 180, M_PI);
+        vars_lowerbound[end_heading_range_begin] = std::max(target_heading - 10 * M_PI / 180, -M_PI);
+        vars_upperbound[end_heading_range_begin] = std::min(target_heading + 10 * M_PI / 180, M_PI);
     } else {
         // If some end points are deleted, do not set end heading constraint.
-        constraints_lowerbound[cons_heading_range_begin] = -DBL_MAX;
-        constraints_upperbound[cons_heading_range_begin] = DBL_MAX;
+        vars_lowerbound[end_heading_range_begin] = -DBL_MAX;
+        vars_upperbound[end_heading_range_begin] = DBL_MAX;
     }
+
+
+    // Costraints inclued N - 2 curvatures and N - 2 shifts for front, center and rear circles each.
+    size_t n_constraints = (N - 2) + 3 * (N - 2);
+    Dvector constraints_lowerbound(n_constraints);
+    Dvector constraints_upperbound(n_constraints);
+//    size_t cons_heading_range_begin = 0;
+    size_t cons_curvature_range_begin = 0;
+    size_t cons_rear_range_begin = cons_curvature_range_begin + N - 2;
+    size_t cons_center_range_begin = cons_rear_range_begin + N - 2;
+    size_t cons_front_range_begin = cons_center_range_begin + N - 2;
+    // heading constraint
+
     // curvature constraints
     for (size_t i = cons_curvature_range_begin; i != cons_rear_range_begin; ++i) {
         constraints_lowerbound[i] = -MAX_CURVATURE;
         constraints_upperbound[i] = MAX_CURVATURE;
     }
     // clearance constraints for front, center and rear circles.
-    for (size_t i = 0; i != N - 3; ++i) {
+    for (size_t i = 0; i != N - 2; ++i) {
         constraints_upperbound[cons_rear_range_begin + i] = seg_clearance_list_[i + 2][0];
         constraints_lowerbound[cons_rear_range_begin + i] = seg_clearance_list_[i + 2][1];
         constraints_upperbound[cons_center_range_begin + i] = seg_clearance_list_[i + 2][2];
