@@ -441,10 +441,10 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     b_spline.setControlPoints(ctrlp);
     std::vector<hmpl::State> tmp_final_path;
 //    double total_s = 0;
-    double step_t = 1.0 / (3.0 * N);
+    double step_t = 1.0 / (2.0 * N);
     std::vector<tinyspline::real> result;
     std::vector<tinyspline::real> result_next;
-    for (size_t i = 0; i <= 3 * N; ++i) {
+    for (size_t i = 0; i <= 2 * N; ++i) {
 //    for (size_t i = 0; i < N; ++i) {
         double t = i * step_t;
         if (i == 0) result = b_spline.eval(t).result();
@@ -453,7 +453,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         state.y = result[1];
 //        state.x = ctrlp[2*i];
 //        state.y = ctrlp[2*i + 1];
-        if (i == 3 * N) {
+        if (i == 2 * N) {
             if (seg_x_list_[N - 1] - seg_x_list_[N - 2] < 0) {
                 state.z = solution.x[end_heading_range_begin] > 0 ? solution.x[end_heading_range_begin] - M_PI :
                           solution.x[end_heading_range_begin] + M_PI;
@@ -477,14 +477,14 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 //            double dx = ctrlp[2*i+2] - state.x;
 //            double dy = ctrlp[2*i+3] - state.y;
 //            state.z = atan2(dy, dx);
-//            total_s += sqrt(pow(dx, 2) + pow(dy, 2));;
+////            total_s += sqrt(pow(dx, 2) + pow(dy, 2));;
 //        }
         result = result_next;
         if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
             tmp_final_path.push_back(state);
         } else {
-            printf("path optimization collision check failed at %d of %d\n", i, 3 * N);
-//            if (i >= 3 * N - 2 || state.s > 30) {
+            printf("path optimization collision check failed at %d of %d\n", i, 2 * N);
+//            if (i >= 2 * N - 2 || state.s > 30) {
             break;
 //            }
 //            return false;
