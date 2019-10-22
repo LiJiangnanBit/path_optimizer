@@ -86,6 +86,7 @@ private:
     CarType car_type;
     // rear_axle_to_center_dis is needed only when using ackermann steering.
     double rear_axle_to_center_dis;
+    double wheel_base;
 
     std::vector<hmpl::State> points_list_;
     std::vector<double> x_list_;

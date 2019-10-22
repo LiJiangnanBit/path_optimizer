@@ -17,6 +17,7 @@ PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
     end_state_(end_state),
     car_type(ACKERMANN_STEERING),
     rear_axle_to_center_dis(1.45),
+    wheel_base(2.85),
     best_sampling_index_(0),
     control_sampling_first_flag_(false) {}
 
@@ -51,6 +52,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     car_geo.push_back(rear_front_r);
     car_geo.push_back(middle_r);
     car_geo.push_back(rear_axle_to_center_dis);
+    car_geo.push_back(wheel_base);
 
     auto original_start_state = start_state_;
     std::vector<hmpl::State> best_path;
@@ -160,6 +162,39 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
 
     normal_procedure:
+    double cte = 0;  // lateral error
+    double epsi = 0; // navigable error
+    // Get the closest point on the ref path and erase the points before this point.
+    auto min_distance = DBL_MAX;
+    size_t min_index = 0;
+    if (control_sampling_first_flag_) {
+        min_index = min_index_for_best_path;
+        min_distance = min_distance_for_best_path;
+    } else if (hmpl::distance(points_list_.front(), start_state_) < 0.001) {
+        min_distance = 0;
+        min_index = 0;
+    } else {
+        for (size_t i = 0; i != point_num_; ++i) {
+            double tmp_distance = hmpl::distance(points_list_[i], start_state_);
+            if (tmp_distance < min_distance) {
+                min_distance = tmp_distance;
+                min_index = i;
+            } else if (tmp_distance > 15 && min_distance < 15) {
+                break;
+            }
+        }
+    }
+    if (min_distance != 0 || min_index != 0) {
+        points_list_.erase(points_list_.begin(), points_list_.begin() + min_index);
+        point_num_ = points_list_.size();
+        // Car on the left: cte > 0; car on the right: cte < 0.
+        auto first_point_local = hmpl::globalToLocal(start_state_, points_list_.front());
+        if (first_point_local.y < 0) {
+            cte = min_distance;
+        } else {
+            cte = -min_distance;
+        }
+    }
     double s = 0;
     for (size_t i = 0; i != point_num_; ++i) {
         if (i == 0) {
@@ -196,7 +231,6 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     k_spline_.set_points(s_list_, k_list_);
 
     start_ref_angle = atan2(y_spline_.deriv(1, 0), x_spline_.deriv(1, 0));
-    double epsi = 0; // navigable error
     epsi = constraintAngle(start_state_.z - start_ref_angle);
     // If the start heading differs a lot with the ref path, quit.
     if (fabs(epsi) > 75 * M_PI / 180) {
@@ -275,6 +309,9 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     for (size_t i = 0; i < n_vars; i++) {
         vars[i] = 0;
     }
+    vars[pq_range_begin] = cte;
+    vars[psi_range_begin] = epsi;
+    vars[steer_range_begin] = atan(start_state_.k * wheel_base);
     // bounds of variables
     Dvector vars_lowerbound(n_vars);
     Dvector vars_upperbound(n_vars);
@@ -282,6 +319,8 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         vars_lowerbound[i] = -DBL_MAX;
         vars_upperbound[i] = DBL_MAX;
     }
+    vars_lowerbound[steer_range_begin] = atan(start_state_.k * wheel_base);
+    vars_upperbound[steer_range_begin] = atan(start_state_.k * wheel_base);
     for (size_t i = steer_range_begin; i != n_vars; ++i) {
         vars_lowerbound[i] = -30 * M_PI / 180;
         vars_upperbound[i] = 30 * M_PI / 180;
@@ -302,13 +341,23 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 
     // Costraints inclued N shifts for front, center and rear circles each.
     // TODO: add steer change constraint.
-    size_t n_constraints = 3 * N;
+    size_t n_constraints = 2 * N + 3 * N;
     Dvector constraints_lowerbound(n_constraints);
     Dvector constraints_upperbound(n_constraints);
 //    size_t cons_heading_range_begin = 0;
-    size_t cons_rear_range_begin = 0;
+    size_t cons_pq_range_begin = 0;
+    size_t cons_psi_range_begin = cons_pq_range_begin + N;
+    size_t cons_rear_range_begin = cons_psi_range_begin + N;
     size_t cons_center_range_begin = cons_rear_range_begin + N;
     size_t cons_front_range_begin = cons_center_range_begin + N;
+    for (size_t i = cons_pq_range_begin; i != cons_rear_range_begin; ++i) {
+        constraints_upperbound[i] = 0;
+        constraints_lowerbound[i] = 0;
+    }
+    constraints_lowerbound[cons_pq_range_begin] = cte;
+    constraints_upperbound[cons_pq_range_begin] = cte;
+    constraints_lowerbound[cons_psi_range_begin] = epsi;
+    constraints_upperbound[cons_psi_range_begin] = epsi;
     // clearance constraints for front, center and rear circles.
     for (size_t i = 0; i != N; ++i) {
         constraints_upperbound[cons_rear_range_begin + i] = seg_clearance_list_[i][0];
@@ -353,7 +402,8 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
                                 weights,
                                 start_state_,
                                 car_geo,
-                                seg_clearance_list_);
+                                seg_clearance_list_,
+                                epsi);
     // solve the problem
     CppAD::ipopt::solve<Dvector, FgEvalFrenet>(options, vars,
                                                vars_lowerbound, vars_upperbound,
@@ -368,7 +418,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
     LOG(INFO) << "mpc path optimization solver succeeded!";
     // output
-    for (size_t i = 0; i != N - 3; i++) {
+    for (size_t i = 0; i != N; i++) {
         double tmp[2] = {solution.x[i], double(i)};
         std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
         this->predicted_path_in_frenet_.push_back(v);
@@ -391,15 +441,15 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     if (control_sampling_first_flag_) {
         count = 2 * (control_sampling_point_count);
     };
-    ctrlp[count + 0] = start_state_.x;
-    ctrlp[count + 1] = start_state_.y;
-    ctrlp[count + 2] = second_state.x;
-    ctrlp[count + 3] = second_state.y;
-    ctrlp[count + 4] = third_state.x;
-    ctrlp[count + 5] = third_state.y;
-    for (size_t i = 0; i != N - 3; ++i) {
-        double length_on_ref_path = seg_s_list_[i + 3];
-        double angle = seg_angle_list_[i + 3];
+//    ctrlp[count + 0] = start_state_.x;
+//    ctrlp[count + 1] = start_state_.y;
+//    ctrlp[count + 2] = second_state.x;
+//    ctrlp[count + 3] = second_state.y;
+//    ctrlp[count + 4] = third_state.x;
+//    ctrlp[count + 5] = third_state.y;
+    for (size_t i = 0; i != N; ++i) {
+        double length_on_ref_path = seg_s_list_[i];
+        double angle = seg_angle_list_[i];
         double new_angle = constraintAngle(angle + M_PI_2);
         double tmp_x = x_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][0] * cos(new_angle);
         double tmp_y = y_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][0] * sin(new_angle);
@@ -407,8 +457,8 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
             LOG(WARNING) << "output is not a number, mpc path opitmization failed!" << std::endl;
             return false;
         }
-        ctrlp[count + 2 * (i + 3)] = tmp_x;
-        ctrlp[count + 2 * (i + 3) + 1] = tmp_y;
+        ctrlp[count + 2 * i] = tmp_x;
+        ctrlp[count + 2 * i + 1] = tmp_y;
     }
     // B spline
     b_spline.setControlPoints(ctrlp);
@@ -417,41 +467,41 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     double step_t = 1.0 / (2.0 * N);
     std::vector<tinyspline::real> result;
     std::vector<tinyspline::real> result_next;
-    for (size_t i = 0; i <= 2 * N; ++i) {
-//    for (size_t i = 0; i < N; ++i) {
+//    for (size_t i = 0; i <= 2 * N; ++i) {
+    for (size_t i = 0; i < N; ++i) {
         double t = i * step_t;
         if (i == 0) result = b_spline.eval(t).result();
         hmpl::State state;
-        state.x = result[0];
-        state.y = result[1];
-//        state.x = ctrlp[2*i];
-//        state.y = ctrlp[2*i + 1];
-        if (i == 2 * N) {
-            if (seg_x_list_[N - 1] - seg_x_list_[N - 2] < 0) {
-                state.z = solution.x[end_heading_range_begin] > 0 ? solution.x[end_heading_range_begin] - M_PI :
-                          solution.x[end_heading_range_begin] + M_PI;
-            } else {
-                state.z = solution.x[end_heading_range_begin];
-            }
-//            state.s = 0;
-        } else {
-            result_next = b_spline.eval((i + 1) * step_t).result();
-            double dx = result_next[0] - result[0];
-            double dy = result_next[1] - result[1];
-            state.z = atan2(dy, dx);
-//            total_s += sqrt(pow(dx, 2) + pow(dy, 2));
-//            state.s = total_s;
-        }
-//        if (i == N - 1) {
-//            state.z = tmp_final_path[i-1].z;
+//        state.x = result[0];
+//        state.y = result[1];
+        state.x = ctrlp[2*i];
+        state.y = ctrlp[2*i + 1];
+//        if (i == 2 * N) {
+//            if (seg_x_list_[N - 1] - seg_x_list_[N - 2] < 0) {
+//                state.z = solution.x[end_heading_range_begin] > 0 ? solution.x[end_heading_range_begin] - M_PI :
+//                          solution.x[end_heading_range_begin] + M_PI;
+//            } else {
+//                state.z = solution.x[end_heading_range_begin];
+//            }
+////            state.s = 0;
 //        } else {
-////            double dx = result[0] - tmp_final_path[i - 1].x;
-////            double dy = result[1] - tmp_final_path[i - 1].y;
-//            double dx = ctrlp[2*i+2] - state.x;
-//            double dy = ctrlp[2*i+3] - state.y;
+//            result_next = b_spline.eval((i + 1) * step_t).result();
+//            double dx = result_next[0] - result[0];
+//            double dy = result_next[1] - result[1];
 //            state.z = atan2(dy, dx);
-////            total_s += sqrt(pow(dx, 2) + pow(dy, 2));;
+////            total_s += sqrt(pow(dx, 2) + pow(dy, 2));
+////            state.s = total_s;
 //        }
+        if (i == N - 1) {
+            state.z = tmp_final_path[i-1].z;
+        } else {
+//            double dx = result[0] - tmp_final_path[i - 1].x;
+//            double dy = result[1] - tmp_final_path[i - 1].y;
+            double dx = ctrlp[2*i+2] - state.x;
+            double dy = ctrlp[2*i+3] - state.y;
+            state.z = atan2(dy, dx);
+//            total_s += sqrt(pow(dx, 2) + pow(dy, 2));;
+        }
         result = result_next;
         if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
             tmp_final_path.push_back(state);
