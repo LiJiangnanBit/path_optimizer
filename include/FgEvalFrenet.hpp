@@ -115,6 +115,7 @@ public:
             }
             fg[0] += cost_func_curvature_weight_ * pow(steer0, 2);
             fg[0] += cost_func_curvature_rate_weight_ * pow(steer1 - steer0, 2);
+            fg[0] += 1 * pow(pq0, 2);
         }
     }
 };
