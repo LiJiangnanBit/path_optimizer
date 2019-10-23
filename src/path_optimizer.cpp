@@ -239,10 +239,11 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
 
     // Divid the reference path. Intervals are smaller at the beginning.
-    double delta_s_smaller = 0.3;
+    double delta_s_smaller = 0.5;
 //    if (fabs(epsi) < 10 * M_PI / 180) delta_s_smaller = 1;
-    double delta_s_larger = 0.5;
+    double delta_s_larger = 1;
     double tmp_max_s = delta_s_smaller;
+    seg_s_list_.push_back(0);
     while (tmp_max_s < max_s) {
         seg_s_list_.push_back(tmp_max_s);
         if (tmp_max_s <= 2) {
@@ -319,29 +320,17 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         vars_lowerbound[i] = -DBL_MAX;
         vars_upperbound[i] = DBL_MAX;
     }
-    vars_lowerbound[steer_range_begin] = atan(start_state_.k * wheel_base);
-    vars_upperbound[steer_range_begin] = atan(start_state_.k * wheel_base);
+    vars_lowerbound[steer_range_begin - 1] = end_state_.z - seg_angle_list_.back();
+    vars_upperbound[steer_range_begin - 1] = end_state_.z - seg_angle_list_.back();
     for (size_t i = steer_range_begin; i != n_vars; ++i) {
         vars_lowerbound[i] = -30 * M_PI / 180;
         vars_upperbound[i] = 30 * M_PI / 180;
     }
-//    double target_heading = end_state_.z;
-//    if (seg_x_list_[N - 1] < seg_x_list_[N - 2]) {
-//        target_heading = end_state_.z > 0 ? end_state_.z - M_PI : end_state_.z + M_PI;
-//    }
-//    if (N == original_N) {
-//        vars_lowerbound[end_heading_range_begin] = std::max(target_heading - 5 * M_PI / 180, -M_PI);
-//        vars_upperbound[end_heading_range_begin] = std::min(target_heading + 5 * M_PI / 180, M_PI);
-//    } else {
-//        // If some end points are deleted, do not set end heading constraint.
-//        vars_lowerbound[end_heading_range_begin] = -DBL_MAX;
-//        vars_upperbound[end_heading_range_begin] = DBL_MAX;
-//    }
-
-
+    vars_lowerbound[steer_range_begin] = atan(start_state_.k * wheel_base);
+    vars_upperbound[steer_range_begin] = atan(start_state_.k * wheel_base);
     // Costraints inclued N shifts for front, center and rear circles each.
     // TODO: add steer change constraint.
-    size_t n_constraints = 2 * N + 3 * N;
+    size_t n_constraints = 2 * N + 3 * N + N - 1;
     Dvector constraints_lowerbound(n_constraints);
     Dvector constraints_upperbound(n_constraints);
 //    size_t cons_heading_range_begin = 0;
@@ -350,6 +339,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     size_t cons_rear_range_begin = cons_psi_range_begin + N;
     size_t cons_center_range_begin = cons_rear_range_begin + N;
     size_t cons_front_range_begin = cons_center_range_begin + N;
+    size_t cons_steer_change_range_begin = cons_front_range_begin + N;
     for (size_t i = cons_pq_range_begin; i != cons_rear_range_begin; ++i) {
         constraints_upperbound[i] = 0;
         constraints_lowerbound[i] = 0;
@@ -367,6 +357,10 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         constraints_upperbound[cons_front_range_begin + i] = seg_clearance_list_[i][4];
         constraints_lowerbound[cons_front_range_begin + i] = seg_clearance_list_[i][5];
     }
+    for (size_t i = cons_steer_change_range_begin; i != n_constraints; ++i) {
+        constraints_upperbound[i] = 10 * M_PI / 180;
+        constraints_lowerbound[i] = 0;
+    }
 
     // options for IPOPT solver
     std::string options;
@@ -382,6 +376,10 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // NOTE: Currently the solver has a maximum time limit of 0.1 seconds.
     // Change this as you see fit.
     options += "Numeric max_cpu_time          0.1\n";
+    options += "mehrotra_algorithm  yes\n";
+    options += "hessian_constant  yes\n";
+    options += "jac_c_constant  yes\n";
+    options += "jac_d_constant  yes\n";
 
     // place to return solution
     CppAD::ipopt::solve_result<Dvector> solution;
