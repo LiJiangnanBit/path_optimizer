@@ -241,7 +241,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // Divid the reference path. Intervals are smaller at the beginning.
     double delta_s_smaller = 0.5;
 //    if (fabs(epsi) < 10 * M_PI / 180) delta_s_smaller = 1;
-    double delta_s_larger = 1;
+    double delta_s_larger = 0.5;
     double tmp_max_s = delta_s_smaller;
     seg_s_list_.push_back(0);
     while (tmp_max_s < max_s) {
@@ -358,7 +358,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         constraints_lowerbound[cons_front_range_begin + i] = seg_clearance_list_[i][5];
     }
     for (size_t i = cons_steer_change_range_begin; i != n_constraints; ++i) {
-        constraints_upperbound[i] = 10 * M_PI / 180;
+        constraints_upperbound[i] = 5 * M_PI / 180;
         constraints_lowerbound[i] = 0;
     }
 
@@ -375,11 +375,12 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     options += "Sparse  true        reverse\n";
     // NOTE: Currently the solver has a maximum time limit of 0.1 seconds.
     // Change this as you see fit.
-    options += "Numeric max_cpu_time          0.1\n";
+//    options += "Numeric max_cpu_time          0.1\n";
     options += "mehrotra_algorithm  yes\n";
     options += "hessian_constant  yes\n";
     options += "jac_c_constant  yes\n";
     options += "jac_d_constant  yes\n";
+    options += "mu_strategy adaptive\n";
 
     // place to return solution
     CppAD::ipopt::solve_result<Dvector> solution;
@@ -387,7 +388,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // TODO: use a config file
     std::vector<double> weights;
     weights.push_back(2); //curvature weight
-    weights.push_back(30); //curvature rate weight
+    weights.push_back(300); //curvature rate weight
     weights.push_back(0.01); //distance to boundary weight
     weights.push_back(0.05); //path length weight
 
