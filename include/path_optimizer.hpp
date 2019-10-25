@@ -20,6 +20,7 @@
 #include "tinyspline_ros/tinysplinecpp.h"
 #include "spline.h"
 #include "FgEvalFrenet.hpp"
+#include "FgEvalFrenetSmooth.hpp"
 #include "collosion_checker.hpp"
 
 #define MAX_CURVATURE 0.25

@@ -20,7 +20,27 @@ PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
     wheel_base(2.85),
     best_sampling_index_(0),
     control_sampling_first_flag_(false) {}
-
+bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
+    std::vector<hmpl::State> smoothed_path;
+    auto smoothing_flag = smoothPath(&smoothed_path);
+    if (!smoothing_flag) {
+        printf("smoothing stage failed, quit path optimization.\n");
+        return false;
+    }
+    points_list_ = smoothed_path;
+    point_num_ = points_list_.size();
+    x_list_.clear();
+    y_list_.clear();
+    s_list_.clear();
+    k_list_.clear();
+    seg_x_list_.clear();
+    seg_y_list_.clear();
+    seg_k_list_.clear();
+    seg_angle_list_.clear();
+    seg_s_list_.clear();
+    predicted_path_in_frenet_.clear();
+    return optimizePath(final_path);
+}
 bool PathOptimizer::smoothPath(std::vector<hmpl::State> *smoothed_path) {
     double s = 0;
     for (size_t i = 0; i != point_num_; ++i) {
@@ -123,7 +143,7 @@ bool PathOptimizer::smoothPath(std::vector<hmpl::State> *smoothed_path) {
     weights.push_back(0.01); //distance to boundary weight
     weights.push_back(0.05); //path length weight
 
-    FgEvalFrenet fg_eval_frenet(seg_x_list_,
+    FgEvalFrenetSmooth fg_eval_frenet(seg_x_list_,
                                 seg_y_list_,
                                 seg_angle_list_,
                                 seg_k_list_,
@@ -131,7 +151,7 @@ bool PathOptimizer::smoothPath(std::vector<hmpl::State> *smoothed_path) {
                                 N,
                                 weights);
     // solve the problem
-    CppAD::ipopt::solve<Dvector, FgEvalFrenet>(options, vars,
+    CppAD::ipopt::solve<Dvector, FgEvalFrenetSmooth>(options, vars,
                                                vars_lowerbound, vars_upperbound,
                                                constraints_lowerbound, constraints_upperbound,
                                                fg_eval_frenet, solution);
@@ -139,10 +159,10 @@ bool PathOptimizer::smoothPath(std::vector<hmpl::State> *smoothed_path) {
     bool ok = true;
     ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
     if (!ok) {
-        LOG(WARNING) << "mpc path optimization solver failed!";
+        LOG(WARNING) << "smoothing solver failed!";
         return false;
     }
-    LOG(INFO) << "mpc path optimization solver succeeded!";
+    LOG(INFO) << "smoothing solver succeeded!";
     // output
     for (size_t i = 0; i != N; i++) {
         double tmp[2] = {solution.x[i], double(i)};
@@ -159,7 +179,7 @@ bool PathOptimizer::smoothPath(std::vector<hmpl::State> *smoothed_path) {
         double tmp_x = x_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][0] * cos(new_angle);
         double tmp_y = y_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][0] * sin(new_angle);
         if (std::isnan(tmp_x) || std::isnan(tmp_y)) {
-            LOG(WARNING) << "output is not a number, mpc path opitmization failed!" << std::endl;
+            LOG(WARNING) << "output is not a number, smoothing failed!" << std::endl;
             return false;
         }
         ctrlp[2 * (i)] = tmp_x;
@@ -187,10 +207,11 @@ bool PathOptimizer::smoothPath(std::vector<hmpl::State> *smoothed_path) {
         }
         tmp_final_path.push_back(state);
     }
-    final_path->clear();
-    std::copy(tmp_final_path.begin(), tmp_final_path.end(), std::back_inserter(*final_path));
+    smoothed_path->clear();
+    std::copy(tmp_final_path.begin(), tmp_final_path.end(), std::back_inserter(*smoothed_path));
     return true;
 }
+
 bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     //
     // TODO: the result path should be different for various initial velocity!
@@ -585,10 +606,10 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     bool ok = true;
     ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
     if (!ok) {
-        LOG(WARNING) << "mpc path optimization solver failed!";
+        LOG(WARNING) << "path optimization solver failed!";
         return false;
     }
-    LOG(INFO) << "mpc path optimization solver succeeded!";
+    LOG(INFO) << "path optimization solver succeeded!";
     // output
     for (size_t i = 0; i != N; i++) {
         double tmp[2] = {solution.x[i], double(i)};
@@ -626,7 +647,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         double tmp_x = x_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][0] * cos(new_angle);
         double tmp_y = y_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][0] * sin(new_angle);
         if (std::isnan(tmp_x) || std::isnan(tmp_y)) {
-            LOG(WARNING) << "output is not a number, mpc path opitmization failed!" << std::endl;
+            LOG(WARNING) << "output is not a number, path opitmization failed!" << std::endl;
             return false;
         }
         ctrlp[count + 2 * i] = tmp_x;
