@@ -21,7 +21,177 @@ PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
     best_sampling_index_(0),
     control_sampling_first_flag_(false) {}
 
-bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
+bool PathOptimizer::smoothPath(std::vector<hmpl::State> *smoothed_path) {
+    double s = 0;
+    for (size_t i = 0; i != point_num_; ++i) {
+        if (i == 0) {
+            s_list_.push_back(0);
+        } else {
+            double ds = hmpl::distance(points_list_[i], points_list_[i - 1]);
+            s += ds;
+            s_list_.push_back(s);
+        }
+        x_list_.push_back(points_list_[i].x);
+        y_list_.push_back(points_list_[i].y);
+    }
+    double max_s = s_list_.back();
+    std::cout << "ref path length: " << max_s << std::endl;
+    x_spline_.set_points(s_list_, x_list_);
+    y_spline_.set_points(s_list_, y_list_);
+    // Make the path dense, the interval being 0.3m
+    x_list_.clear();
+    y_list_.clear();
+    s_list_.clear();
+    size_t new_points_count = 0;
+    for (double new_s = 0; new_s <= max_s; new_s += 0.3) {
+        double x = x_spline_(new_s);
+        double y = y_spline_(new_s);
+        x_list_.push_back(x);
+        y_list_.push_back(y);
+        s_list_.push_back(new_s);
+        ++new_points_count;
+    }
+    point_num_ = x_list_.size();
+    double max_curvature_abs;
+    double max_curvature_change_abs;
+    getCurvature(x_list_, y_list_, &k_list_, &max_curvature_abs, &max_curvature_change_abs);
+    k_spline_.set_points(s_list_, k_list_);
+    // Divid the reference path. Intervals are smaller at the beginning.
+    double delta_s = 2;
+    seg_s_list_.push_back(0);
+    while (seg_s_list_.back() < max_s) {
+        seg_s_list_.push_back(seg_s_list_.back() + delta_s);
+    }
+    if (max_s - seg_s_list_.back() > 1) {
+        seg_s_list_.push_back(max_s);
+    }
+    auto N = seg_s_list_.size();
+    // Store reference states in vectors. They will be used later.
+    for (size_t i = 0; i != N; ++i) {
+        double length_on_ref_path = seg_s_list_[i];
+        double angle;
+        angle = atan2(y_spline_.deriv(1, length_on_ref_path), x_spline_.deriv(1, length_on_ref_path));
+        seg_angle_list_.push_back(angle);
+        seg_x_list_.push_back(x_spline_(length_on_ref_path));
+        seg_y_list_.push_back(y_spline_(length_on_ref_path));
+        seg_k_list_.push_back(k_spline_(length_on_ref_path));
+    }
+
+    typedef CPPAD_TESTVECTOR(double) Dvector;
+    size_t n_vars = N;
+    const size_t pq_range_begin = 0;
+    Dvector vars(n_vars);
+    for (size_t i = 0; i < n_vars; i++) {
+        vars[i] = 0;
+    }
+    // bounds of variables
+    Dvector vars_lowerbound(n_vars);
+    Dvector vars_upperbound(n_vars);
+    for (size_t i = 0; i != n_vars; ++i) {
+        vars_lowerbound[i] = -DBL_MAX;
+        vars_upperbound[i] = DBL_MAX;
+    }
+    // Start point is the start position of the vehicle.
+    vars_lowerbound[0] = 0;
+    vars_upperbound[0] = 0;
+    // Costraints inclued N - 2 curvatures and N - 2 shifts for front, center and rear circles each.
+    size_t n_constraints = 0;
+    Dvector constraints_lowerbound(n_constraints);
+    Dvector constraints_upperbound(n_constraints);
+    // options for IPOPT solver
+    std::string options;
+    // Uncomment this if you'd like more print information
+    options += "Integer print_level  0\n";
+    // NOTE: Setting sparse to true allows the solver to take advantage
+    // of sparse routines, this makes the computation MUCH FASTER. If you
+    // can uncomment 1 of these and see if it makes a difference or not but
+    // if you uncomment both the computation time should go up in orders of
+    // magnitude.
+    options += "Sparse  true        forward\n";
+    options += "Sparse  true        reverse\n";
+    // NOTE: Currently the solver has a maximum time limit of 0.1 seconds.
+    // Change this as you see fit.
+    options += "Numeric max_cpu_time          0.1\n";
+
+    // place to return solution
+    CppAD::ipopt::solve_result<Dvector> solution;
+    // weights of the cost function
+    // TODO: use a config file
+    std::vector<double> weights;
+    weights.push_back(2); //curvature weight
+    weights.push_back(30); //curvature rate weight
+    weights.push_back(0.01); //distance to boundary weight
+    weights.push_back(0.05); //path length weight
+
+    FgEvalFrenet fg_eval_frenet(seg_x_list_,
+                                seg_y_list_,
+                                seg_angle_list_,
+                                seg_k_list_,
+                                seg_s_list_,
+                                N,
+                                weights);
+    // solve the problem
+    CppAD::ipopt::solve<Dvector, FgEvalFrenet>(options, vars,
+                                               vars_lowerbound, vars_upperbound,
+                                               constraints_lowerbound, constraints_upperbound,
+                                               fg_eval_frenet, solution);
+    // Check if it works
+    bool ok = true;
+    ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
+    if (!ok) {
+        LOG(WARNING) << "mpc path optimization solver failed!";
+        return false;
+    }
+    LOG(INFO) << "mpc path optimization solver succeeded!";
+    // output
+    for (size_t i = 0; i != N; i++) {
+        double tmp[2] = {solution.x[i], double(i)};
+        std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
+        this->predicted_path_in_frenet_.push_back(v);
+    }
+    size_t control_points_num = N;
+    tinyspline::BSpline b_spline(control_points_num);
+    std::vector<tinyspline::real> ctrlp = b_spline.controlPoints();
+    for (size_t i = 0; i != N; ++i) {
+        double length_on_ref_path = seg_s_list_[i];
+        double angle = seg_angle_list_[i];
+        double new_angle = constraintAngle(angle + M_PI_2);
+        double tmp_x = x_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][0] * cos(new_angle);
+        double tmp_y = y_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][0] * sin(new_angle);
+        if (std::isnan(tmp_x) || std::isnan(tmp_y)) {
+            LOG(WARNING) << "output is not a number, mpc path opitmization failed!" << std::endl;
+            return false;
+        }
+        ctrlp[2 * (i)] = tmp_x;
+        ctrlp[2 * (i) + 1] = tmp_y;
+    }
+    // B spline
+    b_spline.setControlPoints(ctrlp);
+    std::vector<hmpl::State> tmp_final_path;
+    double step_t = 1.0 / (3.0 * N);
+    std::vector<tinyspline::real> result;
+    std::vector<tinyspline::real> result_next;
+    for (size_t i = 0; i <= 3 * N; ++i) {
+        double t = i * step_t;
+        result = b_spline.eval(t).result();
+        hmpl::State state;
+        state.x = result[0];
+        state.y = result[1];
+        if (i == 3 * N) {
+            state.z = tmp_final_path.back().z;
+        } else {
+            result_next = b_spline.eval((i + 1) * step_t).result();
+            double dx = result_next[0] - result[0];
+            double dy = result_next[1] - result[1];
+            state.z = atan2(dy, dx);
+        }
+        tmp_final_path.push_back(state);
+    }
+    final_path->clear();
+    std::copy(tmp_final_path.begin(), tmp_final_path.end(), std::back_inserter(*final_path));
+    return true;
+}
+bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     //
     // TODO: the result path should be different for various initial velocity!
     //
