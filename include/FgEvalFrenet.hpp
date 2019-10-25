@@ -77,7 +77,7 @@ public:
         const size_t cons_rear_range_begin = cons_psi_range_begin + N;
         const size_t cons_center_range_begin = cons_rear_range_begin + N;
         const size_t cons_front_range_begin = cons_center_range_begin + N;
-        const size_t cons_steer_change_range_begin = cons_front_range_begin + N;
+//        const size_t cons_steer_change_range_begin = cons_front_range_begin + N;
         AD<double> rear_axle_to_center_circle = car_geometry_[4];
         AD<double> rear_axle_to_rear_circle = rear_axle_to_center_circle - car_geometry_[0];
         AD<double> rear_axle_to_front_circle = rear_axle_to_center_circle + car_geometry_[1];
@@ -104,7 +104,7 @@ public:
             fg[cons_rear_range_begin + i] = rear_pq;
             fg[cons_center_range_begin + i] = center_pq;
             fg[cons_front_range_begin + i] = front_pq;
-            fg[cons_steer_change_range_begin + i] = fabs(steer1 - steer0);
+//            fg[cons_steer_change_range_begin + i] = fabs(steer1 - steer0);
             if (i == N - 2) {
                 rear_pq = rear_axle_to_rear_circle * (psi1) + pq1;
                 center_pq = rear_axle_to_center_circle * (psi1) + pq1;

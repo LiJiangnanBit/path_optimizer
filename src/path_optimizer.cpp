@@ -331,16 +331,19 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // Costraints inclued N shifts for front, center and rear circles each.
     // TODO: add steer change constraint.
     size_t n_constraints = 2 * N + 3 * N + N - 1;
+//    size_t n_constraints = 2 * N;
     Dvector constraints_lowerbound(n_constraints);
     Dvector constraints_upperbound(n_constraints);
-//    size_t cons_heading_range_begin = 0;
     size_t cons_pq_range_begin = 0;
     size_t cons_psi_range_begin = cons_pq_range_begin + N;
     size_t cons_rear_range_begin = cons_psi_range_begin + N;
     size_t cons_center_range_begin = cons_rear_range_begin + N;
     size_t cons_front_range_begin = cons_center_range_begin + N;
-    size_t cons_steer_change_range_begin = cons_front_range_begin + N;
+//    size_t cons_steer_change_range_begin = cons_front_range_begin + N;
+//    size_t cons_pq_range_begin = 0;
+//    size_t cons_psi_range_begin = cons_pq_range_begin + N;
     for (size_t i = cons_pq_range_begin; i != cons_rear_range_begin; ++i) {
+//    for (size_t i = cons_pq_range_begin; i != n_constraints; ++i) {
         constraints_upperbound[i] = 0;
         constraints_lowerbound[i] = 0;
     }
@@ -357,10 +360,10 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         constraints_upperbound[cons_front_range_begin + i] = seg_clearance_list_[i][4];
         constraints_lowerbound[cons_front_range_begin + i] = seg_clearance_list_[i][5];
     }
-    for (size_t i = cons_steer_change_range_begin; i != n_constraints; ++i) {
-        constraints_upperbound[i] = 5 * M_PI / 180;
-        constraints_lowerbound[i] = 0;
-    }
+//    for (size_t i = cons_steer_change_range_begin; i != n_constraints; ++i) {
+//        constraints_upperbound[i] = 5 * M_PI / 180;
+//        constraints_lowerbound[i] = 0;
+//    }
 
     // options for IPOPT solver
     std::string options;
