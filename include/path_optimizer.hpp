@@ -105,6 +105,8 @@ private:
     std::vector<double> seg_clearance_left_list_;
     std::vector<double> seg_clearance_right_list_;
     std::vector<std::vector<double> > seg_clearance_list_;
+    bool control_sampling_first_flag_;
+    bool enable_control_sampling;
 
     size_t point_num_;
     hmpl::State start_state_;
@@ -121,7 +123,6 @@ private:
     std::vector<hmpl::State> right_bound_;
     std::vector<hmpl::State> second_third_point_;
     size_t best_sampling_index_;
-    bool control_sampling_first_flag_;
     std::vector<hmpl::State> empty_;
     std::vector<hmpl::State> rear_bounds_;
     std::vector<hmpl::State> center_bounds_;

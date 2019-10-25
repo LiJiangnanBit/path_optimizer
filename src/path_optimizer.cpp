@@ -19,15 +19,25 @@ PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
     rear_axle_to_center_dis(1.45),
     wheel_base(2.85),
     best_sampling_index_(0),
-    control_sampling_first_flag_(false) {}
+    control_sampling_first_flag_(false),
+    enable_control_sampling(false) {}
 bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
+    if (point_num_ == 0) {
+        printf("empty input, quit path optimization\n");
+        return false;
+    }
     std::vector<hmpl::State> smoothed_path;
     auto smoothing_flag = smoothPath(&smoothed_path);
     if (!smoothing_flag) {
         printf("smoothing stage failed, quit path optimization.\n");
         return false;
     }
-    points_list_ = smoothed_path;
+    reset(smoothed_path);
+    return optimizePath(final_path);
+}
+
+void PathOptimizer::reset(const std::vector<hmpl::State> &points_list) {
+    points_list_ = points_list;
     point_num_ = points_list_.size();
     x_list_.clear();
     y_list_.clear();
@@ -39,8 +49,8 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     seg_angle_list_.clear();
     seg_s_list_.clear();
     predicted_path_in_frenet_.clear();
-    return optimizePath(final_path);
 }
+
 bool PathOptimizer::smoothPath(std::vector<hmpl::State> *smoothed_path) {
     double s = 0;
     for (size_t i = 0; i != point_num_; ++i) {
@@ -144,17 +154,17 @@ bool PathOptimizer::smoothPath(std::vector<hmpl::State> *smoothed_path) {
     weights.push_back(0.05); //path length weight
 
     FgEvalFrenetSmooth fg_eval_frenet(seg_x_list_,
-                                seg_y_list_,
-                                seg_angle_list_,
-                                seg_k_list_,
-                                seg_s_list_,
-                                N,
-                                weights);
+                                      seg_y_list_,
+                                      seg_angle_list_,
+                                      seg_k_list_,
+                                      seg_s_list_,
+                                      N,
+                                      weights);
     // solve the problem
     CppAD::ipopt::solve<Dvector, FgEvalFrenetSmooth>(options, vars,
-                                               vars_lowerbound, vars_upperbound,
-                                               constraints_lowerbound, constraints_upperbound,
-                                               fg_eval_frenet, solution);
+                                                     vars_lowerbound, vars_upperbound,
+                                                     constraints_lowerbound, constraints_upperbound,
+                                                     fg_eval_frenet, solution);
     // Check if it works
     bool ok = true;
     ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
@@ -252,8 +262,9 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     grid_map::Position start_position(start_state_.x, start_state_.y);
     double start_ref_angle = hmpl::angle(points_list_[0], points_list_[1]);
     double start_angle_diff = fabs(constraintAngle(start_state_.z - start_ref_angle));
-    if ((grid_map_.getObstacleDistance(start_position) < 2 && start_angle_diff > 20 * M_PI / 180)
-        || start_angle_diff > 60 * M_PI / 180) {
+    if (enable_control_sampling
+        && ((grid_map_.getObstacleDistance(start_position) < 2 && start_angle_diff > 20 * M_PI / 180)
+            || start_angle_diff > 60 * M_PI / 180)) {
         printf("start point is close to obstacle, control sampling first!\n");
         if (start_state_.k < -MAX_CURVATURE || start_state_.k > MAX_CURVATURE) goto normal_procedure;
         double dk = -0.1;
@@ -667,8 +678,8 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         hmpl::State state;
 //        state.x = result[0];
 //        state.y = result[1];
-        state.x = ctrlp[2*i];
-        state.y = ctrlp[2*i + 1];
+        state.x = ctrlp[2 * i];
+        state.y = ctrlp[2 * i + 1];
 //        if (i == 2 * N) {
 //            if (seg_x_list_[N - 1] - seg_x_list_[N - 2] < 0) {
 //                state.z = solution.x[end_heading_range_begin] > 0 ? solution.x[end_heading_range_begin] - M_PI :
@@ -686,12 +697,12 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
 ////            state.s = total_s;
 //        }
         if (i == N - 1) {
-            state.z = tmp_final_path[i-1].z;
+            state.z = tmp_final_path[i - 1].z;
         } else {
 //            double dx = result[0] - tmp_final_path[i - 1].x;
 //            double dy = result[1] - tmp_final_path[i - 1].y;
-            double dx = ctrlp[2*i+2] - state.x;
-            double dy = ctrlp[2*i+3] - state.y;
+            double dx = ctrlp[2 * i + 2] - state.x;
+            double dy = ctrlp[2 * i + 3] - state.y;
             state.z = atan2(dy, dx);
 //            total_s += sqrt(pow(dx, 2) + pow(dy, 2));;
         }
@@ -743,10 +754,10 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
         double y = state.y + left_s * sin(left_angle);
         grid_map::Position new_position(x, y);
         double clearance = grid_map_.getObstacleDistance(new_position);
-        if (clearance <= radius && i != 0) {
+        if (clearance <= 1.05 * radius && i != 0) {
             left_bound = left_s - delta_s;
             break;
-        } else if (clearance <= radius && i == 0) {
+        } else if (clearance <= 1.05 * radius && i == 0) {
             double right_s = 0;
             for (size_t j = 0; j != n / 2; ++j) {
                 right_s += delta_s;
@@ -754,7 +765,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
                 double y = state.y + right_s * sin(right_angle);
                 grid_map::Position new_position(x, y);
                 double clearance = grid_map_.getObstacleDistance(new_position);
-                if (clearance > radius) {
+                if (clearance > 1.05 * radius) {
                     left_bound = -right_s;
                     break;
                 } else if (j == n / 2 - 1) {
@@ -765,7 +776,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
                         double y = state.y + tmp_s * sin(left_angle);
                         grid_map::Position new_position(x, y);
                         double clearance = grid_map_.getObstacleDistance(new_position);
-                        if (clearance > radius) {
+                        if (clearance > 1.05 * radius) {
                             right_bound = tmp_s;
                             break;
                         } else if (k == n - 1) {
@@ -782,7 +793,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
                         grid_map::Position new_position(x, y);
                         double clearance = grid_map_.getObstacleDistance(new_position);
 //                        printf("new tmp_s: %f\n", tmp_s);
-                        if (clearance <= radius) {
+                        if (clearance <= 1.05 * radius) {
                             left_bound = tmp_s - delta_s;
                             break;
                         } else if (k == n - 1) {
@@ -807,7 +818,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
         double y = state.y + right_s * sin(right_angle);
         grid_map::Position new_position(x, y);
         double clearance = grid_map_.getObstacleDistance(new_position);
-        if (clearance <= radius) {
+        if (clearance <= 1.05 * radius) {
             right_bound = -(right_s - delta_s);
             break;
         } else if (i == n - 1) {
