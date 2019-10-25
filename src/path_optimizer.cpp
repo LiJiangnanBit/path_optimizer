@@ -443,7 +443,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     // Divid the reference path. Intervals are smaller at the beginning.
     double delta_s_smaller = 0.5;
 //    if (fabs(epsi) < 10 * M_PI / 180) delta_s_smaller = 1;
-    double delta_s_larger = 0.5;
+    double delta_s_larger = 1.0;
     double tmp_max_s = delta_s_smaller;
     seg_s_list_.push_back(0);
     while (tmp_max_s < max_s) {
@@ -644,13 +644,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     size_t count = 0;
     if (control_sampling_first_flag_) {
         count = 2 * (control_sampling_point_count);
-    };
-//    ctrlp[count + 0] = start_state_.x;
-//    ctrlp[count + 1] = start_state_.y;
-//    ctrlp[count + 2] = second_state.x;
-//    ctrlp[count + 3] = second_state.y;
-//    ctrlp[count + 4] = third_state.x;
-//    ctrlp[count + 5] = third_state.y;
+    }
     for (size_t i = 0; i != N; ++i) {
         double length_on_ref_path = seg_s_list_[i];
         double angle = seg_angle_list_[i];
@@ -667,45 +661,38 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     // B spline
     b_spline.setControlPoints(ctrlp);
     std::vector<hmpl::State> tmp_final_path;
-//    double total_s = 0;
-    double step_t = 1.0 / (2.0 * N);
+    double step_t = 1.0 / (3.0 * N);
     std::vector<tinyspline::real> result;
     std::vector<tinyspline::real> result_next;
-//    for (size_t i = 0; i <= 2 * N; ++i) {
-    for (size_t i = 0; i < N; ++i) {
+    for (size_t i = 0; i <= 3 * N; ++i) {
+//    for (size_t i = 0; i < N; ++i) {
         double t = i * step_t;
         if (i == 0) result = b_spline.eval(t).result();
         hmpl::State state;
-//        state.x = result[0];
-//        state.y = result[1];
-        state.x = ctrlp[2 * i];
-        state.y = ctrlp[2 * i + 1];
-//        if (i == 2 * N) {
-//            if (seg_x_list_[N - 1] - seg_x_list_[N - 2] < 0) {
-//                state.z = solution.x[end_heading_range_begin] > 0 ? solution.x[end_heading_range_begin] - M_PI :
-//                          solution.x[end_heading_range_begin] + M_PI;
-//            } else {
-//                state.z = solution.x[end_heading_range_begin];
-//            }
-////            state.s = 0;
-//        } else {
-//            result_next = b_spline.eval((i + 1) * step_t).result();
-//            double dx = result_next[0] - result[0];
-//            double dy = result_next[1] - result[1];
-//            state.z = atan2(dy, dx);
-////            total_s += sqrt(pow(dx, 2) + pow(dy, 2));
-////            state.s = total_s;
-//        }
-        if (i == N - 1) {
-            state.z = tmp_final_path[i - 1].z;
+        state.x = result[0];
+        state.y = result[1];
+//        state.x = ctrlp[2 * i];
+//        state.y = ctrlp[2 * i + 1];
+        if (i == 3 * N) {
+            state.z = tmp_final_path.back().z;
         } else {
-//            double dx = result[0] - tmp_final_path[i - 1].x;
-//            double dy = result[1] - tmp_final_path[i - 1].y;
-            double dx = ctrlp[2 * i + 2] - state.x;
-            double dy = ctrlp[2 * i + 3] - state.y;
+            result_next = b_spline.eval((i + 1) * step_t).result();
+            double dx = result_next[0] - result[0];
+            double dy = result_next[1] - result[1];
             state.z = atan2(dy, dx);
-//            total_s += sqrt(pow(dx, 2) + pow(dy, 2));;
+//            total_s += sqrt(pow(dx, 2) + pow(dy, 2));
+//            state.s = total_s;
         }
+//        if (i == N - 1) {
+//            state.z = tmp_final_path[i - 1].z;
+//        } else {
+////            double dx = result[0] - tmp_final_path[i - 1].x;
+////            double dy = result[1] - tmp_final_path[i - 1].y;
+//            double dx = ctrlp[2 * i + 2] - state.x;
+//            double dy = ctrlp[2 * i + 3] - state.y;
+//            state.z = atan2(dy, dx);
+////            total_s += sqrt(pow(dx, 2) + pow(dy, 2));;
+//        }
         result = result_next;
         if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
             tmp_final_path.push_back(state);
