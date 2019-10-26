@@ -521,8 +521,12 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         vars_lowerbound[i] = -DBL_MAX;
         vars_upperbound[i] = DBL_MAX;
     }
-    vars_lowerbound[steer_range_begin - 1] = end_state_.z - seg_angle_list_.back();
-    vars_upperbound[steer_range_begin - 1] = end_state_.z - seg_angle_list_.back();
+    double expected_end_psi = constraintAngle(end_state_.z - seg_angle_list_.back());
+    if (original_N == N && fabs(expected_end_psi) < M_PI_2) {
+        double loose_end_psi = 10 * M_PI / 180;
+        vars_lowerbound[steer_range_begin - 1] = expected_end_psi - loose_end_psi;
+        vars_upperbound[steer_range_begin - 1] = expected_end_psi + loose_end_psi;
+    }
     for (size_t i = steer_range_begin; i != n_vars; ++i) {
         vars_lowerbound[i] = -30 * M_PI / 180;
         vars_upperbound[i] = 30 * M_PI / 180;
