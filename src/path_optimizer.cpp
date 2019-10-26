@@ -26,13 +26,12 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         printf("empty input, quit path optimization\n");
         return false;
     }
-    std::vector<hmpl::State> smoothed_path;
-    auto smoothing_flag = smoothPath(&smoothed_path);
+    auto smoothing_flag = smoothPath(&smoothed_path_);
     if (!smoothing_flag) {
         printf("smoothing stage failed, quit path optimization.\n");
         return false;
     }
-    reset(smoothed_path);
+    reset(smoothed_path_);
     return optimizePath(final_path);
 }
 
@@ -741,10 +740,10 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
         double y = state.y + left_s * sin(left_angle);
         grid_map::Position new_position(x, y);
         double clearance = grid_map_.getObstacleDistance(new_position);
-        if (clearance <= 1.05 * radius && i != 0) {
+        if (clearance <= 1.03 * radius && i != 0) {
             left_bound = left_s - delta_s;
             break;
-        } else if (clearance <= 1.05 * radius && i == 0) {
+        } else if (clearance <= 1.03 * radius && i == 0) {
             double right_s = 0;
             for (size_t j = 0; j != n / 2; ++j) {
                 right_s += delta_s;
@@ -752,7 +751,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
                 double y = state.y + right_s * sin(right_angle);
                 grid_map::Position new_position(x, y);
                 double clearance = grid_map_.getObstacleDistance(new_position);
-                if (clearance > 1.05 * radius) {
+                if (clearance > 1.03 * radius) {
                     left_bound = -right_s;
                     break;
                 } else if (j == n / 2 - 1) {
@@ -763,7 +762,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
                         double y = state.y + tmp_s * sin(left_angle);
                         grid_map::Position new_position(x, y);
                         double clearance = grid_map_.getObstacleDistance(new_position);
-                        if (clearance > 1.05 * radius) {
+                        if (clearance > 1.03 * radius) {
                             right_bound = tmp_s;
                             break;
                         } else if (k == n - 1) {
@@ -780,7 +779,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
                         grid_map::Position new_position(x, y);
                         double clearance = grid_map_.getObstacleDistance(new_position);
 //                        printf("new tmp_s: %f\n", tmp_s);
-                        if (clearance <= 1.05 * radius) {
+                        if (clearance <= 1.03 * radius) {
                             left_bound = tmp_s - delta_s;
                             break;
                         } else if (k == n - 1) {
@@ -805,7 +804,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
         double y = state.y + right_s * sin(right_angle);
         grid_map::Position new_position(x, y);
         double clearance = grid_map_.getObstacleDistance(new_position);
-        if (clearance <= 1.05 * radius) {
+        if (clearance <= 1.03 * radius) {
             right_bound = -(right_s - delta_s);
             break;
         } else if (i == n - 1) {
@@ -1152,5 +1151,9 @@ const std::vector<hmpl::State> &PathOptimizer::getCenterBounds() {
 
 const std::vector<hmpl::State> &PathOptimizer::getFrontBounds() {
     return this->front_bounds_;
+}
+
+const std::vector<hmpl::State> &PathOptimizer::getSmoothedPath() {
+    return this->smoothed_path_;
 }
 }

@@ -49,6 +49,7 @@ public:
     const std::vector<hmpl::State> &getRearBounds();
     const std::vector<hmpl::State> &getCenterBounds();
     const std::vector<hmpl::State> &getFrontBounds();
+    const std::vector<hmpl::State> &getSmoothedPath();
 
 
 private:
@@ -107,16 +108,16 @@ private:
     std::vector<std::vector<double> > seg_clearance_list_;
     bool control_sampling_first_flag_;
     bool enable_control_sampling;
-
     size_t point_num_;
     hmpl::State start_state_;
     hmpl::State end_state_;
     tk::spline x_spline_;
     tk::spline y_spline_;
     tk::spline k_spline_;
+    std::vector<std::vector<double> > predicted_path_in_frenet_;
+
 
     // For visualization purpose.
-    std::vector<std::vector<double> > predicted_path_in_frenet_;
     std::vector<std::vector<hmpl::State> > sampling_path_set_;
     std::vector<std::vector<hmpl::State> > failed_sampling_path_set_;
     std::vector<hmpl::State> left_bound_;
@@ -127,6 +128,7 @@ private:
     std::vector<hmpl::State> rear_bounds_;
     std::vector<hmpl::State> center_bounds_;
     std::vector<hmpl::State> front_bounds_;
+    std::vector<hmpl::State> smoothed_path_;
 };
 
 }
