@@ -115,7 +115,9 @@ public:
             }
             fg[0] += cost_func_curvature_weight_ * pow(steer0, 2);
             fg[0] += cost_func_curvature_rate_weight_ * pow(steer1 - steer0, 2);
-            fg[0] += 1 * pow(pq0, 2);
+            AD<double> middle_rear = (bounds_[i][0] + bounds_[i][1]) / 2;
+            fg[0] += cost_func_bound_weight_ * pow(rear_pq - middle_rear, 2);
+//            fg[0] += 1 * pow(pq0, 2);
         }
     }
 };

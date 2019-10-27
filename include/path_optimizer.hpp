@@ -37,8 +37,6 @@ public:
                      const hmpl::State &end_state,
                      const hmpl::InternalGridMap &map);
     bool solve(std::vector<hmpl::State> *final_path);
-    bool smoothPath(std::vector<hmpl::State> *smoothed_path);
-    bool optimizePath(std::vector<hmpl::State> *final_path);
     const std::vector<std::vector<hmpl::State> > &getControlSamplingPathSet();
     // Just for visualization purpose.
     const std::vector<std::vector<hmpl::State> > &getControlSamplingFailedPathSet();
@@ -54,6 +52,8 @@ public:
 
 private:
     void reset(const std::vector<hmpl::State> &points_list);
+    bool smoothPath(std::vector<hmpl::State> *smoothed_path);
+    bool optimizePath(std::vector<hmpl::State> *final_path);
     void getCurvature(const std::vector<double> &local_x,
                       const std::vector<double> &local_y,
                       std::vector<double> *pt_curvature_out,

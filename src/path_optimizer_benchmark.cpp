@@ -54,7 +54,7 @@ static void BM_optimizePath(benchmark::State &state) {
     goal_state.k = 0;
     for (auto _:state) {
         PathOptimizationNS::PathOptimizer mpc_path_optimizer(points, start_state, goal_state, in_gm);
-        bool ok = mpc_path_optimizer.optimizePath(&final_path);
+        bool ok = mpc_path_optimizer.solve(&final_path);
     }
 }
 BENCHMARK(BM_optimizePath)->Unit(benchmark::kMillisecond);
