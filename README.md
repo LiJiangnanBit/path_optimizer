@@ -12,3 +12,7 @@
 ![image](https://github.com/bit-ivrc/path_optimizer/blob/QP_version/picture/optimization.png)  
 结果：  
 ![image](https://github.com/bit-ivrc/path_optimizer/blob/QP_version/picture/optimization_geo.png)  
+## 待完成    
+1. 寻找更好的判断碰撞的方法。用三个圆覆盖车辆的做法不够精确，如果车宽两米，后面的圆的直径就是2√2，影响通过性；
+2. 起始点离障碍物距离小于覆盖车的圆的半径的话，可能起点就不满足约束导致失败。  
+3. 调整目标函数的权重。  
