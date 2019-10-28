@@ -593,9 +593,9 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     // TODO: use a config file
     std::vector<double> weights;
     weights.push_back(2); //curvature weight
-    weights.push_back(200); //curvature rate weight
-    weights.push_back(0.3); //distance to boundary weight
-    weights.push_back(0.05); //path length weight
+    weights.push_back(100); //curvature rate weight
+    weights.push_back(0.05); //distance to boundary weight
+    weights.push_back(0.5); //offset weight
 
     FgEvalFrenet fg_eval_frenet(seg_x_list_,
                                 seg_y_list_,

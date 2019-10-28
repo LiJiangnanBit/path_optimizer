@@ -31,7 +31,7 @@ public:
         cost_func_curvature_weight_(cost_func[0]),
         cost_func_curvature_rate_weight_(cost_func[1]),
         cost_func_bound_weight_(cost_func[2]),
-        cost_func_s_weight_(cost_func[3]),
+        cost_func_offset_weight_(cost_func[3]),
         first_state_(first_state),
         car_geometry_(car_geometry),
         bounds_(bounds),
@@ -59,7 +59,7 @@ public:
     double cost_func_curvature_weight_;
     double cost_func_curvature_rate_weight_;
     double cost_func_bound_weight_;
-    double cost_func_s_weight_;
+    double cost_func_offset_weight_;
 
     const hmpl::State &first_state_;
     const std::vector<double> &car_geometry_;
@@ -117,7 +117,7 @@ public:
             fg[0] += cost_func_curvature_rate_weight_ * pow(steer1 - steer0, 2);
             AD<double> middle_rear = (bounds_[i][0] + bounds_[i][1]) / 2;
             fg[0] += cost_func_bound_weight_ * pow(rear_pq - middle_rear, 2);
-//            fg[0] += 1 * pow(pq0, 2);
+            fg[0] += cost_func_offset_weight_ * pow(pq0, 2);
         }
     }
 };
