@@ -20,7 +20,7 @@ PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
     wheel_base(2.85),
     best_sampling_index_(0),
     control_sampling_first_flag_(false),
-    enable_control_sampling(false) {}
+    enable_control_sampling(true) {}
 bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     if (point_num_ == 0) {
         printf("empty input, quit path optimization\n");
@@ -222,9 +222,6 @@ bool PathOptimizer::smoothPath(std::vector<hmpl::State> *smoothed_path) {
 }
 
 bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
-    //
-    // TODO: the result path should be different for various initial velocity!
-    //
     if (point_num_ == 0) {
         LOG(INFO) << "path input is empty!";
         return false;
@@ -254,6 +251,9 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     car_geo.push_back(rear_axle_to_center_dis);
     car_geo.push_back(wheel_base);
 
+    /// If the start state is too close to the obstacle (less than the radius of the circles covering the vehicle,
+    /// for example), the optimization might fail. This section does control sampling under this condition.
+    /// No need to understand the code.
     auto original_start_state = start_state_;
     std::vector<hmpl::State> best_path;
     double min_distance_for_best_path = 0;
@@ -262,8 +262,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     double start_ref_angle = hmpl::angle(points_list_[0], points_list_[1]);
     double start_angle_diff = fabs(constraintAngle(start_state_.z - start_ref_angle));
     if (enable_control_sampling
-        && ((grid_map_.getObstacleDistance(start_position) < 2 && start_angle_diff > 20 * M_PI / 180)
-            || start_angle_diff > 60 * M_PI / 180)) {
+        && (grid_map_.getObstacleDistance(start_position) < rear_front_r || start_angle_diff > 60 * M_PI / 180)) {
         printf("start point is close to obstacle, control sampling first!\n");
         if (start_state_.k < -MAX_CURVATURE || start_state_.k > MAX_CURVATURE) goto normal_procedure;
         double dk = -0.1;
@@ -317,7 +316,6 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
             dk += 0.025;
         }
         printf("control sampling get %d paths\n", sampling_path_set_.size());
-        auto min_angle_diff = DBL_MAX;
         if (!sampling_path_set_.empty()) {
 //            std::vector<double> path_scoring;
             double min_score = DBL_MAX;
@@ -342,7 +340,6 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
                 // TODO: path choosing strategy should be improved!
                 double score = 5 * angle_diff + min_distance + 7 / sampling_end_clearance;
                 if (score < min_score) {
-                    min_angle_diff = angle_diff;
                     best_sampling_index_ = i;
                     min_distance_for_best_path = min_distance;
                     min_index_for_best_path = min_index;
