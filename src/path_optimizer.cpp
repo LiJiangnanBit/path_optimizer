@@ -819,7 +819,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
     }
     if (safety_margin_flag) {
         double safety_margin = (left_bound - right_bound) * 0.05;
-        printf("safety margin: %f; bounds: %f, %f\n", safety_margin, left_bound - safety_margin, right_bound + safety_margin);
+//        printf("safety margin: %f; bounds: %f, %f\n", safety_margin, left_bound - safety_margin, right_bound + safety_margin);
         left_bound -= safety_margin;
         right_bound += safety_margin;
     }
@@ -853,7 +853,7 @@ std::vector<double> PathOptimizer::getClearanceFor3Circles(const hmpl::State &st
     std::vector<double> rear_bounds = getClearanceWithDirectionStrict(rear, rear_front_radius, safety_margin_flag);
     std::vector<double> center_bounds = getClearanceWithDirectionStrict(center, middle_radius, safety_margin_flag);
     std::vector<double> front_bounds = getClearanceWithDirectionStrict(front, rear_front_radius, safety_margin_flag);
-    printf("use safety margin? %d\n", safety_margin_flag);
+//    printf("use safety margin? %d\n", safety_margin_flag);
     result.push_back(rear_bounds[0]);
     result.push_back(rear_bounds[1]);
     result.push_back(center_bounds[0]);
