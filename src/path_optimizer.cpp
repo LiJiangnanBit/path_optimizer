@@ -480,7 +480,10 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
             center_state.y += rear_axle_to_center_dis * sin(center_state.z);
         }
         std::vector<double> clearance;
-        clearance = getClearanceFor3Circles(center_state, car_geo);
+        bool safety_margin_flag;
+        if (seg_s_list_[i] < 10) safety_margin_flag = false;
+        else safety_margin_flag = true;
+        clearance = getClearanceFor3Circles(center_state, car_geo, safety_margin_flag);
         if ((clearance[0] == clearance[1] || clearance[2] == clearance[3] || clearance[4] == clearance[5])
             && center_state.s > 0.75 * max_s) {
             printf("some states near end are not satisfying\n");
@@ -592,10 +595,10 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     // weights of the cost function
     // TODO: use a config file
     std::vector<double> weights;
-    weights.push_back(2); //curvature weight
-    weights.push_back(100); //curvature rate weight
-    weights.push_back(0.05); //distance to boundary weight
-    weights.push_back(0.5); //offset weight
+    weights.push_back(10); //curvature weight
+    weights.push_back(200); //curvature rate weight
+    weights.push_back(0.01); //distance to boundary weight
+    weights.push_back(0.01); //offset weight
 
     FgEvalFrenet fg_eval_frenet(seg_x_list_,
                                 seg_y_list_,
@@ -727,7 +730,9 @@ double PathOptimizer::getClearanceWithDirectionStrict(hmpl::State state, double 
     return s;
 }
 
-std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State state, double radius) {
+std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State state,
+                                                                   double radius,
+                                                                   bool safety_margin_flag) {
     double left_bound = 0;
     double right_bound = 0;
     double left_s = 0;
@@ -741,10 +746,10 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
         double y = state.y + left_s * sin(left_angle);
         grid_map::Position new_position(x, y);
         double clearance = grid_map_.getObstacleDistance(new_position);
-        if (clearance <= 1.03 * radius && i != 0) {
+        if (clearance <= radius && i != 0) {
             left_bound = left_s - delta_s;
             break;
-        } else if (clearance <= 1.03 * radius && i == 0) {
+        } else if (clearance <= radius && i == 0) {
             double right_s = 0;
             for (size_t j = 0; j != n / 2; ++j) {
                 right_s += delta_s;
@@ -752,7 +757,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
                 double y = state.y + right_s * sin(right_angle);
                 grid_map::Position new_position(x, y);
                 double clearance = grid_map_.getObstacleDistance(new_position);
-                if (clearance > 1.03 * radius) {
+                if (clearance > radius) {
                     left_bound = -right_s;
                     break;
                 } else if (j == n / 2 - 1) {
@@ -763,7 +768,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
                         double y = state.y + tmp_s * sin(left_angle);
                         grid_map::Position new_position(x, y);
                         double clearance = grid_map_.getObstacleDistance(new_position);
-                        if (clearance > 1.03 * radius) {
+                        if (clearance > radius) {
                             right_bound = tmp_s;
                             break;
                         } else if (k == n - 1) {
@@ -780,7 +785,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
                         grid_map::Position new_position(x, y);
                         double clearance = grid_map_.getObstacleDistance(new_position);
 //                        printf("new tmp_s: %f\n", tmp_s);
-                        if (clearance <= 1.03 * radius) {
+                        if (clearance <= radius) {
                             left_bound = tmp_s - delta_s;
                             break;
                         } else if (k == n - 1) {
@@ -805,12 +810,18 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
         double y = state.y + right_s * sin(right_angle);
         grid_map::Position new_position(x, y);
         double clearance = grid_map_.getObstacleDistance(new_position);
-        if (clearance <= 1.03 * radius) {
+        if (clearance <= radius) {
             right_bound = -(right_s - delta_s);
             break;
         } else if (i == n - 1) {
             right_bound = -right_s;
         }
+    }
+    if (safety_margin_flag) {
+        double safety_margin = (left_bound - right_bound) * 0.05;
+        printf("safety margin: %f; bounds: %f, %f\n", safety_margin, left_bound - safety_margin, right_bound + safety_margin);
+        left_bound -= safety_margin;
+        right_bound += safety_margin;
     }
     std::vector<double> result{left_bound, right_bound};
 //    printf("get range: %f to %f \n", left_bound, right_bound);
@@ -818,7 +829,8 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
 }
 
 std::vector<double> PathOptimizer::getClearanceFor3Circles(const hmpl::State &state,
-                                                           const std::vector<double> &car_geometry) {
+                                                           const std::vector<double> &car_geometry,
+                                                           bool safety_margin_flag) {
     double rear_front_radius = car_geometry[2];
     double middle_radius = car_geometry[3];
     hmpl::State front, center, rear;
@@ -838,9 +850,10 @@ std::vector<double> PathOptimizer::getClearanceFor3Circles(const hmpl::State &st
     rear.y = rear_y;
     rear.z = state.z;
     std::vector<double> result;
-    std::vector<double> rear_bounds = getClearanceWithDirectionStrict(rear, rear_front_radius);
-    std::vector<double> center_bounds = getClearanceWithDirectionStrict(center, middle_radius);
-    std::vector<double> front_bounds = getClearanceWithDirectionStrict(front, rear_front_radius);
+    std::vector<double> rear_bounds = getClearanceWithDirectionStrict(rear, rear_front_radius, safety_margin_flag);
+    std::vector<double> center_bounds = getClearanceWithDirectionStrict(center, middle_radius, safety_margin_flag);
+    std::vector<double> front_bounds = getClearanceWithDirectionStrict(front, rear_front_radius, safety_margin_flag);
+    printf("use safety margin? %d\n", safety_margin_flag);
     result.push_back(rear_bounds[0]);
     result.push_back(rear_bounds[1]);
     result.push_back(center_bounds[0]);
