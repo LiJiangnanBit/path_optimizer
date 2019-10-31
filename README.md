@@ -5,13 +5,13 @@
 2. 将平滑后的路径作为参考路径进行优化，用离散的线性化的车辆模型，考虑障碍物和起点终点位姿等，优化问题的形式是二次规划。  
 ## 图示
 输入（灰色）：
-![in.png](https://i.loli.net/2019/10/31/cYXJk1zC5WTKBro.png)  
+![in.png](https://i.loli.net/2019/10/31/v8rGYNW6RHxOcwy.png)  
 第一次优化：  
-![smt.png](https://i.loli.net/2019/10/31/cjP62ok9FwKrEYJ.png)  
+![smt.png](https://i.loli.net/2019/10/31/bTsxhRrW1LnJIoQ.png)  
 第二次优化：  
-![op.png](https://i.loli.net/2019/10/31/URsk1BqEV3FaAG6.png)  
+![op.png](https://i.loli.net/2019/10/31/KAqD5epScvgy1Z7.png)  
 结果：  
-![cargeo.png](https://i.loli.net/2019/10/31/EVJIwsbBr83QC9O.png)  
+![cargeo.png](https://i.loli.net/2019/10/31/dqz6TF4ypvYGbeE.png)  
 ## 依赖
 
 - IPOPT    
