@@ -481,7 +481,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         }
         std::vector<double> clearance;
         bool safety_margin_flag;
-        if (seg_s_list_[i] < 10) safety_margin_flag = false;
+        if (seg_s_list_[i] < 3) safety_margin_flag = false;
         else safety_margin_flag = true;
         clearance = getClearanceFor3Circles(center_state, car_geo, safety_margin_flag);
         if ((clearance[0] == clearance[1] || clearance[2] == clearance[3] || clearance[4] == clearance[5])
