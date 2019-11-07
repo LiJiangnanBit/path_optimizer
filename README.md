@@ -28,10 +28,10 @@ git clone -b mpc_path_optimization_display git@github.com:bit-ivrc/path_optimize
 ```
 
 将文件夹重命名，比如display。  
-克隆分支QP_version到本地：  
+克隆master分支到本地：  
 
 ```
-git clone -b QP_version git@github.com:bit-ivrc/path_optimizer.git
+git clone git@github.com:bit-ivrc/path_optimizer.git
 ```
 
 将主分支的path_optimizer包复制到display/ivrc_ws/src/planning/dependent_package，进入工作空间编译运行state_sampling：
