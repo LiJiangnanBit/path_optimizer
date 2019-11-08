@@ -535,7 +535,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     vars_upperbound[steer_range_begin] = atan(start_state_.k * wheel_base);
     // Costraints inclued N shifts for front, center and rear circles each.
     // TODO: add steer change constraint.
-    size_t n_constraints = 2 * N + 3 * N + N - 1;
+    size_t n_constraints = 2 * N + 3 * N;
 //    size_t n_constraints = 2 * N;
     Dvector constraints_lowerbound(n_constraints);
     Dvector constraints_upperbound(n_constraints);
