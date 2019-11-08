@@ -111,8 +111,8 @@ public:
             fg[cons_c3_range_begin + i] = d3;
             fg[0] += cost_func_curvature_weight_ * pow(steer0, 2);
             fg[0] += cost_func_curvature_rate_weight_ * pow(steer1 - steer0, 2);
-            AD<double> middle_rear = (bounds_[i][0] + bounds_[i][1]) / 2;
-            fg[0] += cost_func_bound_weight_ * pow(d0 - middle_rear, 2);
+//            AD<double> middle_rear = (bounds_[i][0] + bounds_[i][1]) / 2;
+//            fg[0] += cost_func_bound_weight_ * pow(d0 - middle_rear, 2);
             fg[0] += cost_func_offset_weight_ * pow(pq0, 2);
             if (i == N - 2) {
                 d0 = rear_axle_to_circle_0 * (psi1) + pq1;

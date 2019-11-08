@@ -239,6 +239,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     std::vector<double> car_geo;
     // Radius of each circle.
     double circle_r = sqrt(pow(car_length / 8, 2) + pow(car_width / 2, 2));
+    printf("circle r: %f\n", circle_r);
     double d1 = -3.0 / 8.0 * car_length;
     double d2 = -1.0 / 8.0 * car_length;
     double d3 = 1.0 / 8.0 * car_length;
@@ -830,7 +831,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
         }
     }
     if (safety_margin_flag) {
-        double safety_margin = (left_bound - right_bound) * 0.05;
+        double safety_margin = (left_bound - right_bound) * 0.1;
 //        printf("safety margin: %f; bounds: %f, %f\n", safety_margin, left_bound - safety_margin, right_bound + safety_margin);
         left_bound -= safety_margin;
         right_bound += safety_margin;
@@ -877,6 +878,10 @@ std::vector<double> PathOptimizer::getClearanceFor3Circles(const hmpl::State &st
     std::vector<double> c1_bounds = getClearanceWithDirectionStrict(c1, circle_r, safety_margin_flag);
     std::vector<double> c2_bounds = getClearanceWithDirectionStrict(c2, circle_r, safety_margin_flag);
     std::vector<double> c3_bounds = getClearanceWithDirectionStrict(c3, circle_r, safety_margin_flag);
+//    printf("c0_bounds: %f, %f\n", c0_bounds[0], c0_bounds[1]);
+//    printf("c1_bounds: %f, %f\n", c1_bounds[0], c1_bounds[1]);
+//    printf("c2_bounds: %f, %f\n", c2_bounds[0], c2_bounds[1]);
+//    printf("c3_bounds: %f, %f\n", c3_bounds[0], c3_bounds[1]);
 //    printf("use safety margin? %d\n", safety_margin_flag);
     result.push_back(c0_bounds[0]);
     result.push_back(c0_bounds[1]);
@@ -885,7 +890,7 @@ std::vector<double> PathOptimizer::getClearanceFor3Circles(const hmpl::State &st
     result.push_back(c2_bounds[0]);
     result.push_back(c2_bounds[1]);
     result.push_back(c3_bounds[0]);
-    result.push_back(c2_bounds[1]);
+    result.push_back(c3_bounds[1]);
     // For visualization purpoose:
     hmpl::State rear_bound_l, center_bound_l, front_bound_l, rear_bound_r, center_bound_r, front_bound_r;
     rear_bound_l.x = c0_x + result[0] * cos(state.z + M_PI_2);
