@@ -74,14 +74,17 @@ public:
         const size_t steer_range_begin = psi_range_begin + N;
         const size_t cons_pq_range_begin = 1;
         const size_t cons_psi_range_begin = cons_pq_range_begin + N;
-        const size_t cons_rear_range_begin = cons_psi_range_begin + N;
-        const size_t cons_center_range_begin = cons_rear_range_begin + N;
-        const size_t cons_front_range_begin = cons_center_range_begin + N;
+        const size_t cons_c0_range_begin = cons_psi_range_begin + N;
+        const size_t cons_c1_range_begin = cons_c0_range_begin + N;
+        const size_t cons_c2_range_begin = cons_c1_range_begin + N;
+        const size_t cons_c3_range_begin = cons_c2_range_begin + N;
 //        const size_t cons_steer_change_range_begin = cons_front_range_begin + N;
-        AD<double> rear_axle_to_center_circle = car_geometry_[4];
-        AD<double> rear_axle_to_rear_circle = rear_axle_to_center_circle - car_geometry_[0];
-        AD<double> rear_axle_to_front_circle = rear_axle_to_center_circle + car_geometry_[1];
-        AD<double> wheel_base = car_geometry_[5];
+        AD<double> rear_axle_to_center_circle = car_geometry_[5];
+        AD<double> rear_axle_to_circle_0 = rear_axle_to_center_circle + car_geometry_[0];
+        AD<double> rear_axle_to_circle_1 = rear_axle_to_center_circle + car_geometry_[1];
+        AD<double> rear_axle_to_circle_2 = rear_axle_to_center_circle + car_geometry_[2];
+        AD<double> rear_axle_to_circle_3 = rear_axle_to_center_circle + car_geometry_[3];
+        AD<double> wheel_base = car_geometry_[6];
         fg[cons_pq_range_begin] = vars[pq_range_begin];
         fg[cons_psi_range_begin] = vars[psi_range_begin];
         for (size_t i = 0; i != N - 1; ++i) {
@@ -98,26 +101,29 @@ public:
             AD<double> next_psi = psi0 - ds * pow(seg_k_list_[i], 2) * pq0
                 + ds / wheel_base / pow(cos(steer_ref), 2) * (steer0 - steer_ref);
             fg[cons_psi_range_begin + i + 1] = psi1 - next_psi;
-            AD<double> rear_pq = rear_axle_to_rear_circle * (psi0) + pq0;
-            AD<double> center_pq = rear_axle_to_center_circle * (psi0) + pq0;
-            AD<double> front_pq = rear_axle_to_front_circle * (psi0) + pq0;
-            fg[cons_rear_range_begin + i] = rear_pq;
-            fg[cons_center_range_begin + i] = center_pq;
-            fg[cons_front_range_begin + i] = front_pq;
-//            fg[cons_steer_change_range_begin + i] = fabs(steer1 - steer0);
-            if (i == N - 2) {
-                rear_pq = rear_axle_to_rear_circle * (psi1) + pq1;
-                center_pq = rear_axle_to_center_circle * (psi1) + pq1;
-                front_pq = rear_axle_to_front_circle * (psi1) + pq1;
-                fg[cons_rear_range_begin + i + 1] = rear_pq;
-                fg[cons_center_range_begin + i + 1] = center_pq;
-                fg[cons_front_range_begin + i + 1] = front_pq;
-            }
+            AD<double> d0 = rear_axle_to_circle_0 * (psi0) + pq0;
+            AD<double> d1 = rear_axle_to_circle_1 * (psi0) + pq0;
+            AD<double> d2 = rear_axle_to_circle_2 * (psi0) + pq0;
+            AD<double> d3 = rear_axle_to_circle_3 * (psi0) + pq0;
+            fg[cons_c0_range_begin + i] = d0;
+            fg[cons_c1_range_begin + i] = d1;
+            fg[cons_c2_range_begin + i] = d2;
+            fg[cons_c3_range_begin + i] = d3;
             fg[0] += cost_func_curvature_weight_ * pow(steer0, 2);
             fg[0] += cost_func_curvature_rate_weight_ * pow(steer1 - steer0, 2);
             AD<double> middle_rear = (bounds_[i][0] + bounds_[i][1]) / 2;
-            fg[0] += cost_func_bound_weight_ * pow(rear_pq - middle_rear, 2);
+            fg[0] += cost_func_bound_weight_ * pow(d0 - middle_rear, 2);
             fg[0] += cost_func_offset_weight_ * pow(pq0, 2);
+            if (i == N - 2) {
+                d0 = rear_axle_to_circle_0 * (psi1) + pq1;
+                d1 = rear_axle_to_circle_1 * (psi1) + pq1;
+                d2 = rear_axle_to_circle_2 * (psi1) + pq1;
+                d3 = rear_axle_to_circle_3 * (psi1) + pq1;
+                fg[cons_c0_range_begin + i + 1] = d0;
+                fg[cons_c1_range_begin + i + 1] = d1;
+                fg[cons_c2_range_begin + i + 1] = d2;
+                fg[cons_c3_range_begin + i + 1] = d3;
+            }
         }
     }
 };
