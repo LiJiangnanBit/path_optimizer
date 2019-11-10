@@ -231,15 +231,12 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     // TODO: consider back up situation
     double car_width = 2.0;
     double car_length = 4.9;
-//    double rear_l = 2.45;
-//    double front_l = 2.45;
-//    double rear_circle_distance = rear_l - car_width / 2;
-//    double front_circle_distance = front_l - car_width / 2;
     // Vector car_geo is for function getClearanceWithDirection.
     std::vector<double> car_geo;
     // Radius of each circle.
     double circle_r = sqrt(pow(car_length / 8, 2) + pow(car_width / 2, 2));
     printf("circle r: %f\n", circle_r);
+    // Distance to the vehicle center of each circle.
     double d1 = -3.0 / 8.0 * car_length;
     double d2 = -1.0 / 8.0 * car_length;
     double d3 = 1.0 / 8.0 * car_length;
@@ -248,14 +245,6 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     car_geo.push_back(d2);
     car_geo.push_back(d3);
     car_geo.push_back(d4);
-//    double rear_front_r = sqrt(pow(car_width / 2, 2) + pow(car_width / 2, 2));
-//    double middle_r;
-//    if (car_length > 2 * car_width) {
-//        middle_r = sqrt(pow(std::max(rear_l, front_l) - car_width, 2) + pow(car_width / 2, 2));
-//    } else {
-//        middle_r = 0;
-//    }
-//    car_geo.push_back(rear_front_r);
     car_geo.push_back(circle_r);
     car_geo.push_back(rear_axle_to_center_dis);
     car_geo.push_back(wheel_base);
@@ -447,8 +436,8 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
 
     // Divid the reference path. Intervals are smaller at the beginning.
     double delta_s_smaller = 0.5;
-//    if (fabs(epsi) < 10 * M_PI / 180) delta_s_smaller = 1;
     double delta_s_larger = 1.0;
+    if (fabs(epsi) < 20 * M_PI / 180) delta_s_smaller = delta_s_larger;
     double tmp_max_s = delta_s_smaller;
     seg_s_list_.push_back(0);
     while (tmp_max_s < max_s) {
@@ -476,7 +465,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         seg_k_list_.push_back(k_spline_(length_on_ref_path));
     }
 
-    // Get clearance of front, center and rear circles.
+    // Get clearance of covering circles.
     for (size_t i = 0; i != N; ++i) {
         hmpl::State center_state;
         center_state.x = seg_x_list_[i];
@@ -510,8 +499,8 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
 
     typedef CPPAD_TESTVECTOR(double) Dvector;
     // n_vars: Set the number of model variables.
-    // There are N - 3 shifts(pq) in the variables, representing vehicle positions.
-    // Note that there are supposed to be N states, but the first 3 points are fixed. So they are not counted.
+    // There are 2 state variables: pq and psi;
+    // and 1 control variable: steer angle.
     size_t n_vars = 2 * N + N - 1;
     const size_t pq_range_begin = 0;
     const size_t psi_range_begin = pq_range_begin + N;
@@ -543,10 +532,9 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     }
     vars_lowerbound[steer_range_begin] = atan(start_state_.k * wheel_base);
     vars_upperbound[steer_range_begin] = atan(start_state_.k * wheel_base);
-    // Costraints inclued N shifts for front, center and rear circles each.
+    // Costraints inclued the state variable constraints(2 * N) and the covering circles constraints(4 * N).
     // TODO: add steer change constraint.
     size_t n_constraints = 2 * N + 4 * N;
-//    size_t n_constraints = 2 * N;
     Dvector constraints_lowerbound(n_constraints);
     Dvector constraints_upperbound(n_constraints);
     const size_t cons_pq_range_begin = 0;
@@ -555,11 +543,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     const size_t cons_c1_range_begin = cons_c0_range_begin + N;
     const size_t cons_c2_range_begin = cons_c1_range_begin + N;
     const size_t cons_c3_range_begin = cons_c2_range_begin + N;
-//    size_t cons_steer_change_range_begin = cons_front_range_begin + N;
-//    size_t cons_pq_range_begin = 0;
-//    size_t cons_psi_range_begin = cons_pq_range_begin + N;
     for (size_t i = cons_pq_range_begin; i != cons_c0_range_begin; ++i) {
-//    for (size_t i = cons_pq_range_begin; i != n_constraints; ++i) {
         constraints_upperbound[i] = 0;
         constraints_lowerbound[i] = 0;
     }
@@ -567,7 +551,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     constraints_upperbound[cons_pq_range_begin] = cte;
     constraints_lowerbound[cons_psi_range_begin] = epsi;
     constraints_upperbound[cons_psi_range_begin] = epsi;
-    // clearance constraints for front, center and rear circles.
+    // clearance constraints for covering circles.
     for (size_t i = 0; i != N; ++i) {
         constraints_upperbound[cons_c0_range_begin + i] = seg_clearance_list_[i][0];
         constraints_lowerbound[cons_c0_range_begin + i] = seg_clearance_list_[i][1];
@@ -578,10 +562,6 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         constraints_upperbound[cons_c3_range_begin + i] = seg_clearance_list_[i][6];
         constraints_lowerbound[cons_c3_range_begin + i] = seg_clearance_list_[i][7];
     }
-//    for (size_t i = cons_steer_change_range_begin; i != n_constraints; ++i) {
-//        constraints_upperbound[i] = 5 * M_PI / 180;
-//        constraints_lowerbound[i] = 0;
-//    }
 
     // options for IPOPT solver
     std::string options;
@@ -597,6 +577,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     // NOTE: Currently the solver has a maximum time limit of 0.1 seconds.
     // Change this as you see fit.
 //    options += "Numeric max_cpu_time          0.1\n";
+    /// Options for QP problem
     options += "mehrotra_algorithm  yes\n";
     options += "hessian_constant  yes\n";
     options += "jac_c_constant  yes\n";
@@ -609,7 +590,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     // TODO: use a config file
     std::vector<double> weights;
     weights.push_back(10); //curvature weight
-    weights.push_back(200); //curvature rate weight
+    weights.push_back(100); //curvature rate weight
     weights.push_back(0.01); //distance to boundary weight
     weights.push_back(0.01); //offset weight
 
@@ -677,10 +658,10 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     // B spline
     b_spline.setControlPoints(ctrlp);
     std::vector<hmpl::State> tmp_final_path;
-    double step_t = 1.0 / (3.0 * control_points_num);
+    double step_t = 1.0 / (6.0 * control_points_num);
     std::vector<tinyspline::real> result;
     std::vector<tinyspline::real> result_next;
-    for (size_t i = 0; i <= 3 * control_points_num; ++i) {
+    for (size_t i = 0; i <= 6 * control_points_num; ++i) {
 //    for (size_t i = 0; i < control_points_num; ++i) {
         double t = i * step_t;
         if (i == 0) result = b_spline.eval(t).result();
@@ -689,7 +670,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         state.y = result[1];
 //        state.x = ctrlp[2 * i];
 //        state.y = ctrlp[2 * i + 1];
-        if (i == 3 * control_points_num) {
+        if (i == 6 * control_points_num) {
             state.z = tmp_final_path.back().z;
         } else {
             result_next = b_spline.eval((i + 1) * step_t).result();

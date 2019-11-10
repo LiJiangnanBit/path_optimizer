@@ -114,6 +114,8 @@ public:
 //            AD<double> middle_rear = (bounds_[i][0] + bounds_[i][1]) / 2;
 //            fg[0] += cost_func_bound_weight_ * pow(d0 - middle_rear, 2);
             fg[0] += cost_func_offset_weight_ * pow(pq0, 2);
+//            AD<double> delta_s = ds * (1 - pq0 * seg_k_list_[i]);
+//            fg[0] += 1 * pow(delta_s, 2);
             if (i == N - 2) {
                 d0 = rear_axle_to_circle_0 * (psi1) + pq1;
                 d1 = rear_axle_to_circle_1 * (psi1) + pq1;
