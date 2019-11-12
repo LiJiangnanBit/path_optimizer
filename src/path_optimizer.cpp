@@ -123,6 +123,12 @@ bool PathOptimizer::smoothPath(std::vector<hmpl::State> *smoothed_path) {
     // Start point is the start position of the vehicle.
     vars_lowerbound[0] = 0;
     vars_upperbound[0] = 0;
+    double psi = start_state_.z - seg_angle_list_.front();
+    if (fabs(psi) < 35 * M_PI / 180) {
+        double pq1 = seg_s_list_[1] * tan(psi);
+        vars_lowerbound[1] = pq1 - 0.05;
+        vars_upperbound[1] = pq1 + 0.05;
+    }
     // Costraints inclued N - 2 curvatures and N - 2 shifts for front, center and rear circles each.
     size_t n_constraints = 0;
     Dvector constraints_lowerbound(n_constraints);
@@ -147,10 +153,10 @@ bool PathOptimizer::smoothPath(std::vector<hmpl::State> *smoothed_path) {
     // weights of the cost function
     // TODO: use a config file
     std::vector<double> weights;
-    weights.push_back(2); //curvature weight
-    weights.push_back(30); //curvature rate weight
+    weights.push_back(20); //curvature weight
+    weights.push_back(300); //curvature rate weight
     weights.push_back(0.01); //distance to boundary weight
-    weights.push_back(0.05); //path length weight
+    weights.push_back(1); //path length weight
 
     FgEvalFrenetSmooth fg_eval_frenet(seg_x_list_,
                                       seg_y_list_,
@@ -590,7 +596,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     // TODO: use a config file
     std::vector<double> weights;
     weights.push_back(10); //curvature weight
-    weights.push_back(100); //curvature rate weight
+    weights.push_back(1000); //curvature rate weight
     weights.push_back(0.01); //distance to boundary weight
     weights.push_back(0.01); //offset weight
 
