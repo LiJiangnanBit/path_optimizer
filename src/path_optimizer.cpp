@@ -664,10 +664,10 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     // B spline
     b_spline.setControlPoints(ctrlp);
     std::vector<hmpl::State> tmp_final_path;
-    double step_t = 1.0 / (6.0 * control_points_num);
+    double step_t = 1.0 / (4.0 * control_points_num);
     std::vector<tinyspline::real> result;
     std::vector<tinyspline::real> result_next;
-    for (size_t i = 0; i <= 6 * control_points_num; ++i) {
+    for (size_t i = 0; i <= 4 * control_points_num; ++i) {
 //    for (size_t i = 0; i < control_points_num; ++i) {
         double t = i * step_t;
         if (i == 0) result = b_spline.eval(t).result();
@@ -676,7 +676,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         state.y = result[1];
 //        state.x = ctrlp[2 * i];
 //        state.y = ctrlp[2 * i + 1];
-        if (i == 6 * control_points_num) {
+        if (i == 4 * control_points_num) {
             state.z = tmp_final_path.back().z;
         } else {
             result_next = b_spline.eval((i + 1) * step_t).result();
@@ -819,7 +819,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
     }
     if (safety_margin_flag) {
         double base = std::max(left_bound - right_bound - 0.6, 0.0);
-        double safety_margin = std::min(base * 0.24, 0.5);
+        double safety_margin = std::min(base * 0.24, 0.85);
 //        printf("safety margin: %f; bounds: %f, %f\n", safety_margin, left_bound - safety_margin, right_bound + safety_margin);
         left_bound -= safety_margin;
         right_bound += safety_margin;
