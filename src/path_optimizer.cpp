@@ -520,7 +520,9 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     std::vector<double> init_state;
     init_state.push_back(epsi);
     init_state.push_back(cte);
-    setConstraintMatrix(N, &linearMatrix, &lowerBound, &upperBound, init_state);
+    bool constriant_end_psi = false;
+    if (N == original_N) constriant_end_psi = true;
+    setConstraintMatrix(N, &linearMatrix, &lowerBound, &upperBound, init_state, end_state_.z, constriant_end_psi);
     auto po_osqp_pre = std::clock();
 //    std::streamsize prec = std::cout.precision();
 //    std::cout << std::setprecision(4);

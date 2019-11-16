@@ -58,7 +58,9 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
                                         Eigen::SparseMatrix<double> *matrix_constraints,
                                         Eigen::VectorXd *lower_bound,
                                         Eigen::VectorXd *upper_bound,
-                                        const std::vector<double> &init_state) {
+                                        const std::vector<double> &init_state,
+                                        double end_heading,
+                                        bool constraint_end_psi) {
     //TODO: how to initialize a zero matrix?
     Eigen::MatrixXd cons = Eigen::MatrixXd::Zero(9 * horizon - 1, 3 * horizon - 1);
     for (size_t i = 0; i != 2 * horizon; ++i) {
@@ -86,14 +88,10 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
 
     *lower_bound = Eigen::MatrixXd::Zero(9 * horizon - 1, 1);
     *upper_bound = Eigen::MatrixXd::Zero(9 * horizon - 1, 1);
-//    lower_bound->resize(9 * horizon - 1);
-//    upper_bound->resize(9 * horizon - 1);
     Eigen::Matrix<double, 2, 1> x0;
     x0 << init_state[0], init_state[1];
     lower_bound->block(0, 0, 2, 1) = -x0;
     upper_bound->block(0, 0, 2, 1) = -x0;
-//    lower_bound->block(2, 0, 2 * horizon - 2, 1) = Eigen::VectorXd::Zero(2 * horizon - 2);
-//    upper_bound->block(2, 0, 2 * horizon - 2, 1) = Eigen::VectorXd::Zero(2 * horizon - 2);
     for (size_t i = 0; i != horizon - 1; ++i) {
         double ds = seg_s_list_[i + 1] - seg_s_list_[i];
         double steer = atan(seg_k_list_[i] * wheel_base);
@@ -104,6 +102,14 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
     }
     lower_bound->block(2 * horizon, 0, 2 * horizon, 1) = Eigen::VectorXd::Constant(2 * horizon, -OsqpEigen::INFTY);
     upper_bound->block(2 * horizon, 0, 2 * horizon, 1) = Eigen::VectorXd::Constant(2 * horizon, OsqpEigen::INFTY);
+    // Add end state constraint.
+    if (constraint_end_psi) {
+        double end_psi = constraintAngle(end_heading - seg_angle_list_.back());
+        if (end_psi < 70 * M_PI / 180) {
+            (*lower_bound)(2 * horizon + 2 * horizon - 2) = end_psi - 5 * M_PI / 180;
+            (*upper_bound)(2 * horizon + 2 * horizon - 2) = end_psi + 5 * M_PI / 180;
+        }
+    }
     lower_bound->block(4 * horizon, 0, horizon - 1, 1) = Eigen::VectorXd::Constant(horizon - 1, -30 * M_PI / 180);
     upper_bound->block(4 * horizon, 0, horizon - 1, 1) = Eigen::VectorXd::Constant(horizon - 1, 30 * M_PI / 180);
     for (size_t i = 0; i != horizon; ++i) {

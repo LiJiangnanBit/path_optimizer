@@ -102,7 +102,9 @@ private:
                              Eigen::SparseMatrix<double> *matrix_constraints,
                              Eigen::VectorXd *lower_bound,
                              Eigen::VectorXd *upper_bound,
-                             const std::vector<double> &init_state);
+                             const std::vector<double> &init_state,
+                             double end_heading,
+                             bool constraint_end_psi);
     hmpl::InternalGridMap grid_map_;
     CollisionChecker collision_checker_;
     CarType car_type;
