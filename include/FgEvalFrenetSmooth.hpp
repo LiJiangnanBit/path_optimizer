@@ -107,7 +107,7 @@ public:
             fg[0] += cost_func_curvature_weight_ * pow(curvature_by_position, 2);
             fg[0] +=
                 cost_func_curvature_rate_weight_ * pow(curvature_by_position - curvature_by_position_before, 2);
-            fg[0] += pow(pq, 2);
+            fg[0] += cost_func_s_weight_ * pow(pq, 2);
             curvature_by_position_before = curvature_by_position;
         }
         fg[0] += pow(vars[N - 2], 2) + pow(vars[N - 1], 2);
