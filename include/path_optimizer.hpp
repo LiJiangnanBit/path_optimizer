@@ -12,6 +12,7 @@
 #include <vector>
 #include <glog/logging.h>
 #include <cmath>
+#include <ctime>
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
 #include <chrono>

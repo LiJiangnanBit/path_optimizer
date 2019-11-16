@@ -228,6 +228,7 @@ bool PathOptimizer::smoothPath(std::vector<hmpl::State> *smoothed_path) {
 }
 
 bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
+    auto po_start = std::clock();
     if (point_num_ == 0) {
         LOG(INFO) << "path input is empty!";
         return false;
@@ -501,9 +502,11 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         }
         seg_clearance_list_.push_back(clearance);
     }
+    auto po_pre = std::clock();
 
     // OSQP:
     OsqpEigen::Solver solver;
+    solver.settings()->setVerbosity(false);
     solver.settings()->setWarmStart(true);
     solver.data()->setNumberOfVariables(3 * N - 1);
     solver.data()->setNumberOfConstraints(9 * N - 1);
@@ -518,6 +521,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     init_state.push_back(epsi);
     init_state.push_back(cte);
     setConstraintMatrix(N, &linearMatrix, &lowerBound, &upperBound, init_state);
+    auto po_osqp_pre = std::clock();
 //    std::streamsize prec = std::cout.precision();
 //    std::cout << std::setprecision(4);
 //    std::cout << "hessian:\n " << hessian << std::endl;
@@ -535,137 +539,138 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     if (!solver.initSolver()) return false;
     if (!solver.solve()) return false;
     Eigen::VectorXd QPSolution = solver.getSolution();
-    std::cout << "result: " << QPSolution << std::endl;
+    auto po_osqp_solve = std::clock();
+//    std::cout << "result: " << QPSolution << std::endl;
 
-    // IPOPT:
-    typedef CPPAD_TESTVECTOR(double) Dvector;
-    // n_vars: Set the number of model variables.
-    // There are 2 state variables: pq and psi;
-    // and 1 control variable: steer angle.
-    size_t n_vars = 2 * N + N - 1;
-    const size_t pq_range_begin = 0;
-    const size_t psi_range_begin = pq_range_begin + N;
-    const size_t steer_range_begin = psi_range_begin + N;
-    // Set the number of constraints
-    Dvector vars(n_vars);
-    for (size_t i = 0; i < n_vars; i++) {
-        vars[i] = 0;
-    }
-    vars[pq_range_begin] = cte;
-    vars[psi_range_begin] = epsi;
-    vars[steer_range_begin] = atan(start_state_.k * wheel_base);
-    // bounds of variables
-    Dvector vars_lowerbound(n_vars);
-    Dvector vars_upperbound(n_vars);
-    for (size_t i = 0; i != steer_range_begin; ++i) {
-        vars_lowerbound[i] = -DBL_MAX;
-        vars_upperbound[i] = DBL_MAX;
-    }
-    double expected_end_psi = constraintAngle(end_state_.z - seg_angle_list_.back());
-    if (original_N == N && fabs(expected_end_psi) < M_PI_2) {
-        double loose_end_psi = 10 * M_PI / 180;
-        vars_lowerbound[steer_range_begin - 1] = expected_end_psi - loose_end_psi;
-        vars_upperbound[steer_range_begin - 1] = expected_end_psi + loose_end_psi;
-    }
-    for (size_t i = steer_range_begin; i != n_vars; ++i) {
-        vars_lowerbound[i] = -30 * M_PI / 180;
-        vars_upperbound[i] = 30 * M_PI / 180;
-    }
-    vars_lowerbound[steer_range_begin] = atan(start_state_.k * wheel_base);
-    vars_upperbound[steer_range_begin] = atan(start_state_.k * wheel_base);
-    // Costraints inclued the state variable constraints(2 * N) and the covering circles constraints(4 * N).
-    // TODO: add steer change constraint.
-    size_t n_constraints = 2 * N + 4 * N;
-    Dvector constraints_lowerbound(n_constraints);
-    Dvector constraints_upperbound(n_constraints);
-    const size_t cons_pq_range_begin = 0;
-    const size_t cons_psi_range_begin = cons_pq_range_begin + N;
-    const size_t cons_c0_range_begin = cons_psi_range_begin + N;
-    const size_t cons_c1_range_begin = cons_c0_range_begin + N;
-    const size_t cons_c2_range_begin = cons_c1_range_begin + N;
-    const size_t cons_c3_range_begin = cons_c2_range_begin + N;
-    for (size_t i = cons_pq_range_begin; i != cons_c0_range_begin; ++i) {
-        constraints_upperbound[i] = 0;
-        constraints_lowerbound[i] = 0;
-    }
-    constraints_lowerbound[cons_pq_range_begin] = cte;
-    constraints_upperbound[cons_pq_range_begin] = cte;
-    constraints_lowerbound[cons_psi_range_begin] = epsi;
-    constraints_upperbound[cons_psi_range_begin] = epsi;
-    // clearance constraints for covering circles.
-    for (size_t i = 0; i != N; ++i) {
-        constraints_upperbound[cons_c0_range_begin + i] = seg_clearance_list_[i][0];
-        constraints_lowerbound[cons_c0_range_begin + i] = seg_clearance_list_[i][1];
-        constraints_upperbound[cons_c1_range_begin + i] = seg_clearance_list_[i][2];
-        constraints_lowerbound[cons_c1_range_begin + i] = seg_clearance_list_[i][3];
-        constraints_upperbound[cons_c2_range_begin + i] = seg_clearance_list_[i][4];
-        constraints_lowerbound[cons_c2_range_begin + i] = seg_clearance_list_[i][5];
-        constraints_upperbound[cons_c3_range_begin + i] = seg_clearance_list_[i][6];
-        constraints_lowerbound[cons_c3_range_begin + i] = seg_clearance_list_[i][7];
-    }
-
-    // options for IPOPT solver
-    std::string options;
-    // Uncomment this if you'd like more print information
-    options += "Integer print_level  0\n";
-    // NOTE: Setting sparse to true allows the solver to take advantage
-    // of sparse routines, this makes the computation MUCH FASTER. If you
-    // can uncomment 1 of these and see if it makes a difference or not but
-    // if you uncomment both the computation time should go up in orders of
-    // magnitude.
-    options += "Sparse  true        forward\n";
-    options += "Sparse  true        reverse\n";
-    // NOTE: Currently the solver has a maximum time limit of 0.1 seconds.
-    // Change this as you see fit.
-//    options += "Numeric max_cpu_time          0.1\n";
-    /// Options for QP problem
-    options += "mehrotra_algorithm  yes\n";
-    options += "hessian_constant  yes\n";
-    options += "jac_c_constant  yes\n";
-    options += "jac_d_constant  yes\n";
-    options += "mu_strategy adaptive\n";
-
-    // place to return solution
-    CppAD::ipopt::solve_result<Dvector> solution;
-    // weights of the cost function
-    // TODO: use a config file
-    std::vector<double> weights;
-    weights.push_back(10); //curvature weight
-    weights.push_back(1000); //curvature rate weight
-    weights.push_back(0.01); //distance to boundary weight
-    weights.push_back(0.01); //offset weight
-
-    FgEvalFrenet fg_eval_frenet(seg_x_list_,
-                                seg_y_list_,
-                                seg_angle_list_,
-                                seg_k_list_,
-                                seg_s_list_,
-                                N,
-                                weights,
-                                start_state_,
-                                car_geo_,
-                                seg_clearance_list_,
-                                epsi);
-    // solve the problem
-    CppAD::ipopt::solve<Dvector, FgEvalFrenet>(options, vars,
-                                               vars_lowerbound, vars_upperbound,
-                                               constraints_lowerbound, constraints_upperbound,
-                                               fg_eval_frenet, solution);
-    // Check if it works
-    bool ok = true;
-    ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
-    if (!ok) {
-        LOG(WARNING) << "path optimization solver failed!";
-        return false;
-    }
-    LOG(INFO) << "path optimization solver succeeded!";
-    // output
-    for (size_t i = 0; i != N; i++) {
-        double tmp[2] = {solution.x[i], double(i)};
-        std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
-        this->predicted_path_in_frenet_.push_back(v);
-        printf("ip: %d, %f\n", i, v[0]);
-    }
+//    // IPOPT:
+//    typedef CPPAD_TESTVECTOR(double) Dvector;
+//    // n_vars: Set the number of model variables.
+//    // There are 2 state variables: pq and psi;
+//    // and 1 control variable: steer angle.
+//    size_t n_vars = 2 * N + N - 1;
+//    const size_t pq_range_begin = 0;
+//    const size_t psi_range_begin = pq_range_begin + N;
+//    const size_t steer_range_begin = psi_range_begin + N;
+//    // Set the number of constraints
+//    Dvector vars(n_vars);
+//    for (size_t i = 0; i < n_vars; i++) {
+//        vars[i] = 0;
+//    }
+//    vars[pq_range_begin] = cte;
+//    vars[psi_range_begin] = epsi;
+//    vars[steer_range_begin] = atan(start_state_.k * wheel_base);
+//    // bounds of variables
+//    Dvector vars_lowerbound(n_vars);
+//    Dvector vars_upperbound(n_vars);
+//    for (size_t i = 0; i != steer_range_begin; ++i) {
+//        vars_lowerbound[i] = -DBL_MAX;
+//        vars_upperbound[i] = DBL_MAX;
+//    }
+//    double expected_end_psi = constraintAngle(end_state_.z - seg_angle_list_.back());
+//    if (original_N == N && fabs(expected_end_psi) < M_PI_2) {
+//        double loose_end_psi = 10 * M_PI / 180;
+//        vars_lowerbound[steer_range_begin - 1] = expected_end_psi - loose_end_psi;
+//        vars_upperbound[steer_range_begin - 1] = expected_end_psi + loose_end_psi;
+//    }
+//    for (size_t i = steer_range_begin; i != n_vars; ++i) {
+//        vars_lowerbound[i] = -30 * M_PI / 180;
+//        vars_upperbound[i] = 30 * M_PI / 180;
+//    }
+//    vars_lowerbound[steer_range_begin] = atan(start_state_.k * wheel_base);
+//    vars_upperbound[steer_range_begin] = atan(start_state_.k * wheel_base);
+//    // Costraints inclued the state variable constraints(2 * N) and the covering circles constraints(4 * N).
+//    // TODO: add steer change constraint.
+//    size_t n_constraints = 2 * N + 4 * N;
+//    Dvector constraints_lowerbound(n_constraints);
+//    Dvector constraints_upperbound(n_constraints);
+//    const size_t cons_pq_range_begin = 0;
+//    const size_t cons_psi_range_begin = cons_pq_range_begin + N;
+//    const size_t cons_c0_range_begin = cons_psi_range_begin + N;
+//    const size_t cons_c1_range_begin = cons_c0_range_begin + N;
+//    const size_t cons_c2_range_begin = cons_c1_range_begin + N;
+//    const size_t cons_c3_range_begin = cons_c2_range_begin + N;
+//    for (size_t i = cons_pq_range_begin; i != cons_c0_range_begin; ++i) {
+//        constraints_upperbound[i] = 0;
+//        constraints_lowerbound[i] = 0;
+//    }
+//    constraints_lowerbound[cons_pq_range_begin] = cte;
+//    constraints_upperbound[cons_pq_range_begin] = cte;
+//    constraints_lowerbound[cons_psi_range_begin] = epsi;
+//    constraints_upperbound[cons_psi_range_begin] = epsi;
+//    // clearance constraints for covering circles.
+//    for (size_t i = 0; i != N; ++i) {
+//        constraints_upperbound[cons_c0_range_begin + i] = seg_clearance_list_[i][0];
+//        constraints_lowerbound[cons_c0_range_begin + i] = seg_clearance_list_[i][1];
+//        constraints_upperbound[cons_c1_range_begin + i] = seg_clearance_list_[i][2];
+//        constraints_lowerbound[cons_c1_range_begin + i] = seg_clearance_list_[i][3];
+//        constraints_upperbound[cons_c2_range_begin + i] = seg_clearance_list_[i][4];
+//        constraints_lowerbound[cons_c2_range_begin + i] = seg_clearance_list_[i][5];
+//        constraints_upperbound[cons_c3_range_begin + i] = seg_clearance_list_[i][6];
+//        constraints_lowerbound[cons_c3_range_begin + i] = seg_clearance_list_[i][7];
+//    }
+//
+//    // options for IPOPT solver
+//    std::string options;
+//    // Uncomment this if you'd like more print information
+//    options += "Integer print_level  0\n";
+//    // NOTE: Setting sparse to true allows the solver to take advantage
+//    // of sparse routines, this makes the computation MUCH FASTER. If you
+//    // can uncomment 1 of these and see if it makes a difference or not but
+//    // if you uncomment both the computation time should go up in orders of
+//    // magnitude.
+//    options += "Sparse  true        forward\n";
+//    options += "Sparse  true        reverse\n";
+//    // NOTE: Currently the solver has a maximum time limit of 0.1 seconds.
+//    // Change this as you see fit.
+////    options += "Numeric max_cpu_time          0.1\n";
+//    /// Options for QP problem
+//    options += "mehrotra_algorithm  yes\n";
+//    options += "hessian_constant  yes\n";
+//    options += "jac_c_constant  yes\n";
+//    options += "jac_d_constant  yes\n";
+//    options += "mu_strategy adaptive\n";
+//
+//    // place to return solution
+//    CppAD::ipopt::solve_result<Dvector> solution;
+//    // weights of the cost function
+//    // TODO: use a config file
+//    std::vector<double> weights;
+//    weights.push_back(10); //curvature weight
+//    weights.push_back(1000); //curvature rate weight
+//    weights.push_back(0.01); //distance to boundary weight
+//    weights.push_back(0.01); //offset weight
+//
+//    FgEvalFrenet fg_eval_frenet(seg_x_list_,
+//                                seg_y_list_,
+//                                seg_angle_list_,
+//                                seg_k_list_,
+//                                seg_s_list_,
+//                                N,
+//                                weights,
+//                                start_state_,
+//                                car_geo_,
+//                                seg_clearance_list_,
+//                                epsi);
+//    // solve the problem
+//    CppAD::ipopt::solve<Dvector, FgEvalFrenet>(options, vars,
+//                                               vars_lowerbound, vars_upperbound,
+//                                               constraints_lowerbound, constraints_upperbound,
+//                                               fg_eval_frenet, solution);
+//    // Check if it works
+//    bool ok = true;
+//    ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
+//    if (!ok) {
+//        LOG(WARNING) << "path optimization solver failed!";
+//        return false;
+//    }
+//    LOG(INFO) << "path optimization solver succeeded!";
+//    // output
+//    for (size_t i = 0; i != N; i++) {
+//        double tmp[2] = {solution.x[i], double(i)};
+//        std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
+//        this->predicted_path_in_frenet_.push_back(v);
+//        printf("ip: %d, %f\n", i, v[0]);
+//    }
     size_t control_points_num = N;
     if (control_sampling_first_flag_) {
         control_points_num = N + best_path.size() - 1;
@@ -688,8 +693,10 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         double length_on_ref_path = seg_s_list_[i];
         double angle = seg_angle_list_[i];
         double new_angle = constraintAngle(angle + M_PI_2);
-        double tmp_x = x_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][0] * cos(new_angle);
-        double tmp_y = y_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][0] * sin(new_angle);
+//        double tmp_x = x_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][0] * cos(new_angle);
+//        double tmp_y = y_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][0] * sin(new_angle);
+        double tmp_x = x_spline_(length_on_ref_path) + QPSolution(2 * i + 1) * cos(new_angle);
+        double tmp_y = y_spline_(length_on_ref_path) + QPSolution(2 * i + 1) * sin(new_angle);
         if (std::isnan(tmp_x) || std::isnan(tmp_y)) {
             LOG(WARNING) << "output is not a number, path opitmization failed!" << std::endl;
             return false;
@@ -744,6 +751,13 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
 //            tmp_final_path.push_back(state);
         }
     }
+    auto po_BSpline = std::clock();
+    printf(
+        "*****************************\ntime cost:\npre process: %f\nosqp pre process: %f\nosqp solve: %f\nB spline: %f\n*****************************\n",
+        (double) (po_pre - po_start) / CLOCKS_PER_SEC,
+        (double) (po_osqp_pre - po_pre) / CLOCKS_PER_SEC,
+        (double) (po_osqp_solve - po_osqp_pre) / CLOCKS_PER_SEC,
+        (double) (po_BSpline - po_osqp_solve) / CLOCKS_PER_SEC);
     final_path->clear();
     std::copy(tmp_final_path.begin(), tmp_final_path.end(), std::back_inserter(*final_path));
     return true;
