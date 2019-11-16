@@ -15,7 +15,10 @@
 ## 依赖
 
 - IPOPT    
-- google [benckmark](https://github.com/google/benchmark)   
+- google [benckmark](https://github.com/google/benchmark)
+- [osqp-eigen](https://github.com/robotology/osqp-eigen)  
+  - [osqp](https://github.com/oxfordcontrol/osqp)    
+  - [Eigen3](http://eigen.tuxfamily.org/index.php?title=Main_Page)
 
 ## 运行  
 
