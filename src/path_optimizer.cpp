@@ -238,7 +238,6 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     double car_width = 2.0;
     double car_length = 4.9;
     // Vector car_geo is for function getClearanceWithDirection.
-    std::vector<double> car_geo;
     // Radius of each circle.
     double circle_r = sqrt(pow(car_length / 8, 2) + pow(car_width / 2, 2));
     printf("circle r: %f\n", circle_r);
@@ -247,13 +246,13 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     double d2 = -1.0 / 8.0 * car_length;
     double d3 = 1.0 / 8.0 * car_length;
     double d4 = 3.0 / 8.0 * car_length;
-    car_geo.push_back(d1);
-    car_geo.push_back(d2);
-    car_geo.push_back(d3);
-    car_geo.push_back(d4);
-    car_geo.push_back(circle_r);
-    car_geo.push_back(rear_axle_to_center_dis);
-    car_geo.push_back(wheel_base);
+    car_geo_.push_back(d1);
+    car_geo_.push_back(d2);
+    car_geo_.push_back(d3);
+    car_geo_.push_back(d4);
+    car_geo_.push_back(circle_r);
+    car_geo_.push_back(rear_axle_to_center_dis);
+    car_geo_.push_back(wheel_base);
 
     /// If the start state is too close to the obstacle (less than the radius of the circles covering the vehicle,
     /// for example), the optimization might fail. This section does control sampling under this condition.
@@ -487,7 +486,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         bool safety_margin_flag;
         if (seg_s_list_[i] < 10) safety_margin_flag = false;
         else safety_margin_flag = true;
-        clearance = getClearanceFor3Circles(center_state, car_geo, safety_margin_flag);
+        clearance = getClearanceFor3Circles(center_state, car_geo_, safety_margin_flag);
         if ((clearance[0] == clearance[1] || clearance[2] == clearance[3] || clearance[4] == clearance[5]
             || clearance[6] == clearance[7])
             && center_state.s > 0.75 * max_s) {
@@ -503,6 +502,42 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         seg_clearance_list_.push_back(clearance);
     }
 
+    // OSQP:
+    OsqpEigen::Solver solver;
+    solver.settings()->setWarmStart(true);
+    solver.data()->setNumberOfVariables(3 * N - 1);
+    solver.data()->setNumberOfConstraints(9 * N - 1);
+    // Allocate QP problem matrices and vectors.
+    Eigen::SparseMatrix<double> hessian;
+    Eigen::VectorXd gradient = Eigen::VectorXd::Zero(3 * N - 1);
+    Eigen::SparseMatrix<double> linearMatrix;
+    Eigen::VectorXd lowerBound;
+    Eigen::VectorXd upperBound;
+    setHessianMatrix(N, &hessian);
+    std::vector<double> init_state;
+    init_state.push_back(epsi);
+    init_state.push_back(cte);
+    setConstraintMatrix(N, &linearMatrix, &lowerBound, &upperBound, init_state);
+//    std::streamsize prec = std::cout.precision();
+//    std::cout << std::setprecision(4);
+//    std::cout << "hessian:\n " << hessian << std::endl;
+//    std::cout << "constraints:\n " << linearMatrix << std::endl;
+//    std::cout << "lb:\n " << lowerBound << std::endl;
+//    std::cout << "ub:\n " << upperBound << std::endl;
+//    std::cout << std::setprecision(prec);
+    // Input to solver.
+    if (!solver.data()->setHessianMatrix(hessian)) return false;
+    if (!solver.data()->setGradient(gradient)) return false;
+    if (!solver.data()->setLinearConstraintsMatrix(linearMatrix)) return false;
+    if (!solver.data()->setLowerBound(lowerBound)) return false;
+    if (!solver.data()->setUpperBound(upperBound)) return false;
+    // Solve.
+    if (!solver.initSolver()) return false;
+    if (!solver.solve()) return false;
+    Eigen::VectorXd QPSolution = solver.getSolution();
+    std::cout << "result: " << QPSolution << std::endl;
+
+    // IPOPT:
     typedef CPPAD_TESTVECTOR(double) Dvector;
     // n_vars: Set the number of model variables.
     // There are 2 state variables: pq and psi;
@@ -608,7 +643,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
                                 N,
                                 weights,
                                 start_state_,
-                                car_geo,
+                                car_geo_,
                                 seg_clearance_list_,
                                 epsi);
     // solve the problem
@@ -629,6 +664,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         double tmp[2] = {solution.x[i], double(i)};
         std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
         this->predicted_path_in_frenet_.push_back(v);
+        printf("ip: %d, %f\n", i, v[0]);
     }
     size_t control_points_num = N;
     if (control_sampling_first_flag_) {

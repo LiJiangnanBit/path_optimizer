@@ -6,6 +6,8 @@
 #define PATH_OPTIMIZER__PATHOPTIMIZER_HPP_
 
 #include <iostream>
+#include <ios>
+#include <iomanip>
 #include <string>
 #include <vector>
 #include <glog/logging.h>
@@ -22,6 +24,8 @@
 #include "FgEvalFrenet.hpp"
 #include "FgEvalFrenetSmooth.hpp"
 #include "collosion_checker.hpp"
+#include "OsqpEigen/OsqpEigen.h"
+#include <Eigen/Dense>
 
 #define MAX_CURVATURE 0.25
 
@@ -62,9 +66,9 @@ private:
     double getPointCurvature(const double &x1, const double &y1,
                              const double &x2, const double &y2,
                              const double &x3, const double &y3);
-    double getClearanceWithDirection(const hmpl::State &state,
-                                     double angle,
-                                     const std::vector<double> &car_geometry);
+//    double getClearanceWithDirection(const hmpl::State &state,
+//                                     double angle,
+//                                     const std::vector<double> &car_geometry);
     double getClearanceWithDirection(const hmpl::State &state,
                                      double angle);
     double getClearanceWithDirectionStrict(hmpl::State state, double angle, double radius);
@@ -74,9 +78,9 @@ private:
     std::vector<double> getClearanceFor3Circles(const hmpl::State &state,
                                                 const std::vector<double> &car_geometry,
                                                 bool safety_margin_flag);
-    std::vector<double> getClearance(hmpl::State state,
-                                     double ref_angle,
-                                     const std::vector<double> &car_geometry);
+//    std::vector<double> getClearance(hmpl::State state,
+//                                     double ref_angle,
+//                                     const std::vector<double> &car_geometry);
     // Set angle range to -pi ~ pi.
     inline double constraintAngle(double angle) {
         if (angle > M_PI) {
@@ -90,9 +94,18 @@ private:
         }
     }
 
+    //OSQP solver related
+    void setHessianMatrix(size_t horizon, Eigen::SparseMatrix<double> *matrix_h);
+    void setDynamicMatrix(size_t n, Eigen::Matrix<double, 2, 2> *matrix_a, Eigen::Matrix<double, 2, 1> *matrix_b);
+    void setConstraintMatrix(size_t horizon,
+                             Eigen::SparseMatrix<double> *matrix_constraints,
+                             Eigen::VectorXd *lower_bound,
+                             Eigen::VectorXd *upper_bound,
+                             const std::vector<double> &init_state);
     hmpl::InternalGridMap grid_map_;
     CollisionChecker collision_checker_;
     CarType car_type;
+    std::vector<double> car_geo_;
     // rear_axle_to_center_dis is needed only when using ackermann steering.
     double rear_axle_to_center_dis;
     double wheel_base;
