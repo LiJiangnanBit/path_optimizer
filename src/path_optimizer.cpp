@@ -51,6 +51,7 @@ void PathOptimizer::reset(const std::vector<hmpl::State> &points_list) {
 }
 
 bool PathOptimizer::smoothPath(std::vector<hmpl::State> *smoothed_path) {
+    auto sm_start = std::clock();
     double s = 0;
     for (size_t i = 0; i != point_num_; ++i) {
         if (i == 0) {
@@ -106,6 +107,7 @@ bool PathOptimizer::smoothPath(std::vector<hmpl::State> *smoothed_path) {
         seg_k_list_.push_back(k_spline_(length_on_ref_path));
     }
 
+    auto sm_pre_solve = std::clock();
     typedef CPPAD_TESTVECTOR(double) Dvector;
     size_t n_vars = N;
     const size_t pq_range_begin = 0;
@@ -173,6 +175,7 @@ bool PathOptimizer::smoothPath(std::vector<hmpl::State> *smoothed_path) {
     // Check if it works
     bool ok = true;
     ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
+    auto sm_solved = std::clock();
     if (!ok) {
         LOG(WARNING) << "smoothing solver failed!";
         return false;
@@ -224,6 +227,14 @@ bool PathOptimizer::smoothPath(std::vector<hmpl::State> *smoothed_path) {
     }
     smoothed_path->clear();
     std::copy(tmp_final_path.begin(), tmp_final_path.end(), std::back_inserter(*smoothed_path));
+    auto sm_end = std::clock();
+    printf("*********\n"
+           "sm_pre: %f\n sm_solve: %f\n, sm_after: %f\n sm_all: %f\n"
+           "**********\n",
+           (double)(sm_pre_solve - sm_start) / CLOCKS_PER_SEC,
+           (double)(sm_solved - sm_pre_solve) / CLOCKS_PER_SEC,
+           (double)(sm_end - sm_solved) / CLOCKS_PER_SEC,
+           (double)(sm_end - sm_start) / CLOCKS_PER_SEC);
     return true;
 }
 
@@ -258,7 +269,6 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     /// If the start state is too close to the obstacle (less than the radius of the circles covering the vehicle,
     /// for example), the optimization might fail. This section does control sampling under this condition.
     /// No need to understand the code.
-    auto original_start_state = start_state_;
     std::vector<hmpl::State> best_path;
     double min_distance_for_best_path = 0;
     size_t min_index_for_best_path = 0;
@@ -322,7 +332,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         printf("control sampling get %d paths\n", sampling_path_set_.size());
         if (!sampling_path_set_.empty()) {
 //            std::vector<double> path_scoring;
-            double min_score = DBL_MAX;
+            auto min_score = DBL_MAX;
             for (size_t i = 0; i != sampling_path_set_.size(); ++i) {
                 const auto &last_state = sampling_path_set_[i].back();
                 size_t min_index = 0;
@@ -755,7 +765,9 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     }
     auto po_BSpline = std::clock();
     printf(
-        "*****************************\ntime cost:\npre process: %f\nosqp pre process: %f\nosqp solve: %f\nB spline: %f\n*****************************\n",
+        "*****************************"
+        "\ntime cost:\npre process: %f\nosqp pre process: %f\nosqp solve: %f\nB spline: %f\n"
+        "*****************************\n",
         (double) (po_pre - po_start) / CLOCKS_PER_SEC,
         (double) (po_osqp_pre - po_pre) / CLOCKS_PER_SEC,
         (double) (po_osqp_solve - po_osqp_pre) / CLOCKS_PER_SEC,
