@@ -1,16 +1,13 @@
 # path_optimization
-## QP version  
 分为两阶段:  
 1. 对输入的路径进行平滑，目标函数里不考虑车辆约束和障碍物，速度快；  
 2. 将平滑后的路径作为参考路径进行优化，用离散的线性化的车辆模型，考虑障碍物和起点终点位姿等，优化问题的形式是二次规划。  
 ## 图示
 输入（灰色）：
 ![in.png](https://i.loli.net/2019/10/31/v8rGYNW6RHxOcwy.png)  
-第一次优化：  
+平滑：  
 ![smt.png](https://i.loli.net/2019/10/31/bTsxhRrW1LnJIoQ.png)  
-第二次优化：  
-![op.png](https://i.loli.net/2019/10/31/KAqD5epScvgy1Z7.png)  
-结果：  
+第二次优化：    
 ![cargeo.png](https://i.loli.net/2019/10/31/dqz6TF4ypvYGbeE.png)  
 ## 依赖
 
@@ -53,8 +50,4 @@ roslaunch state_sampling state_sampling.launch
 
 ```
 rosrun path_optimizer path_optimizer_benchmark
-```
-## 待完成    
-1. 寻找更好的判断碰撞的方法。用三个圆覆盖车辆的做法不够精确，如果车宽两米，后面的圆的直径就是2√2，影响通过性；
-2. 起始点离障碍物距离小于覆盖车的圆的半径的话，可能起点就不满足约束导致失败。  
-3. 调整目标函数的权重。  
+``` 
