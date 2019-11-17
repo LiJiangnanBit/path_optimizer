@@ -555,6 +555,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
 //    std::cout << "result: " << QPSolution << std::endl;
 
 //    // IPOPT:
+//    auto po_ipopt_start = std::clock();
 //    typedef CPPAD_TESTVECTOR(double) Dvector;
 //    // n_vars: Set the number of model variables.
 //    // There are 2 state variables: pq and psi;
@@ -681,8 +682,11 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
 //        double tmp[2] = {solution.x[i], double(i)};
 //        std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
 //        this->predicted_path_in_frenet_.push_back(v);
-//        printf("ip: %d, %f\n", i, v[0]);
+////        printf("ip: %d, %f\n", i, v[0]);
 //    }
+//    auto po_ipopt_end = std::clock();
+//    printf("ipopt time cost: %f\n", (double)(po_ipopt_end - po_ipopt_start) / CLOCKS_PER_SEC);
+
     size_t control_points_num = N;
     if (control_sampling_first_flag_) {
         control_points_num = N + best_path.size() - 1;
