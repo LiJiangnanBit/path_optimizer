@@ -28,6 +28,8 @@ message(STATUS "CMAKE SOURCE DIR:" ${CMAKE_MODULE_PATH})
 ## find system depends libraries
 find_package(IPOPT REQUIRED)
 find_package(benchmark REQUIRED)
+find_package(OsqpEigen REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 ###################################
 ## catkin specific configuration ##
@@ -57,16 +59,21 @@ include_directories(
         include
         ${catkin_INCLUDE_DIRS}
         ${Clothoids_INCLUDE_DIRS}
+        SYSTEM
+        ${EIGEN3_INCLUDE_DIR}
 )
 
 # Declare a C++ library
 add_library(${PROJECT_NAME}
-        src/path_optimizer.cpp src/collision_checker.cpp)
-target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} ${Clothoids_LIBRARIES}
+        src/path_optimizer.cpp src/collision_checker.cpp src/osqp_related.cpp)
+target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} ${Clothoids_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
         )
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
-add_executable(${PROJECT_NAME}_benchmark src/path_optimizer_benchmark.cpp src/path_optimizer.cpp src/collision_checker.cpp)
-target_link_libraries(${PROJECT_NAME}_benchmark glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark ${Clothoids_LIBRARIES}
+add_executable(${PROJECT_NAME}_benchmark src/path_optimizer_benchmark.cpp src/path_optimizer.cpp src/collision_checker.cpp src/osqp_related.cpp)
+target_link_libraries(${PROJECT_NAME}_benchmark glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark ${Clothoids_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
         )
+
+add_executable(${PROJECT_NAME}_test src/test_eigen.cpp)
+target_link_libraries(${PROJECT_NAME}_test OsqpEigen::OsqpEigen osqp::osqp)
