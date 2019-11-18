@@ -687,87 +687,54 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
 //    auto po_ipopt_end = std::clock();
 //    printf("ipopt time cost: %f\n", (double)(po_ipopt_end - po_ipopt_start) / CLOCKS_PER_SEC);
 
-    size_t control_points_num = N;
+    std::vector<double> result_x, result_y, result_s;
+    double total_s = 0;
     if (control_sampling_first_flag_) {
-        control_points_num = N + best_path.size() - 1;
-    }
-    tinyspline::BSpline b_spline(control_points_num);
-    std::vector<tinyspline::real> ctrlp = b_spline.controlPoints();
-    size_t control_sampling_point_count = 0;
-    if (control_sampling_first_flag_) {
-        for (; control_sampling_point_count != best_path.size() - 1; ++control_sampling_point_count) {
-            ctrlp[2 * control_sampling_point_count] = best_path.at(control_sampling_point_count).x;
-            ctrlp[2 * control_sampling_point_count + 1] = best_path.at(control_sampling_point_count).y;
+        for (size_t i = 0; i != best_path.size() - 1; ++i) {
+            result_x.push_back(best_path[i].x);
+            result_y.push_back(best_path[i].y);
+            if (i != 0) total_s += hmpl::distance(best_path[i], best_path[i - 1]);
+            result_s.push_back(total_s);
         }
+        total_s += hmpl::distance(best_path.back(), best_path[best_path.size() - 2]);
     }
-    // The first two points are fixed. They are not in the optimized variables.
-    size_t count = 0;
-    if (control_sampling_first_flag_) {
-        count = 2 * (control_sampling_point_count);
-    }
+    double last_x, last_y;
     for (size_t i = 0; i != N; ++i) {
         double length_on_ref_path = seg_s_list_[i];
         double angle = seg_angle_list_[i];
         double new_angle = constraintAngle(angle + M_PI_2);
-//        double tmp_x = x_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][0] * cos(new_angle);
-//        double tmp_y = y_spline_(length_on_ref_path) + predicted_path_in_frenet_[i][0] * sin(new_angle);
         double tmp_x = x_spline_(length_on_ref_path) + QPSolution(2 * i + 1) * cos(new_angle);
         double tmp_y = y_spline_(length_on_ref_path) + QPSolution(2 * i + 1) * sin(new_angle);
-        if (std::isnan(tmp_x) || std::isnan(tmp_y)) {
-            LOG(WARNING) << "output is not a number, path opitmization failed!" << std::endl;
-            return false;
+        result_x.push_back(tmp_x);
+        result_y.push_back(tmp_y);
+        if (i != 0) {
+            total_s += sqrt(pow(tmp_x - last_x, 2) + pow(tmp_y - last_y, 2));
         }
-        ctrlp[count + 2 * i] = tmp_x;
-        ctrlp[count + 2 * i + 1] = tmp_y;
+        result_s.push_back(total_s);
+//        printf("i: %d, xys: %f %f %f\n", i, tmp_x, tmp_y, total_s);
+        last_x = tmp_x;
+        last_y = tmp_y;
     }
-    // B spline
-    b_spline.setControlPoints(ctrlp);
+    tk::spline x_s, y_s;
+    x_s.set_points(result_s, result_x);
+    y_s.set_points(result_s, result_y);
     std::vector<hmpl::State> tmp_final_path;
-    double step_t = 1.0 / (4.0 * control_points_num);
-    std::vector<tinyspline::real> result;
-    std::vector<tinyspline::real> result_next;
-    for (size_t i = 0; i <= 4 * control_points_num; ++i) {
-//    for (size_t i = 0; i < control_points_num; ++i) {
-        double t = i * step_t;
-        if (i == 0) result = b_spline.eval(t).result();
-        hmpl::State state;
-        state.x = result[0];
-        state.y = result[1];
-//        state.x = ctrlp[2 * i];
-//        state.y = ctrlp[2 * i + 1];
-        if (i == 4 * control_points_num) {
-            state.z = tmp_final_path.back().z;
+    double delta_s = 0.3;
+    for (int i = 0; i * delta_s <= result_s.back(); ++i) {
+        hmpl::State tmp_state;
+        tmp_state.x = x_s(i * delta_s);
+        tmp_state.y = y_s(i * delta_s);
+        tmp_state.z = atan2(y_s.deriv(1, i * delta_s), x_s.deriv(1, i * delta_s));
+        tmp_state.s = i * delta_s;
+        if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
+            tmp_final_path.push_back(tmp_state);
         } else {
-            result_next = b_spline.eval((i + 1) * step_t).result();
-            double dx = result_next[0] - result[0];
-            double dy = result_next[1] - result[1];
-            state.z = atan2(dy, dx);
-//            total_s += sqrt(pow(dx, 2) + pow(dy, 2));
-//            state.s = total_s;
-        }
-//        if (i == N - 1) {
-//            state.z = tmp_final_path[i - 1].z;
-//        } else {
-////            double dx = result[0] - tmp_final_path[i - 1].x;
-////            double dy = result[1] - tmp_final_path[i - 1].y;
-//            double dx = ctrlp[2 * i + 2] - state.x;
-//            double dy = ctrlp[2 * i + 3] - state.y;
-//            state.z = atan2(dy, dx);
-////            total_s += sqrt(pow(dx, 2) + pow(dy, 2));;
-//        }
-        result = result_next;
-        if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
-            tmp_final_path.push_back(state);
-        } else {
-            printf("path optimization collision check failed at %d of %d\n", i, 2 * N);
-//            if (i >= 2 * N - 2 || state.s > 30) {
+            printf("path optimization collision check failed at %d\n", i);
+//            tmp_final_path.push_back(tmp_state);
             break;
-//            }
-//            return false;
-//            tmp_final_path.push_back(state);
         }
     }
-    auto po_BSpline = std::clock();
+    auto po_interpolation = std::clock();
     printf(
         "*****************************"
         "\ntime cost:\npre process: %f\nosqp pre process: %f\nosqp solve: %f\nB spline: %f\n"
@@ -775,7 +742,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         (double) (po_pre - po_start) / CLOCKS_PER_SEC,
         (double) (po_osqp_pre - po_pre) / CLOCKS_PER_SEC,
         (double) (po_osqp_solve - po_osqp_pre) / CLOCKS_PER_SEC,
-        (double) (po_BSpline - po_osqp_solve) / CLOCKS_PER_SEC);
+        (double) (po_interpolation - po_osqp_solve) / CLOCKS_PER_SEC);
     final_path->clear();
     std::copy(tmp_final_path.begin(), tmp_final_path.end(), std::back_inserter(*final_path));
     return true;
