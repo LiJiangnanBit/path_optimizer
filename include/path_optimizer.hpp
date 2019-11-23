@@ -56,8 +56,9 @@ public:
 
 
 private:
-    void reset(const std::vector<hmpl::State> &points_list);
-    bool smoothPath(std::vector<hmpl::State> *smoothed_path);
+    void reset();
+    void setCarGeometry();
+    bool smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double *max_s);
     bool optimizePath(std::vector<hmpl::State> *final_path);
     void getCurvature(const std::vector<double> &local_x,
                       const std::vector<double> &local_y,
@@ -67,21 +68,15 @@ private:
     double getPointCurvature(const double &x1, const double &y1,
                              const double &x2, const double &y2,
                              const double &x3, const double &y3);
-//    double getClearanceWithDirection(const hmpl::State &state,
-//                                     double angle,
-//                                     const std::vector<double> &car_geometry);
     double getClearanceWithDirection(const hmpl::State &state,
                                      double angle);
     double getClearanceWithDirectionStrict(hmpl::State state, double angle, double radius);
     std::vector<double> getClearanceWithDirectionStrict(hmpl::State state,
                                                         double radius,
                                                         bool safety_margin_flag);
-    std::vector<double> getClearanceFor3Circles(const hmpl::State &state,
+    std::vector<double> getClearanceFor4Circles(const hmpl::State &state,
                                                 const std::vector<double> &car_geometry,
                                                 bool safety_margin_flag);
-//    std::vector<double> getClearance(hmpl::State state,
-//                                     double ref_angle,
-//                                     const std::vector<double> &car_geometry);
     // Set angle range to -pi ~ pi.
     inline double constraintAngle(double angle) {
         if (angle > M_PI) {
@@ -105,37 +100,39 @@ private:
                              const std::vector<double> &init_state,
                              double end_heading,
                              bool constraint_end_psi);
+
     hmpl::InternalGridMap grid_map_;
     CollisionChecker collision_checker_;
     CarType car_type;
     std::vector<double> car_geo_;
-    // rear_axle_to_center_dis is needed only when using ackermann steering.
     double rear_axle_to_center_dis;
     double wheel_base;
 
-    std::vector<hmpl::State> points_list_;
-    std::vector<double> x_list_;
-    std::vector<double> y_list_;
-    std::vector<double> k_list_;
-    std::vector<double> s_list_;
     std::vector<double> seg_s_list_;
     std::vector<double> seg_k_list_;
     std::vector<double> seg_x_list_;
     std::vector<double> seg_y_list_;
     std::vector<double> seg_angle_list_;
-    std::vector<double> seg_clearance_left_list_;
-    std::vector<double> seg_clearance_right_list_;
     std::vector<std::vector<double> > seg_clearance_list_;
     bool control_sampling_first_flag_;
     bool enable_control_sampling;
-    size_t point_num_;
     hmpl::State start_state_;
     hmpl::State end_state_;
+    std::vector<std::vector<double> > predicted_path_in_frenet_;
+
+    //Only for smoothing phase
+    std::vector<hmpl::State> points_list_;
+    size_t point_num_;
+    std::vector<double> x_list_;
+    std::vector<double> y_list_;
+    std::vector<double> k_list_;
+    std::vector<double> s_list_;
     tk::spline x_spline_;
     tk::spline y_spline_;
     tk::spline k_spline_;
-    std::vector<std::vector<double> > predicted_path_in_frenet_;
-
+    tk::spline smoothed_x_spline;
+    tk::spline smoothed_y_spline;
+    double smoothed_max_s;
 
     // For visualization purpose.
     std::vector<std::vector<hmpl::State> > sampling_path_set_;
