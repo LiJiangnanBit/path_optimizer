@@ -123,4 +123,71 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
     }
 }
 
+void PathOptimizer::setConstraintMatrix(size_t horizon,
+                                        Eigen::SparseMatrix<double> *matrix_constraints,
+                                        Eigen::VectorXd *lower_bound,
+                                        Eigen::VectorXd *upper_bound,
+                                        const std::vector<double> &init_state,
+                                        double end_angle,
+                                        double offset) {
+    //TODO: how to initialize a zero matrix?
+    Eigen::MatrixXd cons = Eigen::MatrixXd::Zero(9 * horizon - 1, 3 * horizon - 1);
+    for (size_t i = 0; i != 2 * horizon; ++i) {
+        cons(i, i) = -1;
+    }
+    Eigen::Matrix<double, 2, 2> a;
+    Eigen::Matrix<double, 2, 1> b;
+    for (size_t i = 0; i != horizon - 1; ++i) {
+        setDynamicMatrix(i, &a, &b);
+        cons.block(2 * (i + 1), 2 * i, 2, 2) = a;
+        cons.block(2 * (i + 1), 2 * horizon + i, 2, 1) = b;
+    }
+    for (size_t i = 0; i != 3 * horizon - 1; ++i) {
+        cons(2 * horizon + i, i) = 1;
+    }
+    Eigen::Matrix<double, 4, 2> collision;
+    collision << car_geo_[0] + car_geo_[5], 1,
+        car_geo_[1] + car_geo_[5], 1,
+        car_geo_[2] + car_geo_[5], 1,
+        car_geo_[3] + car_geo_[5], 1;
+    for (size_t i = 0; i != horizon; ++i) {
+        cons.block(5 * horizon - 1 + 4 * i, 2 * i, 4, 2) = collision;
+    }
+    *matrix_constraints = cons.sparseView();
+
+    *lower_bound = Eigen::MatrixXd::Zero(9 * horizon - 1, 1);
+    *upper_bound = Eigen::MatrixXd::Zero(9 * horizon - 1, 1);
+    Eigen::Matrix<double, 2, 1> x0;
+    x0 << init_state[0], init_state[1];
+    lower_bound->block(0, 0, 2, 1) = -x0;
+    upper_bound->block(0, 0, 2, 1) = -x0;
+    for (size_t i = 0; i != horizon - 1; ++i) {
+        double ds = seg_s_list_[i + 1] - seg_s_list_[i];
+        double steer = atan(seg_k_list_[i] * wheel_base);
+        Eigen::Vector2d c;
+        c << ds * steer / wheel_base / pow(cos(steer), 2), 0;
+        lower_bound->block(2 + 2 * i, 0, 2, 1) = c;
+        upper_bound->block(2 + 2 * i, 0, 2, 1) = c;
+    }
+    lower_bound->block(2 * horizon, 0, 2 * horizon, 1) = Eigen::VectorXd::Constant(2 * horizon, -OsqpEigen::INFTY);
+    upper_bound->block(2 * horizon, 0, 2 * horizon, 1) = Eigen::VectorXd::Constant(2 * horizon, OsqpEigen::INFTY);
+    // Add end state constraint.
+    double end_psi = constraintAngle(end_angle - seg_angle_list_.back());
+    (*lower_bound)(2 * horizon + 2 * horizon - 2) = end_psi;
+    (*upper_bound)(2 * horizon + 2 * horizon - 2) = end_psi;
+    (*lower_bound)(2 * horizon + 2 * horizon - 1) = offset;
+    (*upper_bound)(2 * horizon + 2 * horizon - 1) = offset;
+    lower_bound->block(4 * horizon, 0, horizon - 1, 1) = Eigen::VectorXd::Constant(horizon - 1, -30 * M_PI / 180);
+    upper_bound->block(4 * horizon, 0, horizon - 1, 1) = Eigen::VectorXd::Constant(horizon - 1, 30 * M_PI / 180);
+    for (size_t i = 0; i != horizon; ++i) {
+        Eigen::Vector4d ld, ud;
+        ud
+            << seg_clearance_list_[i][0], seg_clearance_list_[i][2], seg_clearance_list_[i][4], seg_clearance_list_[i][6];
+        ld
+            << seg_clearance_list_[i][1], seg_clearance_list_[i][3], seg_clearance_list_[i][5], seg_clearance_list_[i][7];
+        lower_bound->block(5 * horizon - 1 + 4 * i, 0, 4, 1) = ld;
+        upper_bound->block(5 * horizon - 1 + 4 * i, 0, 4, 1) = ud;
+    }
+}
+
 }

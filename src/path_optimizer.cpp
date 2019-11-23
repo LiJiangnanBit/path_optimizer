@@ -74,7 +74,229 @@ void PathOptimizer::reset() {
     seg_k_list_.clear();
     seg_angle_list_.clear();
     seg_s_list_.clear();
+    seg_clearance_list_.clear();
     predicted_path_in_frenet_.clear();
+}
+
+bool PathOptimizer::samplePaths(const std::vector<double> &lon_set,
+                                const std::vector<double> &lat_set,
+                                std::vector<std::vector<hmpl::State>> *final_path_set) {
+    if (point_num_ == 0) {
+        printf("empty input, quit path optimization\n");
+        return false;
+    }
+    auto smoothing_flag = smoothPath(&smoothed_x_spline, &smoothed_y_spline, &smoothed_max_s);
+    if (!smoothing_flag) {
+        printf("smoothing stage failed, quit path optimization.\n");
+        return false;
+    }
+    reset();
+    bool max_lon_flag = false;
+    for (size_t i = 0; i != lon_set.size(); ++i) {
+        if (i == lon_set.size() - 1) max_lon_flag = true;
+        sampleSingleLongitudinalPaths(lon_set[i], lat_set, final_path_set, max_lon_flag);
+        reset();
+    }
+    if (final_path_set->empty()) return false;
+    else return true;
+}
+
+bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
+                                                  const std::vector<double> &lat_set,
+                                                  std::vector<std::vector<hmpl::State>> *final_path_set,
+                                                  bool max_lon_flag) {
+    if (smoothed_max_s == 0) {
+        LOG(INFO) << "path optimization input is empty!";
+        return false;
+    }
+    double cte = 0;  // lateral error
+    double epsi = 0; // navigable error
+    hmpl::State first_point;
+    first_point.x = smoothed_x_spline(0);
+    first_point.y = smoothed_y_spline(0);
+    first_point.z = atan2(smoothed_y_spline.deriv(1, 0), smoothed_x_spline.deriv(1, 0));
+    auto first_point_local = hmpl::globalToLocal(start_state_, first_point);
+    double min_distance = hmpl::distance(start_state_, first_point);
+    if (first_point_local.y < 0) {
+        cte = min_distance;
+    } else {
+        cte = -min_distance;
+    }
+    epsi = constraintAngle(start_state_.z - first_point.z);
+
+    // If the start heading differs a lot with the ref path, quit.
+    if (fabs(epsi) > 75 * M_PI / 180) {
+        LOG(WARNING) << "initial epsi is larger than 90°, quit mpc path optimization!";
+        return false;
+    }
+    // Divid the reference path. Intervals are smaller at the beginning.
+    double delta_s_smaller = 0.5;
+    double delta_s_larger = 1.0;
+    if (fabs(epsi) < 20 * M_PI / 180) delta_s_smaller = delta_s_larger;
+    double tmp_max_s = delta_s_smaller;
+    seg_s_list_.push_back(0);
+    while (tmp_max_s < lon) {
+        seg_s_list_.push_back(tmp_max_s);
+        if (tmp_max_s <= 2) {
+            tmp_max_s += delta_s_smaller;
+        } else {
+            tmp_max_s += delta_s_larger;
+        }
+    }
+    if (smoothed_max_s - seg_s_list_.back() > 1) {
+        seg_s_list_.push_back(lon);
+    }
+    auto N = seg_s_list_.size();
+    auto original_N = N;
+
+    // Store reference states in vectors. They will be used later.
+    for (size_t i = 0; i != N; ++i) {
+        double length_on_ref_path = seg_s_list_[i];
+        seg_x_list_.push_back(smoothed_x_spline(length_on_ref_path));
+        seg_y_list_.push_back(smoothed_y_spline(length_on_ref_path));
+        double x_d1 = smoothed_x_spline.deriv(1, length_on_ref_path);
+        double y_d1 = smoothed_y_spline.deriv(1, length_on_ref_path);
+        double x_d2 = smoothed_x_spline.deriv(2, length_on_ref_path);
+        double y_d2 = smoothed_y_spline.deriv(2, length_on_ref_path);
+        double tmp_h = atan2(y_d1, x_d1);
+        double tmp_k = (x_d1 * y_d2 - y_d1 * x_d2) / pow(pow(x_d1, 2) + pow(y_d1, 2), 1.5);
+        seg_angle_list_.push_back(tmp_h);
+        seg_k_list_.push_back(tmp_k);
+    }
+
+    // Get clearance of covering circles.
+    for (size_t i = 0; i != N; ++i) {
+        hmpl::State center_state;
+        center_state.x = seg_x_list_[i];
+        center_state.y = seg_y_list_[i];
+        center_state.s = seg_s_list_[i];
+        center_state.z = seg_angle_list_[i];
+        // Function getClearance uses the center position as input.
+        if (car_type == ACKERMANN_STEERING) {
+            center_state.x += rear_axle_to_center_dis * cos(center_state.z);
+            center_state.y += rear_axle_to_center_dis * sin(center_state.z);
+        }
+        std::vector<double> clearance;
+        bool safety_margin_flag;
+        if (seg_s_list_[i] < 10) safety_margin_flag = false;
+        else safety_margin_flag = true;
+        clearance = getClearanceFor4Circles(center_state, car_geo_, safety_margin_flag);
+        if ((clearance[0] == clearance[1] || clearance[2] == clearance[3] || clearance[4] == clearance[5]
+            || clearance[6] == clearance[7])
+            && center_state.s > 0.75 * lon) {
+            printf("some states near end are not satisfying\n");
+            N = i;
+            seg_x_list_.erase(seg_x_list_.begin() + i, seg_x_list_.end());
+            seg_y_list_.erase(seg_y_list_.begin() + i, seg_y_list_.end());
+            seg_s_list_.erase(seg_s_list_.begin() + i, seg_s_list_.end());
+            seg_k_list_.erase(seg_k_list_.begin() + i, seg_k_list_.end());
+            seg_angle_list_.erase(seg_angle_list_.begin() + i, seg_angle_list_.end());
+            break;
+        }
+        seg_clearance_list_.push_back(clearance);
+    }
+    auto po_pre = std::clock();
+    // OSQP:
+    OsqpEigen::Solver solver;
+    solver.settings()->setVerbosity(false);
+    solver.settings()->setWarmStart(true);
+    solver.data()->setNumberOfVariables(3 * N - 1);
+    solver.data()->setNumberOfConstraints(9 * N - 1);
+    // Allocate QP problem matrices and vectors.
+    Eigen::SparseMatrix<double> hessian;
+    Eigen::VectorXd gradient = Eigen::VectorXd::Zero(3 * N - 1);
+    Eigen::SparseMatrix<double> linearMatrix;
+    Eigen::VectorXd lowerBound;
+    Eigen::VectorXd upperBound;
+    setHessianMatrix(N, &hessian);
+    std::vector<double> init_state;
+    init_state.push_back(epsi);
+    init_state.push_back(cte);
+//    bool constriant_end_psi = false;
+//    if (N == original_N) constriant_end_psi = true;
+    double end_angle;
+    if (max_lon_flag) {
+        end_angle = end_state_.z;
+    } else {
+        end_angle = seg_angle_list_.back();
+    }
+    setConstraintMatrix(N, &linearMatrix, &lowerBound, &upperBound, init_state, end_angle, lat_set.front());
+    auto po_osqp_pre = std::clock();
+//    std::streamsize prec = std::cout.precision();
+//    std::cout << std::setprecision(4);
+//    std::cout << "hessian:\n " << hessian << std::endl;
+//    std::cout << "constraints:\n " << linearMatrix << std::endl;
+//    std::cout << "lb:\n " << lowerBound << std::endl;
+//    std::cout << "ub:\n " << upperBound << std::endl;
+//    std::cout << std::setprecision(prec);
+    // Input to solver.
+    if (!solver.data()->setHessianMatrix(hessian)) return false;
+    if (!solver.data()->setGradient(gradient)) return false;
+    if (!solver.data()->setLinearConstraintsMatrix(linearMatrix)) return false;
+    if (!solver.data()->setLowerBound(lowerBound)) return false;
+    if (!solver.data()->setUpperBound(upperBound)) return false;
+    if (!solver.initSolver()) return false;
+    Eigen::VectorXd QPSolution;
+    size_t count = 0;
+    for (size_t i = 0; i != lat_set.size(); ++i) {
+        if (lat_set[i] < seg_clearance_list_.back()[1] || lat_set[i] > seg_clearance_list_.back()[0]) {
+            printf("lon: %f, lat: %f is out of bound!\n", lon, lat_set[i]);
+            continue;
+        }
+        // Update.
+        lowerBound(2 * N + 2 * N - 1) = lat_set[i];
+        upperBound(2 * N + 2 * N - 1) = lat_set[i];
+        if (!solver.updateBounds(lowerBound, upperBound)) break;
+        // Solve.
+        bool ok = solver.solve();
+        if (!ok) continue;
+        // Get single path.
+        QPSolution = solver.getSolution();
+        std::vector<double> result_x, result_y, result_s;
+        double total_s = 0;
+        double last_x, last_y;
+        for (size_t j = 0; j != N; ++j) {
+            double length_on_ref_path = seg_s_list_[j];
+            double angle = seg_angle_list_[j];
+            double new_angle = constraintAngle(angle + M_PI_2);
+            double tmp_x = smoothed_x_spline(length_on_ref_path) + QPSolution(2 * j + 1) * cos(new_angle);
+            double tmp_y = smoothed_y_spline(length_on_ref_path) + QPSolution(2 * j + 1) * sin(new_angle);
+            result_x.push_back(tmp_x);
+            result_y.push_back(tmp_y);
+            if (j != 0) {
+                total_s += sqrt(pow(tmp_x - last_x, 2) + pow(tmp_y - last_y, 2));
+            }
+            result_s.push_back(total_s);
+            last_x = tmp_x;
+            last_y = tmp_y;
+        }
+        tk::spline x_s, y_s;
+        x_s.set_points(result_s, result_x);
+        y_s.set_points(result_s, result_y);
+        std::vector<hmpl::State> tmp_final_path;
+        double delta_s = 0.3;
+        for (int j = 0; j * delta_s <= result_s.back(); ++j) {
+            hmpl::State tmp_state;
+            tmp_state.x = x_s(j * delta_s);
+            tmp_state.y = y_s(j * delta_s);
+            tmp_state.z = atan2(y_s.deriv(1, j * delta_s), x_s.deriv(1, j * delta_s));
+            tmp_state.s = j * delta_s;
+            if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
+                tmp_final_path.push_back(tmp_state);
+            } else {
+//                printf("path optimization collision check failed at %d\n", j);
+//            tmp_final_path.push_back(tmp_state);
+                break;
+            }
+        }
+        if (!tmp_final_path.empty()) {
+            final_path_set->push_back(tmp_final_path);
+            ++count;
+        }
+    }
+    auto po_osqp_solve = std::clock();
+    printf("got %d paths at %fm\n", count, lon);
+    return true;
 }
 
 bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double *max_s_out) {
@@ -338,18 +560,18 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
 //                        goto try_new_dk;
 //                    }
 //                }
-//                sampling_path_set_.push_back(sampling_result);
+//                control_sampling_path_set_.push_back(sampling_result);
 //                sampling_length += 1;
 //            }
 //            try_new_dk :
 //            dk += 0.025;
 //        }
-//        printf("control sampling get %d paths\n", sampling_path_set_.size());
-//        if (!sampling_path_set_.empty()) {
+//        printf("control sampling get %d paths\n", control_sampling_path_set_.size());
+//        if (!control_sampling_path_set_.empty()) {
 ////            std::vector<double> path_scoring;
 //            auto min_score = DBL_MAX;
-//            for (size_t i = 0; i != sampling_path_set_.size(); ++i) {
-//                const auto &last_state = sampling_path_set_[i].back();
+//            for (size_t i = 0; i != control_sampling_path_set_.size(); ++i) {
+//                const auto &last_state = control_sampling_path_set_[i].back();
 //                size_t min_index = 0;
 //                auto min_distance = DBL_MAX;
 //                for (size_t i = 0; i != point_num_; ++i) {
@@ -377,7 +599,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
 //            }
 //            control_sampling_first_flag_ = true;
 //            best_path.clear();
-//            for (const auto &state : sampling_path_set_[best_sampling_index_]) {
+//            for (const auto &state : control_sampling_path_set_[best_sampling_index_]) {
 //                best_path.push_back(state);
 //            }
 //            start_state_ = best_path.back();
@@ -1143,7 +1365,7 @@ void PathOptimizer::getCurvature(const std::vector<double> &local_x,
 }
 
 const std::vector<std::vector<hmpl::State> > &PathOptimizer::getControlSamplingPathSet() {
-    return this->sampling_path_set_;
+    return this->control_sampling_path_set_;
 };
 
 const std::vector<std::vector<hmpl::State> > &PathOptimizer::getControlSamplingFailedPathSet() {
@@ -1152,7 +1374,7 @@ const std::vector<std::vector<hmpl::State> > &PathOptimizer::getControlSamplingF
 
 const std::vector<hmpl::State> &PathOptimizer::getBestSamplingPath() {
     if (control_sampling_first_flag_) {
-        return this->sampling_path_set_[best_sampling_index_];
+        return this->control_sampling_path_set_[best_sampling_index_];
     } else {
         return this->empty_;
     }

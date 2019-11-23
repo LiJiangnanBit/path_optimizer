@@ -38,10 +38,13 @@ class PathOptimizer {
 public:
     PathOptimizer() = delete;
     PathOptimizer(const std::vector<hmpl::State> &points_list,
-                     const hmpl::State &start_state,
-                     const hmpl::State &end_state,
-                     const hmpl::InternalGridMap &map);
+                  const hmpl::State &start_state,
+                  const hmpl::State &end_state,
+                  const hmpl::InternalGridMap &map);
     bool solve(std::vector<hmpl::State> *final_path);
+    bool samplePaths(const std::vector<double> &lon_set,
+                     const std::vector<double> &lat_set,
+                     std::vector<std::vector<hmpl::State>> *final_path_set);
     const std::vector<std::vector<hmpl::State> > &getControlSamplingPathSet();
     // Just for visualization purpose.
     const std::vector<std::vector<hmpl::State> > &getControlSamplingFailedPathSet();
@@ -54,12 +57,15 @@ public:
     const std::vector<hmpl::State> &getFrontBounds();
     const std::vector<hmpl::State> &getSmoothedPath();
 
-
 private:
     void reset();
     void setCarGeometry();
     bool smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double *max_s);
     bool optimizePath(std::vector<hmpl::State> *final_path);
+    bool sampleSingleLongitudinalPaths(double lon,
+                                       const std::vector<double> &lat_set,
+                                       std::vector<std::vector<hmpl::State>> *final_path_set,
+                                       bool max_lon_flag);
     void getCurvature(const std::vector<double> &local_x,
                       const std::vector<double> &local_y,
                       std::vector<double> *pt_curvature_out,
@@ -101,6 +107,14 @@ private:
                              double end_heading,
                              bool constraint_end_psi);
 
+    void setConstraintMatrix(size_t horizon,
+                             Eigen::SparseMatrix<double> *matrix_constraints,
+                             Eigen::VectorXd *lower_bound,
+                             Eigen::VectorXd *upper_bound,
+                             const std::vector<double> &init_state,
+                             double end_angle,
+                             double offset);
+
     hmpl::InternalGridMap grid_map_;
     CollisionChecker collision_checker_;
     CarType car_type;
@@ -135,7 +149,7 @@ private:
     double smoothed_max_s;
 
     // For visualization purpose.
-    std::vector<std::vector<hmpl::State> > sampling_path_set_;
+    std::vector<std::vector<hmpl::State> > control_sampling_path_set_;
     std::vector<std::vector<hmpl::State> > failed_sampling_path_set_;
     std::vector<hmpl::State> left_bound_;
     std::vector<hmpl::State> right_bound_;
