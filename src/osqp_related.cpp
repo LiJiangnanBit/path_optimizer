@@ -61,7 +61,6 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
                                         const std::vector<double> &init_state,
                                         double end_heading,
                                         bool constraint_end_psi) {
-    //TODO: how to initialize a zero matrix?
     Eigen::MatrixXd cons = Eigen::MatrixXd::Zero(9 * horizon - 1, 3 * horizon - 1);
     for (size_t i = 0; i != 2 * horizon; ++i) {
         cons(i, i) = -1;
@@ -129,8 +128,10 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
                                         Eigen::VectorXd *upper_bound,
                                         const std::vector<double> &init_state,
                                         double end_angle,
-                                        double offset) {
-    //TODO: how to initialize a zero matrix?
+                                        double offset,
+                                        double angle_error_allowed,
+                                        double offset_error_allowed) {
+    CHECK(angle_error_allowed >= 0 && offset_error_allowed >= 0);
     Eigen::MatrixXd cons = Eigen::MatrixXd::Zero(9 * horizon - 1, 3 * horizon - 1);
     for (size_t i = 0; i != 2 * horizon; ++i) {
         cons(i, i) = -1;
@@ -173,10 +174,10 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
     upper_bound->block(2 * horizon, 0, 2 * horizon, 1) = Eigen::VectorXd::Constant(2 * horizon, OsqpEigen::INFTY);
     // Add end state constraint.
     double end_psi = constraintAngle(end_angle - seg_angle_list_.back());
-    (*lower_bound)(2 * horizon + 2 * horizon - 2) = end_psi;
-    (*upper_bound)(2 * horizon + 2 * horizon - 2) = end_psi;
-    (*lower_bound)(2 * horizon + 2 * horizon - 1) = offset;
-    (*upper_bound)(2 * horizon + 2 * horizon - 1) = offset;
+    (*lower_bound)(2 * horizon + 2 * horizon - 2) = end_psi - angle_error_allowed / 2;
+    (*upper_bound)(2 * horizon + 2 * horizon - 2) = end_psi + angle_error_allowed / 2;
+    (*lower_bound)(2 * horizon + 2 * horizon - 1) = offset - offset_error_allowed / 2;
+    (*upper_bound)(2 * horizon + 2 * horizon - 1) = offset + offset_error_allowed / 2;
     lower_bound->block(4 * horizon, 0, horizon - 1, 1) = Eigen::VectorXd::Constant(horizon - 1, -30 * M_PI / 180);
     upper_bound->block(4 * horizon, 0, horizon - 1, 1) = Eigen::VectorXd::Constant(horizon - 1, 30 * M_PI / 180);
     for (size_t i = 0; i != horizon; ++i) {

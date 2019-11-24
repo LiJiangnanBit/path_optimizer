@@ -83,6 +83,9 @@ private:
     std::vector<double> getClearanceFor4Circles(const hmpl::State &state,
                                                 const std::vector<double> &car_geometry,
                                                 bool safety_margin_flag);
+
+    bool divideSmoothedPath();
+
     // Set angle range to -pi ~ pi.
     inline double constraintAngle(double angle) {
         if (angle > M_PI) {
@@ -113,7 +116,9 @@ private:
                              Eigen::VectorXd *upper_bound,
                              const std::vector<double> &init_state,
                              double end_angle,
-                             double offset);
+                             double offset,
+                             double angle_error_allowed = 0,
+                             double offset_error_allowed = 0);
 
     hmpl::InternalGridMap grid_map_;
     CollisionChecker collision_checker_;
@@ -132,7 +137,12 @@ private:
     bool enable_control_sampling;
     hmpl::State start_state_;
     hmpl::State end_state_;
-    std::vector<std::vector<double> > predicted_path_in_frenet_;
+    double smoothed_max_s;
+    size_t N_;
+    bool use_end_psi;
+    // Start position and angle error with smoothed path.
+    double cte_;
+    double epsi_;
 
     //Only for smoothing phase
     std::vector<hmpl::State> points_list_;
@@ -146,7 +156,7 @@ private:
     tk::spline k_spline_;
     tk::spline smoothed_x_spline;
     tk::spline smoothed_y_spline;
-    double smoothed_max_s;
+
 
     // For visualization purpose.
     std::vector<std::vector<hmpl::State> > control_sampling_path_set_;
