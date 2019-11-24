@@ -49,6 +49,7 @@ void PathOptimizer::setCarGeometry() {
 }
 
 bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
+    auto t1 = std::clock();
     if (point_num_ == 0) {
         printf("empty input, quit path optimization\n");
         return false;
@@ -58,9 +59,26 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         printf("smoothing stage failed, quit path optimization.\n");
         return false;
     }
+    auto t2 = std::clock();
     reset();
-    divideSmoothedPath();
-    return optimizePath(final_path);
+    if (!divideSmoothedPath()) {
+        printf("divide stage failed, quit path optimization.\n");
+        return false;
+    };
+    auto t3 = std::clock();
+    bool ok = optimizePath(final_path);
+    auto t4 = std::clock();
+    printf("############\n"
+           "smooth phase t: %f\n"
+           "divide phase t: %f\n"
+           "optimize phase t: %f\n"
+           "all t: %f\n"
+           "############\n",
+           (double) (t2 - t1) / CLOCKS_PER_SEC,
+           (double) (t3 - t2) / CLOCKS_PER_SEC,
+           (double) (t4 - t3) / CLOCKS_PER_SEC,
+           (double) (t4 - t1) / CLOCKS_PER_SEC);
+    return ok;
 }
 
 void PathOptimizer::reset() {
@@ -104,6 +122,7 @@ bool PathOptimizer::samplePaths(const std::vector<double> &lon_set,
 }
 
 bool PathOptimizer::divideSmoothedPath() {
+    auto start_t = std::clock();
     if (smoothed_max_s == 0) {
         LOG(INFO) << "Smoothed path is empty!";
         return false;
@@ -120,12 +139,12 @@ bool PathOptimizer::divideSmoothedPath() {
         cte_ = -min_distance;
     }
     epsi_ = constraintAngle(start_state_.z - first_point.z);
-
     // If the start heading differs a lot with the ref path, quit.
     if (fabs(epsi_) > 75 * M_PI / 180) {
         LOG(WARNING) << "initial epsi is larger than 90°, quit mpc path optimization!";
         return false;
     }
+    auto divide_t = std::clock();
     // Divide the reference path. Intervals are smaller at the beginning.
     double delta_s_smaller = 0.5;
     double delta_s_larger = 1.0;
@@ -160,6 +179,7 @@ bool PathOptimizer::divideSmoothedPath() {
         seg_k_list_.push_back(tmp_k);
     }
 
+    auto clear_t = std::clock();
     // Get clearance of covering circles.
     for (size_t i = 0; i != N_; ++i) {
         hmpl::State center_state;
@@ -193,7 +213,18 @@ bool PathOptimizer::divideSmoothedPath() {
         }
         seg_clearance_list_.push_back(clearance);
     }
-    printf("divided\n");
+    auto end_t = std::clock();
+//    printf("**********\n"
+//           "divide phase time:\n"
+//           "init: %f\n"
+//           "divide: %f\n"
+//           "clear: %f\n"
+//           "all: %f\n"
+//           "**********\n",
+//           (double) (divide_t - start_t) / CLOCKS_PER_SEC,
+//           (double) (clear_t - divide_t) / CLOCKS_PER_SEC,
+//           (double) (end_t - clear_t) / CLOCKS_PER_SEC,
+//           (double) (end_t - start_t) / CLOCKS_PER_SEC);
 }
 
 bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
