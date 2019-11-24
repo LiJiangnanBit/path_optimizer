@@ -176,6 +176,7 @@ bool PathOptimizer::divideSmoothedPath() {
         bool safety_margin_flag;
         if (seg_s_list_[i] < 10) safety_margin_flag = false;
         else safety_margin_flag = true;
+//        safety_margin_flag = false;
         clearance = getClearanceFor4Circles(center_state, car_geo_, safety_margin_flag);
         if ((clearance[0] == clearance[1] || clearance[2] == clearance[3] || clearance[4] == clearance[5]
             || clearance[6] == clearance[7])
@@ -248,7 +249,7 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
                         end_angle,
                         lat_set.front(),
                         0,
-                        0.8);
+                        0);
 //    std::streamsize prec = std::cout.precision();
 //    std::cout << std::setprecision(4);
 //    std::cout << "hessian:\n " << hessian << std::endl;
