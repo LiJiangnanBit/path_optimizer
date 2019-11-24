@@ -85,17 +85,19 @@ bool PathOptimizer::samplePaths(const std::vector<double> &lon_set,
         printf("empty input, quit path optimization\n");
         return false;
     }
-    auto smoothing_flag = smoothPath(&smoothed_x_spline, &smoothed_y_spline, &smoothed_max_s);
-    if (!smoothing_flag) {
+    if (!smoothPath(&smoothed_x_spline, &smoothed_y_spline, &smoothed_max_s)) {
         printf("smoothing stage failed, quit path optimization.\n");
         return false;
     }
     reset();
-    divideSmoothedPath();
+    if (!divideSmoothedPath()) {
+        printf("divide path failed!\n");
+        return false;
+    }
     bool max_lon_flag = false;
     for (size_t i = 0; i != lon_set.size(); ++i) {
         if (i == lon_set.size() - 1) max_lon_flag = true;
-        sampleSingleLongitudinalPaths(lon_set[i], lat_set, final_path_set, max_lon_flag);
+        if (!sampleSingleLongitudinalPaths(lon_set[i], lat_set, final_path_set, max_lon_flag)) continue;
     }
     if (final_path_set->empty()) return false;
     else return true;
@@ -228,8 +230,6 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
     std::vector<double> init_state;
     init_state.push_back(epsi_);
     init_state.push_back(cte_);
-//    bool constriant_end_psi = false;
-//    if (N == original_N) constriant_end_psi = true;
     double end_angle;
     if (max_lon_flag && use_end_psi) {
         end_angle = end_state_.z;
@@ -328,10 +328,12 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
            "preprocess: %f\n"
            "solver init: %f\n"
            "solve: %f\n"
+           "all: %f\n"
            "**********\n",
            (double) (solver_init - start) / CLOCKS_PER_SEC,
            (double) (solving - solver_init) / CLOCKS_PER_SEC,
-           (double) (solved - solving) / CLOCKS_PER_SEC);
+           (double) (solved - solving) / CLOCKS_PER_SEC,
+           (double) (solved - start) / CLOCKS_PER_SEC);
     return true;
 }
 
@@ -524,7 +526,7 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
     *max_s_out = s_set.back();
     auto sm_end = std::clock();
     printf("*********\n"
-           "sm_pre: %f\n sm_solve: %f\n, sm_after: %f\n sm_all: %f\n"
+           "sm_pre: %f\n sm_solve: %f\n sm_after: %f\n sm_all: %f\n"
            "**********\n",
            (double) (sm_pre_solve - sm_start) / CLOCKS_PER_SEC,
            (double) (sm_solved - sm_pre_solve) / CLOCKS_PER_SEC,

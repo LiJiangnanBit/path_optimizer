@@ -5,6 +5,7 @@
 #include "path_optimizer.hpp"
 namespace PathOptimizationNS {
 
+// TODO: set these functions as static ones.
 void PathOptimizer::setHessianMatrix(size_t horizon, Eigen::SparseMatrix<double> *matrix_h) {
     const size_t state_size = 2 * horizon;
     const size_t control_size = horizon - 1;
