@@ -40,10 +40,12 @@ void PathOptimizer::setHessianMatrix(size_t horizon, Eigen::SparseMatrix<double>
 }
 
 void PathOptimizer::setDynamicMatrix(size_t i,
+                                     const std::vector<double> &seg_s_list,
+                                     const std::vector<double> &seg_k_list,
                                      Eigen::Matrix<double, 2, 2> *matrix_a,
                                      Eigen::Matrix<double, 2, 1> *matrix_b) {
-    double ref_k = seg_k_list_[i];
-    double ref_s = seg_s_list_[i + 1] - seg_s_list_[i];
+    double ref_k = seg_k_list[i];
+    double ref_s = seg_s_list[i + 1] - seg_s_list[i];
     double ref_delta = atan(ref_k * wheel_base);
     Eigen::Matrix2d a;
     a << 1, -ref_s * pow(ref_k, 2),
@@ -55,6 +57,10 @@ void PathOptimizer::setDynamicMatrix(size_t i,
 }
 
 void PathOptimizer::setConstraintMatrix(size_t horizon,
+                                        const std::vector<double> &seg_s_list,
+                                        const std::vector<double> &seg_angle_list,
+                                        const std::vector<double> &seg_k_list,
+                                        const std::vector<std::vector<double>> &seg_clearance_list,
                                         Eigen::SparseMatrix<double> *matrix_constraints,
                                         Eigen::VectorXd *lower_bound,
                                         Eigen::VectorXd *upper_bound,
@@ -68,7 +74,7 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
     Eigen::Matrix<double, 2, 2> a;
     Eigen::Matrix<double, 2, 1> b;
     for (size_t i = 0; i != horizon - 1; ++i) {
-        setDynamicMatrix(i, &a, &b);
+        setDynamicMatrix(i, seg_s_list, seg_k_list, &a, &b);
         cons.block(2 * (i + 1), 2 * i, 2, 2) = a;
         cons.block(2 * (i + 1), 2 * horizon + i, 2, 1) = b;
     }
@@ -92,8 +98,8 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
     lower_bound->block(0, 0, 2, 1) = -x0;
     upper_bound->block(0, 0, 2, 1) = -x0;
     for (size_t i = 0; i != horizon - 1; ++i) {
-        double ds = seg_s_list_[i + 1] - seg_s_list_[i];
-        double steer = atan(seg_k_list_[i] * wheel_base);
+        double ds = seg_s_list[i + 1] - seg_s_list[i];
+        double steer = atan(seg_k_list[i] * wheel_base);
         Eigen::Vector2d c;
         c << ds * steer / wheel_base / pow(cos(steer), 2), 0;
         lower_bound->block(2 + 2 * i, 0, 2, 1) = c;
@@ -103,7 +109,7 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
     upper_bound->block(2 * horizon, 0, 2 * horizon, 1) = Eigen::VectorXd::Constant(2 * horizon, OsqpEigen::INFTY);
     // Add end state constraint.
     if (constraint_end_psi) {
-        double end_psi = constraintAngle(end_heading - seg_angle_list_.back());
+        double end_psi = constraintAngle(end_heading - seg_angle_list.back());
         if (end_psi < 70 * M_PI / 180) {
             (*lower_bound)(2 * horizon + 2 * horizon - 2) = end_psi - 5 * M_PI / 180;
             (*upper_bound)(2 * horizon + 2 * horizon - 2) = end_psi + 5 * M_PI / 180;
@@ -114,15 +120,19 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
     for (size_t i = 0; i != horizon; ++i) {
         Eigen::Vector4d ld, ud;
         ud
-            << seg_clearance_list_[i][0], seg_clearance_list_[i][2], seg_clearance_list_[i][4], seg_clearance_list_[i][6];
+            << seg_clearance_list[i][0], seg_clearance_list[i][2], seg_clearance_list[i][4], seg_clearance_list[i][6];
         ld
-            << seg_clearance_list_[i][1], seg_clearance_list_[i][3], seg_clearance_list_[i][5], seg_clearance_list_[i][7];
+            << seg_clearance_list[i][1], seg_clearance_list[i][3], seg_clearance_list[i][5], seg_clearance_list[i][7];
         lower_bound->block(5 * horizon - 1 + 4 * i, 0, 4, 1) = ld;
         upper_bound->block(5 * horizon - 1 + 4 * i, 0, 4, 1) = ud;
     }
 }
 
 void PathOptimizer::setConstraintMatrix(size_t horizon,
+                                        const std::vector<double> &seg_s_list,
+                                        const std::vector<double> &seg_angle_list,
+                                        const std::vector<double> &seg_k_list,
+                                        const std::vector<std::vector<double>> &seg_clearance_list,
                                         Eigen::SparseMatrix<double> *matrix_constraints,
                                         Eigen::VectorXd *lower_bound,
                                         Eigen::VectorXd *upper_bound,
@@ -139,7 +149,7 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
     Eigen::Matrix<double, 2, 2> a;
     Eigen::Matrix<double, 2, 1> b;
     for (size_t i = 0; i != horizon - 1; ++i) {
-        setDynamicMatrix(i, &a, &b);
+        setDynamicMatrix(i, seg_s_list, seg_k_list, &a, &b);
         cons.block(2 * (i + 1), 2 * i, 2, 2) = a;
         cons.block(2 * (i + 1), 2 * horizon + i, 2, 1) = b;
     }
@@ -163,8 +173,8 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
     lower_bound->block(0, 0, 2, 1) = -x0;
     upper_bound->block(0, 0, 2, 1) = -x0;
     for (size_t i = 0; i != horizon - 1; ++i) {
-        double ds = seg_s_list_[i + 1] - seg_s_list_[i];
-        double steer = atan(seg_k_list_[i] * wheel_base);
+        double ds = seg_s_list[i + 1] - seg_s_list[i];
+        double steer = atan(seg_k_list[i] * wheel_base);
         Eigen::Vector2d c;
         c << ds * steer / wheel_base / pow(cos(steer), 2), 0;
         lower_bound->block(2 + 2 * i, 0, 2, 1) = c;
@@ -173,7 +183,7 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
     lower_bound->block(2 * horizon, 0, 2 * horizon, 1) = Eigen::VectorXd::Constant(2 * horizon, -OsqpEigen::INFTY);
     upper_bound->block(2 * horizon, 0, 2 * horizon, 1) = Eigen::VectorXd::Constant(2 * horizon, OsqpEigen::INFTY);
     // Add end state constraint.
-    double end_psi = constraintAngle(end_angle - seg_angle_list_.back());
+    double end_psi = constraintAngle(end_angle - seg_angle_list.back());
     (*lower_bound)(2 * horizon + 2 * horizon - 2) = end_psi - angle_error_allowed / 2;
     (*upper_bound)(2 * horizon + 2 * horizon - 2) = end_psi + angle_error_allowed / 2;
     (*lower_bound)(2 * horizon + 2 * horizon - 1) = offset - offset_error_allowed / 2;
@@ -183,9 +193,9 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
     for (size_t i = 0; i != horizon; ++i) {
         Eigen::Vector4d ld, ud;
         ud
-            << seg_clearance_list_[i][0], seg_clearance_list_[i][2], seg_clearance_list_[i][4], seg_clearance_list_[i][6];
+            << seg_clearance_list[i][0], seg_clearance_list[i][2], seg_clearance_list[i][4], seg_clearance_list[i][6];
         ld
-            << seg_clearance_list_[i][1], seg_clearance_list_[i][3], seg_clearance_list_[i][5], seg_clearance_list_[i][7];
+            << seg_clearance_list[i][1], seg_clearance_list[i][3], seg_clearance_list[i][5], seg_clearance_list[i][7];
         lower_bound->block(5 * horizon - 1 + 4 * i, 0, 4, 1) = ld;
         upper_bound->block(5 * horizon - 1 + 4 * i, 0, 4, 1) = ud;
     }

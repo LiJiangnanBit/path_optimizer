@@ -101,8 +101,16 @@ private:
 
     //OSQP solver related
     void setHessianMatrix(size_t horizon, Eigen::SparseMatrix<double> *matrix_h);
-    void setDynamicMatrix(size_t n, Eigen::Matrix<double, 2, 2> *matrix_a, Eigen::Matrix<double, 2, 1> *matrix_b);
+    void setDynamicMatrix(size_t n,
+                          const std::vector<double> &seg_s_list,
+                          const std::vector<double> &seg_k_list,
+                          Eigen::Matrix<double, 2, 2> *matrix_a,
+                          Eigen::Matrix<double, 2, 1> *matrix_b);
     void setConstraintMatrix(size_t horizon,
+                             const std::vector<double> &seg_s_list,
+                             const std::vector<double> &seg_angle_list,
+                             const std::vector<double> &seg_k_list,
+                             const std::vector<std::vector<double>> &seg_clearance_list,
                              Eigen::SparseMatrix<double> *matrix_constraints,
                              Eigen::VectorXd *lower_bound,
                              Eigen::VectorXd *upper_bound,
@@ -111,6 +119,10 @@ private:
                              bool constraint_end_psi);
 
     void setConstraintMatrix(size_t horizon,
+                             const std::vector<double> &seg_s_list,
+                             const std::vector<double> &seg_angle_list,
+                             const std::vector<double> &seg_k_list,
+                             const std::vector<std::vector<double>> &seg_clearance_list,
                              Eigen::SparseMatrix<double> *matrix_constraints,
                              Eigen::VectorXd *lower_bound,
                              Eigen::VectorXd *upper_bound,
@@ -156,7 +168,6 @@ private:
     tk::spline k_spline_;
     tk::spline smoothed_x_spline;
     tk::spline smoothed_y_spline;
-
 
     // For visualization purpose.
     std::vector<std::vector<hmpl::State> > control_sampling_path_set_;
