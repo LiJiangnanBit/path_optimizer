@@ -264,11 +264,12 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
     init_state.push_back(epsi_);
     init_state.push_back(cte_);
     double end_angle;
-    if (max_lon_flag && use_end_psi) {
-        end_angle = end_state_.z;
-    } else {
-        end_angle = seg_angle_list.back();
-    }
+//    if (max_lon_flag && use_end_psi) {
+//        end_angle = end_state_.z;
+//    } else {
+//        end_angle = seg_angle_list.back();
+//    }
+    end_angle = seg_angle_list.back();
     setConstraintMatrix(N,
                         seg_s_list,
                         seg_angle_list,
@@ -281,7 +282,7 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
                         end_angle,
                         lat_set.front(),
                         0,
-                        0);
+                        0.1);
 //    std::streamsize prec = std::cout.precision();
 //    std::cout << std::setprecision(4);
 //    std::cout << "hessian:\n " << hessian << std::endl;
@@ -301,18 +302,20 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
     size_t count = 0;
     double left_bound = seg_clearance_list.back()[0];
     double right_bound = seg_clearance_list.back()[1];
-    double range = left_bound - right_bound;
+    double range = (left_bound - right_bound) * 0.95;
     double interval;
-    if (range > 5) interval = range / 12;
-    else interval = 0.4;
+//    if (range > 5) interval = range / 12;
+//    else interval = range / 6;
+    interval = std::max(0.3, range / 12);
+//    interval = std::min(0.6, interval);
     std::vector<double> offset_set;
     double left_dis = 0;
     double right_dis = -interval;
-    while (left_dis <= left_bound) {
+    while (left_dis < left_bound) {
         offset_set.push_back(left_dis);
         left_dis += interval;
     }
-    while (right_dis >= right_bound) {
+    while (right_dis > right_bound) {
         offset_set.push_back(right_dis);
         right_dis -= interval;
     }
@@ -363,8 +366,11 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
             if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
                 tmp_final_path.push_back(tmp_state);
             } else {
-//                printf("path optimization collision check failed at %d\n", j);
-//            tmp_final_path.push_back(tmp_state);
+                printf("path optimization collision check failed at %f of %fm, lat: %f\n",
+                       j * delta_s,
+                       result_s.back(),
+                       offset_set[i]);
+//                tmp_final_path.push_back(tmp_state);
                 break;
             }
         }
@@ -1062,7 +1068,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
     double left_bound = 0;
     double right_bound = 0;
     double left_s = 0;
-    double delta_s = 0.1;
+    double delta_s = 0.2;
     double left_angle = constraintAngle(state.z + M_PI_2);
     double right_angle = constraintAngle(state.z - M_PI_2);
     size_t n = 5.0 / delta_s;
@@ -1143,9 +1149,14 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
             right_bound = -right_s;
         }
     }
+    double base = std::max(left_bound - right_bound - 0.6, 0.0);
     if (safety_margin_flag) {
-        double base = std::max(left_bound - right_bound - 0.6, 0.0);
         double safety_margin = std::min(base * 0.24, 0.85);
+//        printf("safety margin: %f; bounds: %f, %f\n", safety_margin, left_bound - safety_margin, right_bound + safety_margin);
+        left_bound -= safety_margin;
+        right_bound += safety_margin;
+    } else {
+        double safety_margin = std::min(base * 0.1, 0.2);
 //        printf("safety margin: %f; bounds: %f, %f\n", safety_margin, left_bound - safety_margin, right_bound + safety_margin);
         left_bound -= safety_margin;
         right_bound += safety_margin;
