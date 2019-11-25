@@ -84,7 +84,7 @@ private:
                                                 const std::vector<double> &car_geometry,
                                                 bool safety_margin_flag);
 
-    bool divideSmoothedPath();
+    bool divideSmoothedPath(bool safety_margin_flag);
 
     // Set angle range to -pi ~ pi.
     inline double constraintAngle(double angle) {

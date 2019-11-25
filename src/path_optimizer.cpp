@@ -60,7 +60,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
     auto t2 = std::clock();
     reset();
-    if (!divideSmoothedPath()) {
+    if (!divideSmoothedPath(true)) {
         printf("divide stage failed, quit path optimization.\n");
         return false;
     };
@@ -81,8 +81,6 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
 }
 
 void PathOptimizer::reset() {
-//    points_list_ = points_list;
-//    point_num_ = points_list_.size();
     x_list_.clear();
     y_list_.clear();
     s_list_.clear();
@@ -107,7 +105,7 @@ bool PathOptimizer::samplePaths(const std::vector<double> &lon_set,
         return false;
     }
     reset();
-    if (!divideSmoothedPath()) {
+    if (!divideSmoothedPath(false)) {
         printf("divide path failed!\n");
         return false;
     }
@@ -120,7 +118,7 @@ bool PathOptimizer::samplePaths(const std::vector<double> &lon_set,
     else return true;
 }
 
-bool PathOptimizer::divideSmoothedPath() {
+bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
     auto start_t = std::clock();
     if (smoothed_max_s == 0) {
         LOG(INFO) << "Smoothed path is empty!";
@@ -193,9 +191,12 @@ bool PathOptimizer::divideSmoothedPath() {
         }
         std::vector<double> clearance;
         bool safety_margin_flag;
-        if (seg_s_list_[i] < 10) safety_margin_flag = false;
-        else safety_margin_flag = true;
-//        safety_margin_flag = false;
+        if (set_safety_margin) {
+            if (seg_s_list_[i] < 10) safety_margin_flag = false;
+            else safety_margin_flag = true;
+        } else {
+            safety_margin_flag = false;
+        }
         clearance = getClearanceFor4Circles(center_state, car_geo_, safety_margin_flag);
         if ((clearance[0] == clearance[1] || clearance[2] == clearance[3] || clearance[4] == clearance[5]
             || clearance[6] == clearance[7])
