@@ -54,8 +54,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         printf("empty input, quit path optimization\n");
         return false;
     }
-    auto smoothing_flag = smoothPath(&smoothed_x_spline, &smoothed_y_spline, &smoothed_max_s);
-    if (!smoothing_flag) {
+    if (!smoothPath(&smoothed_x_spline, &smoothed_y_spline, &smoothed_max_s)) {
         printf("smoothing stage failed, quit path optimization.\n");
         return false;
     }
@@ -248,8 +247,9 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
     auto solver_init = std::clock();
     // OSQP:
     OsqpEigen::Solver solver;
-    solver.settings()->setVerbosity(false);
+    solver.settings()->setVerbosity(false); 
     solver.settings()->setWarmStart(true);
+    solver.settings()->setMaxIteraction(250);
     solver.data()->setNumberOfVariables(3 * N - 1);
     solver.data()->setNumberOfConstraints(9 * N - 1);
     // Allocate QP problem matrices and vectors.
@@ -304,8 +304,8 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
             continue;
         }
         // Update.
-        lowerBound(2 * N + 2 * N - 1) = lat_set[i] - 0.4;
-        upperBound(2 * N + 2 * N - 1) = lat_set[i] + 0.4;
+        lowerBound(2 * N + 2 * N - 1) = lat_set[i] - 0.2;
+        upperBound(2 * N + 2 * N - 1) = lat_set[i] + 0.2;
         if (!solver.updateBounds(lowerBound, upperBound)) break;
         // Solve.
         bool ok = solver.solve();
@@ -509,12 +509,17 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
     size_t control_points_num = N;
     tinyspline::BSpline b_spline(control_points_num);
     std::vector<tinyspline::real> ctrlp = b_spline.controlPoints();
+    smoothed_path_.clear();
     for (size_t i = 0; i != N; ++i) {
         double length_on_ref_path = seg_s_list_[i];
         double angle = seg_angle_list_[i];
         double new_angle = constraintAngle(angle + M_PI_2);
         double tmp_x = x_spline_(length_on_ref_path) + offset_result[i][0] * cos(new_angle);
         double tmp_y = y_spline_(length_on_ref_path) + offset_result[i][0] * sin(new_angle);
+        hmpl::State state;
+        state.x = tmp_x;
+        state.y = tmp_y;
+        smoothed_path_.push_back(state);
         if (std::isnan(tmp_x) || std::isnan(tmp_y)) {
             LOG(WARNING) << "output is not a number, smoothing failed!" << std::endl;
             return false;
