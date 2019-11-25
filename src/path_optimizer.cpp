@@ -247,7 +247,7 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
     auto solver_init = std::clock();
     // OSQP:
     OsqpEigen::Solver solver;
-    solver.settings()->setVerbosity(false); 
+    solver.settings()->setVerbosity(false);
     solver.settings()->setWarmStart(true);
     solver.settings()->setMaxIteraction(250);
     solver.data()->setNumberOfVariables(3 * N - 1);
@@ -298,14 +298,32 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
     auto solving = std::clock();
     Eigen::VectorXd QPSolution;
     size_t count = 0;
-    for (size_t i = 0; i != lat_set.size(); ++i) {
-        if (lat_set[i] < seg_clearance_list.back()[1] || lat_set[i] > seg_clearance_list.back()[0]) {
-            printf("lon: %f, lat: %f is out of bound!\n", lon, lat_set[i]);
+    double left_bound = seg_clearance_list.back()[0];
+    double right_bound = seg_clearance_list.back()[1];
+    double range = left_bound - right_bound;
+    double interval;
+    if (range > 5) interval = range / 12;
+    else interval = 0.4;
+    std::vector<double> offset_set;
+    double left_dis = 0;
+    double right_dis = -interval;
+    while (left_dis <= left_bound) {
+        offset_set.push_back(left_dis);
+        left_dis += interval;
+    }
+    while (right_dis >= right_bound) {
+        offset_set.push_back(right_dis);
+        right_dis -= interval;
+    }
+//    for (size_t i = 0; i != lat_set.size(); ++i) {
+    for (size_t i = 0; i != offset_set.size(); ++i) {
+        if (offset_set[i] < seg_clearance_list.back()[1] || offset_set[i] > seg_clearance_list.back()[0]) {
+            printf("lon: %f, lat: %f is out of bound!\n", lon, offset_set[i]);
             continue;
         }
         // Update.
-        lowerBound(2 * N + 2 * N - 1) = lat_set[i] - 0.2;
-        upperBound(2 * N + 2 * N - 1) = lat_set[i] + 0.2;
+        lowerBound(2 * N + 2 * N - 1) = offset_set[i] - 0.1;
+        upperBound(2 * N + 2 * N - 1) = offset_set[i] + 0.1;
         if (!solver.updateBounds(lowerBound, upperBound)) break;
         // Solve.
         bool ok = solver.solve();
@@ -516,10 +534,6 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
         double new_angle = constraintAngle(angle + M_PI_2);
         double tmp_x = x_spline_(length_on_ref_path) + offset_result[i][0] * cos(new_angle);
         double tmp_y = y_spline_(length_on_ref_path) + offset_result[i][0] * sin(new_angle);
-        hmpl::State state;
-        state.x = tmp_x;
-        state.y = tmp_y;
-        smoothed_path_.push_back(state);
         if (std::isnan(tmp_x) || std::isnan(tmp_y)) {
             LOG(WARNING) << "output is not a number, smoothing failed!" << std::endl;
             return false;
@@ -550,6 +564,10 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
     x_set.push_back(result[0]);
     y_set.push_back(result[1]);
     s_set.push_back(0);
+    hmpl::State state;
+    state.x = result[0];
+    state.y = result[1];
+    smoothed_path_.push_back(state);
     for (size_t i = min_index_to_vehicle + 1; i <= 3 * N; ++i) {
         double t = i * step_t;
         result = b_spline.eval(t).result();
@@ -557,6 +575,9 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
         x_set.push_back(result[0]);
         y_set.push_back(result[1]);
         s_set.push_back(s_set.back() + ds);
+        state.x = result[0];
+        state.y = result[1];
+        smoothed_path_.push_back(state);
     }
     x_s_out->set_points(s_set, x_set);
     y_s_out->set_points(s_set, y_set);
