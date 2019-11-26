@@ -155,6 +155,7 @@ private:
     // Start position and angle error with smoothed path.
     double cte_;
     double epsi_;
+    bool densify_result;
 
     //Only for smoothing phase
     std::vector<hmpl::State> points_list_;

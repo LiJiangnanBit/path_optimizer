@@ -20,7 +20,8 @@ PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
     wheel_base(2.85),
     best_sampling_index_(0),
     control_sampling_first_flag_(false),
-    enable_control_sampling(true) {
+    enable_control_sampling(true),
+    densify_result(true) {
     setCarGeometry();
 }
 
@@ -39,11 +40,12 @@ void PathOptimizer::setCarGeometry() {
     double d2 = -1.0 / 8.0 * car_length;
     double d3 = 1.0 / 8.0 * car_length;
     double d4 = 3.0 / 8.0 * car_length;
+    double safety_margin = 0.1;
     car_geo_.push_back(d1);
     car_geo_.push_back(d2);
     car_geo_.push_back(d3);
     car_geo_.push_back(d4);
-    car_geo_.push_back(circle_r);
+    car_geo_.push_back(circle_r + safety_margin);
     car_geo_.push_back(rear_axle_to_center_dis);
     car_geo_.push_back(wheel_base);
 }
@@ -997,12 +999,48 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
 //        total_s += hmpl::distance(best_path.back(), best_path[best_path.size() - 2]);
 //    }
     double last_x, last_y;
+    std::vector<hmpl::State> tmp_raw_path;
     for (size_t i = 0; i != N_; ++i) {
         double length_on_ref_path = seg_s_list_[i];
         double angle = seg_angle_list_[i];
         double new_angle = constraintAngle(angle + M_PI_2);
         double tmp_x = smoothed_x_spline(length_on_ref_path) + QPSolution(2 * i + 1) * cos(new_angle);
         double tmp_y = smoothed_y_spline(length_on_ref_path) + QPSolution(2 * i + 1) * sin(new_angle);
+        /// ***************if output raw path****************
+        if (!densify_result) {
+            hmpl::State state;
+            state.x = tmp_x;
+            state.y = tmp_y;
+            if (i != N_ - 1) {
+                double next_x =
+                    smoothed_x_spline(seg_s_list_[i + 1])
+                        + QPSolution(2 * i + 3) * cos(seg_angle_list_[i + 1] + M_PI_2);
+                double next_y =
+                    smoothed_y_spline(seg_s_list_[i + 1])
+                        + QPSolution(2 * i + 3) * sin(seg_angle_list_[i + 1] + M_PI_2);
+                state.z = atan2(next_y - tmp_y, next_x - tmp_x);
+            } else {
+                state.z = atan2(tmp_y - last_y, tmp_x - last_x);
+            }
+            if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
+                tmp_raw_path.push_back(state);
+            } else {
+                tmp_raw_path.push_back(state);
+                printf("path optimization collision check failed at %d\n", i);
+                double psi = QPSolution(2 * i);
+                double pq = QPSolution(2 * i + 1);
+                printf("c1| lb: %f, ub: %f, result: %f\n"
+                       "c2| lb: %f, ub: %f, result: %f\n"
+                       "c3| lb: %f, ub: %f, result: %f\n"
+                       "c4| lb: %f, ub: %f, result: %f\n",
+                       seg_clearance_list_[i][1], seg_clearance_list_[i][0], (car_geo_[0] + car_geo_[5]) * psi + pq,
+                       seg_clearance_list_[i][3], seg_clearance_list_[i][2], (car_geo_[1] + car_geo_[5]) * psi + pq,
+                       seg_clearance_list_[i][5], seg_clearance_list_[i][4], (car_geo_[2] + car_geo_[5]) * psi + pq,
+                       seg_clearance_list_[i][7], seg_clearance_list_[i][6], (car_geo_[3] + car_geo_[5]) * psi + pq);
+                break;
+            }
+        }
+        /// ***************if output raw path****************
         result_x.push_back(tmp_x);
         result_y.push_back(tmp_y);
         if (i != 0) {
@@ -1041,7 +1079,11 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         (double) (po_osqp_solve - po_osqp_pre) / CLOCKS_PER_SEC,
         (double) (po_interpolation - po_osqp_solve) / CLOCKS_PER_SEC);
     final_path->clear();
-    std::copy(tmp_final_path.begin(), tmp_final_path.end(), std::back_inserter(*final_path));
+    if (densify_result) {
+        std::copy(tmp_final_path.begin(), tmp_final_path.end(), std::back_inserter(*final_path));
+    } else {
+        std::copy(tmp_raw_path.begin(), tmp_raw_path.end(), std::back_inserter(*final_path));
+    }
     return true;
 }
 
@@ -1155,12 +1197,13 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
 //        printf("safety margin: %f; bounds: %f, %f\n", safety_margin, left_bound - safety_margin, right_bound + safety_margin);
         left_bound -= safety_margin;
         right_bound += safety_margin;
-    } else {
-        double safety_margin = std::min(base * 0.1, 0.2);
-//        printf("safety margin: %f; bounds: %f, %f\n", safety_margin, left_bound - safety_margin, right_bound + safety_margin);
-        left_bound -= safety_margin;
-        right_bound += safety_margin;
     }
+//    else {
+//        double safety_margin = std::min(base * 0.1, 0.2);
+////        printf("safety margin: %f; bounds: %f, %f\n", safety_margin, left_bound - safety_margin, right_bound + safety_margin);
+//        left_bound -= safety_margin;
+//        right_bound += safety_margin;
+//    }
     std::vector<double> result{left_bound, right_bound};
 //    printf("get range: %f to %f \n", left_bound, right_bound);
     return result;
