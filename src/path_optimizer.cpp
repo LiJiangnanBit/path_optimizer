@@ -239,12 +239,14 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
         if (seg_s_list_[index] > lon) break;
     }
     printf("index: %d\n", index);
-    std::vector<double> seg_s_list, seg_angle_list, seg_k_list;
+    std::vector<double> seg_s_list, seg_angle_list, seg_k_list, seg_x_list, seg_y_list;
     std::vector<std::vector<double>> seg_clearance_list;
     seg_s_list.assign(seg_s_list_.begin(), seg_s_list_.begin() + index);
     seg_angle_list.assign(seg_angle_list_.begin(), seg_angle_list_.begin() + index);
     seg_k_list.assign(seg_k_list_.begin(), seg_k_list_.begin() + index);
     seg_clearance_list.assign(seg_clearance_list_.begin(), seg_clearance_list_.begin() + index);
+    seg_x_list.assign(seg_x_list_.begin(), seg_x_list_.begin() + index);
+    seg_y_list.assign(seg_y_list_.begin(), seg_y_list_.begin() + index);
     auto N = seg_s_list.size();
     printf("new N: %d\n", N);
     auto solver_init = std::clock();
@@ -284,7 +286,7 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
                         end_angle,
                         lat_set.front(),
                         0,
-                        0.1);
+                        0);
 //    std::streamsize prec = std::cout.precision();
 //    std::cout << std::setprecision(4);
 //    std::cout << "hessian:\n " << hessian << std::endl;
@@ -304,27 +306,26 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
     size_t count = 0;
     double left_bound = seg_clearance_list.back()[0];
     double right_bound = seg_clearance_list.back()[1];
-    double range = (left_bound - right_bound) * 0.95;
-    double interval;
-//    if (range > 5) interval = range / 12;
-//    else interval = range / 6;
-    interval = std::max(0.3, range / 12);
-//    interval = std::min(0.6, interval);
+//    double range = (left_bound - right_bound) * 0.95;
+    double range = (left_bound - right_bound);
+    double reduced_range;
+    // The whole lateral sampling range is 6m.
+    if (range >= 6) reduced_range = (range - 6) / 2;
+    else reduced_range = 0;
+    double interval = 0.3;
     std::vector<double> offset_set;
-    double left_dis = 0;
-    double right_dis = -interval;
-    while (left_dis < left_bound) {
-        offset_set.push_back(left_dis);
-        left_dis += interval;
+    for(size_t i = 0; i * interval <= range - 2 * reduced_range; ++i) {
+        offset_set.push_back(right_bound + reduced_range + i * interval);
     }
-    while (right_dis > right_bound) {
-        offset_set.push_back(right_dis);
-        right_dis -= interval;
-    }
+    offset_set.push_back(0);
 //    for (size_t i = 0; i != lat_set.size(); ++i) {
+    hmpl::State sample_state;
     for (size_t i = 0; i != offset_set.size(); ++i) {
-        if (offset_set[i] < seg_clearance_list.back()[1] || offset_set[i] > seg_clearance_list.back()[0]) {
-            printf("lon: %f, lat: %f is out of bound!\n", lon, offset_set[i]);
+        sample_state.x = seg_x_list.back() + offset_set[i] * cos(seg_angle_list.back() + M_PI_2);
+        sample_state.y = seg_y_list.back() + offset_set[i] * sin(seg_angle_list.back() + M_PI_2);
+        sample_state.z = seg_angle_list.back();
+        if (!collision_checker_.isSingleStateCollisionFreeImproved(sample_state)) {
+            printf("lon: %f, lat: %f is not feasible!\n", lon, offset_set[i]);
             continue;
         }
         // Update.
@@ -333,7 +334,10 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
         if (!solver.updateBounds(lowerBound, upperBound)) break;
         // Solve.
         bool ok = solver.solve();
-        if (!ok) continue;
+        if (!ok) {
+            printf("solver failed at lon: %f, lat: %f!\n", lon, offset_set[i]);
+            continue;
+        }
         // Get single path.
         QPSolution = solver.getSolution();
         std::vector<double> result_x, result_y, result_s;
@@ -359,21 +363,33 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
         y_s.set_points(result_s, result_y);
         std::vector<hmpl::State> tmp_final_path;
         double delta_s = 0.3;
-        for (int j = 0; j * delta_s <= result_s.back(); ++j) {
-            hmpl::State tmp_state;
-            tmp_state.x = x_s(j * delta_s);
-            tmp_state.y = y_s(j * delta_s);
-            tmp_state.z = atan2(y_s.deriv(1, j * delta_s), x_s.deriv(1, j * delta_s));
-            tmp_state.s = j * delta_s;
+        double tmp_s = 0;
+        hmpl::State tmp_state;
+        for (int j = 0; tmp_s < result_s.back(); ++j) {
+            tmp_s = j * delta_s;
+            tmp_state.x = x_s(tmp_s);
+            tmp_state.y = y_s(tmp_s);
+            tmp_state.z = atan2(y_s.deriv(1, tmp_s), x_s.deriv(1, tmp_s));
+            tmp_state.s = tmp_s;
             if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
                 tmp_final_path.push_back(tmp_state);
             } else {
                 printf("path optimization collision check failed at %f of %fm, lat: %f\n",
-                       j * delta_s,
+                       tmp_s,
                        result_s.back(),
                        offset_set[i]);
 //                tmp_final_path.push_back(tmp_state);
                 break;
+            }
+            if ((j + 1) * delta_s > result_s.back()) {
+                tmp_s = result_s.back();
+                tmp_state.x = x_s(tmp_s);
+                tmp_state.y = y_s(tmp_s);
+                tmp_state.z = atan2(y_s.deriv(1, tmp_s), x_s.deriv(1, tmp_s));
+                tmp_state.s = tmp_s;
+                if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
+                    tmp_final_path.push_back(tmp_state);
+                }
             }
         }
         if (!tmp_final_path.empty()) {
