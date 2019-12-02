@@ -21,7 +21,8 @@ PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
     best_sampling_index_(0),
     control_sampling_first_flag_(false),
     enable_control_sampling(true),
-    densify_result(true) {
+    densify_result(true),
+    solver_dynamic_initialized(false) {
     setCarGeometry();
 }
 
@@ -1101,6 +1102,125 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         std::copy(tmp_raw_path.begin(), tmp_raw_path.end(), std::back_inserter(*final_path));
     }
     return true;
+}
+bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
+                                    const std::vector<std::vector<double>> &clearance_list,
+                                    std::vector<double> *x_list,
+                                    std::vector<double> *y_list,
+                                    std::vector<double> *s_list) {
+    if (!solver_dynamic_initialized) {
+        std::vector<double> x_set, y_set, s_set;
+        for (const auto & point : points_list_) {
+            x_set.push_back(point.x);
+            y_set.push_back(point.y);
+            s_set.push_back(point.s);
+        }
+        xsr_.set_points(s_set, x_set);
+        ysr_.set_points(s_set, y_set);
+        std::vector<double> angle_list, k_list;
+        for (size_t i = 0; i != sr_list.size(); ++i) {
+            double tmp_s = sr_list[i];
+            double x_d1 = xsr_.deriv(1, tmp_s);
+            double y_d1 = ysr_.deriv(1, tmp_s);
+            double x_d2 = xsr_.deriv(2, tmp_s);
+            double y_d2 = ysr_.deriv(2, tmp_s);
+            double h = atan2(y_d1, x_d1);
+            double k = (x_d1 * y_d2 - y_d1 * x_d2) / pow(pow(x_d1, 2) + pow(y_d1, 2), 1.5);
+            angle_list.push_back(h);
+            k_list.push_back(k);
+        }
+        auto N = sr_list.size();
+        printf("N:%d, clear:%d\n", N, sr_list.size());
+        solver_dynamic.settings()->setVerbosity(true);
+        solver_dynamic.settings()->setWarmStart(true);
+//        solver_dynamic.settings()->setMaxIteraction(250);
+        solver_dynamic.data()->setNumberOfVariables(3 * N - 1);
+        solver_dynamic.data()->setNumberOfConstraints(9 * N - 1);
+        // Allocate QP problem matrices and vectors.
+        Eigen::SparseMatrix<double> hessian;
+        Eigen::VectorXd gradient = Eigen::VectorXd::Zero(3 * N - 1);
+        Eigen::SparseMatrix<double> linearMatrix;
+        setHessianMatrix(N, &hessian);
+        std::vector<double> init_state;
+        init_state.push_back(0);
+        init_state.push_back(0);
+        std::vector<std::vector<double>> fuck;
+        setConstraintMatrix(N,
+                            sr_list,
+                            angle_list,
+                            k_list,
+                            clearance_list,
+                            &linearMatrix,
+                            &lower_bound_dynamic_,
+                            &upper_bound_dynamic_,
+                            init_state,
+                            angle_list.back(),
+                            true);
+        if (!solver_dynamic.data()->setHessianMatrix(hessian)) return false;
+        if (!solver_dynamic.data()->setGradient(gradient)) return false;
+        if (!solver_dynamic.data()->setLinearConstraintsMatrix(linearMatrix)) return false;
+        if (!solver_dynamic.data()->setLowerBound(lower_bound_dynamic_)) return false;
+        if (!solver_dynamic.data()->setUpperBound(upper_bound_dynamic_)) return false;
+        if (!solver_dynamic.initSolver()) return false;
+        solver_dynamic_initialized = true;
+        bool ok = solver_dynamic.solve();
+        if (!ok) {
+            printf("dynamic solver failed\n");
+            return false;
+        }
+        auto QPSolution = solver_dynamic.getSolution();
+        double total_s = 0;
+        for (size_t j = 0; j != N; ++j) {
+            double length_on_ref_path = sr_list[j];
+            double angle = angle_list[j];
+            double new_angle = constraintAngle(angle + M_PI_2);
+            double tmp_x = xsr_(length_on_ref_path) + QPSolution(2 * j + 1) * cos(new_angle);
+            double tmp_y = ysr_(length_on_ref_path) + QPSolution(2 * j + 1) * sin(new_angle);
+            if (j != 0) {
+                total_s += sqrt(pow(tmp_x - x_list->back(), 2) + pow(tmp_y - y_list->back(), 2));
+            }
+            s_list->push_back(total_s);
+            x_list->push_back(tmp_x);
+            y_list->push_back(tmp_y);
+        }
+        return true;
+    } else {
+        auto N = sr_list.size();
+        for (size_t i = 0; i != N; ++i) {
+            Eigen::Vector4d ld, ud;
+            ud
+                << clearance_list[i][0], clearance_list[i][2], clearance_list[i][4], clearance_list[i][6];
+            ld
+                << clearance_list[i][1], clearance_list[i][3], clearance_list[i][5], clearance_list[i][7];
+            lower_bound_dynamic_.block(5 * N - 1 + 4 * i, 0, 4, 1) = ld;
+            upper_bound_dynamic_.block(5 * N - 1 + 4 * i, 0, 4, 1) = ud;
+        }
+        if (!solver_dynamic.updateBounds(lower_bound_dynamic_, upper_bound_dynamic_)) return false;
+        bool ok = solver_dynamic.solve();
+        if (!ok) {
+            printf("dynamic solver failed\n");
+            return false;
+        }
+        auto QPSolution = solver_dynamic.getSolution();
+        double total_s = 0;
+        for (size_t j = 0; j != N; ++j) {
+            double length_on_ref_path = sr_list[j];
+            double x_d1 = xsr_.deriv(1, length_on_ref_path);
+            double y_d1 = ysr_.deriv(1, length_on_ref_path);
+            double angle = atan2(y_d1, x_d1);
+            double new_angle = constraintAngle(angle + M_PI_2);
+            double tmp_x = xsr_(length_on_ref_path) + QPSolution(2 * j + 1) * cos(new_angle);
+            double tmp_y = ysr_(length_on_ref_path) + QPSolution(2 * j + 1) * sin(new_angle);
+            if (j != 0) {
+                total_s += sqrt(pow(tmp_x - x_list->back(), 2) + pow(tmp_y - y_list->back(), 2));
+            }
+            s_list->push_back(total_s);
+            x_list->push_back(tmp_x);
+            y_list->push_back(tmp_y);
+        }
+        return true;
+    }
+
 }
 
 double PathOptimizer::getClearanceWithDirectionStrict(hmpl::State state, double angle, double radius) {

@@ -45,6 +45,12 @@ public:
     bool samplePaths(const std::vector<double> &lon_set,
                      const std::vector<double> &lat_set,
                      std::vector<std::vector<hmpl::State>> *final_path_set);
+    // For dynamic obstacle avoidance.
+    bool optimizeDynamic(const std::vector<double> &sr_list,
+                         const std::vector<std::vector<double>> &clearance_list,
+                         std::vector<double> *x_list,
+                         std::vector<double> *y_list,
+                         std::vector<double> *s_list);
     const std::vector<std::vector<hmpl::State> > &getControlSamplingPathSet();
     // Just for visualization purpose.
     const std::vector<std::vector<hmpl::State> > &getControlSamplingFailedPathSet();
@@ -157,7 +163,7 @@ private:
     double epsi_;
     bool densify_result;
 
-    //Only for smoothing phase
+    // Only for smoothing phase
     std::vector<hmpl::State> points_list_;
     size_t point_num_;
     std::vector<double> x_list_;
@@ -169,6 +175,13 @@ private:
     tk::spline k_spline_;
     tk::spline smoothed_x_spline;
     tk::spline smoothed_y_spline;
+
+    // For dynamic obstacle avoidace.
+    OsqpEigen::Solver solver_dynamic;
+    bool solver_dynamic_initialized;
+    Eigen::VectorXd lower_bound_dynamic_;
+    Eigen::VectorXd upper_bound_dynamic_;
+    tk::spline xsr_, ysr_;
 
     // For visualization purpose.
     std::vector<std::vector<hmpl::State> > control_sampling_path_set_;

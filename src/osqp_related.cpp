@@ -83,10 +83,6 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
         cons(2 * horizon + i, i) = 1;
     }
     Eigen::Matrix<double, 4, 2> collision;
-//    collision << car_geo_[0] + car_geo_[5], 1,
-//        car_geo_[1] + car_geo_[5] + 0.4, 1,
-//        car_geo_[2] + car_geo_[5] + 0.55, 1,
-//        car_geo_[3] + car_geo_[5] + 0.7, 1;
     collision << car_geo_[0] + car_geo_[5], 1,
         car_geo_[1] + car_geo_[5], 1,
         car_geo_[2] + car_geo_[5], 1,
