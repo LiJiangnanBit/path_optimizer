@@ -1153,7 +1153,7 @@ bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
                             &lower_bound_dynamic_,
                             &upper_bound_dynamic_,
                             init_state,
-                            angle_list.back(),
+                            end_state_.z,
                             true);
         if (!solver_dynamic.data()->setHessianMatrix(hessian)) return false;
         if (!solver_dynamic.data()->setGradient(gradient)) return false;
