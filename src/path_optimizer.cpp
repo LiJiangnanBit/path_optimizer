@@ -1130,8 +1130,7 @@ bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
             k_list.push_back(k);
         }
         auto N = sr_list.size();
-        printf("N:%d, clear:%d\n", N, sr_list.size());
-        solver_dynamic.settings()->setVerbosity(true);
+        solver_dynamic.settings()->setVerbosity(false);
         solver_dynamic.settings()->setWarmStart(true);
 //        solver_dynamic.settings()->setMaxIteraction(250);
         solver_dynamic.data()->setNumberOfVariables(3 * N - 1);
