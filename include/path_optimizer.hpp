@@ -40,7 +40,8 @@ public:
     PathOptimizer(const std::vector<hmpl::State> &points_list,
                   const hmpl::State &start_state,
                   const hmpl::State &end_state,
-                  const hmpl::InternalGridMap &map);
+                  const hmpl::InternalGridMap &map,
+                  bool densify_path = true);
     bool solve(std::vector<hmpl::State> *final_path);
     bool samplePaths(const std::vector<double> &lon_set,
                      const std::vector<double> &lat_set,

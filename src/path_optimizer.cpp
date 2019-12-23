@@ -8,7 +8,8 @@ namespace PathOptimizationNS {
 PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
                              const hmpl::State &start_state,
                              const hmpl::State &end_state,
-                             const hmpl::InternalGridMap &map) :
+                             const hmpl::InternalGridMap &map,
+                             bool dnesify_path) :
     grid_map_(map),
     collision_checker_(map),
     points_list_(points_list),
@@ -21,7 +22,7 @@ PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
     best_sampling_index_(0),
     control_sampling_first_flag_(false),
     enable_control_sampling(true),
-    densify_result(true),
+    densify_result(dnesify_path),
     solver_dynamic_initialized(false) {
     setCarGeometry();
 }
