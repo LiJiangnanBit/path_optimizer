@@ -10,7 +10,7 @@
 
 static void BM_optimizePath(benchmark::State &state) {
     cv::Mat1b image = cv::imread(
-        "/home/ljn/voronoi_update/cw_project/ivrc_ws/src/planning/state_sampling/obstacle_for_benchmark.png",
+        "/home/ljn/voronoi_update/cw_project/ivrc_ws/src/planning/state_sampling/obstacles_for_benchmark.png",
         cv::IMREAD_GRAYSCALE);
     hmpl::InternalGridMap in_gm;
     in_gm.initializeFromImage(image, 0.2, grid_map::Position::Zero());
