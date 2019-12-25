@@ -123,7 +123,6 @@ bool PathOptimizer::samplePaths(const std::vector<double> &lon_set,
 }
 
 bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
-    auto start_t = std::clock();
     if (smoothed_max_s == 0) {
         LOG(INFO) << "Smoothed path is empty!";
         return false;
@@ -145,7 +144,6 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
         LOG(WARNING) << "initial epsi is larger than 90°, quit mpc path optimization!";
         return false;
     }
-    auto divide_t = std::clock();
     // Divide the reference path. Intervals are smaller at the beginning.
     double delta_s_smaller = 0.5;
     double delta_s_larger = 1.0;
@@ -180,7 +178,6 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
         seg_k_list_.push_back(tmp_k);
     }
 
-    auto clear_t = std::clock();
     // Get clearance of covering circles.
     for (size_t i = 0; i != N_; ++i) {
         hmpl::State center_state;
@@ -217,18 +214,7 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
         }
         seg_clearance_list_.push_back(clearance);
     }
-    auto end_t = std::clock();
-//    printf("**********\n"
-//           "divide phase time:\n"
-//           "init: %f\n"
-//           "divide: %f\n"
-//           "clear: %f\n"
-//           "all: %f\n"
-//           "**********\n",
-//           (double) (divide_t - start_t) / CLOCKS_PER_SEC,
-//           (double) (clear_t - divide_t) / CLOCKS_PER_SEC,
-//           (double) (end_t - clear_t) / CLOCKS_PER_SEC,
-//           (double) (end_t - start_t) / CLOCKS_PER_SEC);
+    return true;
 }
 
 bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
@@ -626,202 +612,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         LOG(INFO) << "path optimization input is empty!";
         return false;
     }
-
-//    /// If the start state is too close to the obstacle (less than the radius of the circles covering the vehicle,
-//    /// for example), the optimization might fail. This section does control sampling under this condition.
-//    /// No need to understand the code.
-//    std::vector<hmpl::State> best_path;
-//    double min_distance_for_best_path = 0;
-//    size_t min_index_for_best_path = 0;
-//    grid_map::Position start_position(start_state_.x, start_state_.y);
-//    double start_ref_angle = hmpl::angle(points_list_[0], points_list_[1]);
-//    double start_angle_diff = fabs(constraintAngle(start_state_.z - start_ref_angle));
-//    if (enable_control_sampling
-//        && (grid_map_.getObstacleDistance(start_position) < circle_r || start_angle_diff > 60 * M_PI / 180)) {
-//        printf("start point is close to obstacle, control sampling first!\n");
-//        if (start_state_.k < -MAX_CURVATURE || start_state_.k > MAX_CURVATURE) goto normal_procedure;
-//        double dk = -0.1;
-//        while (dk <= 0.1) {
-//            double max_ds = 10.0;
-//            double max_turn_ds = 0;
-//            if (dk < 0) {
-//                max_turn_ds = (start_state_.k + MAX_CURVATURE) / fabs(dk);
-//            } else if (dk > 0) {
-//                max_turn_ds = (MAX_CURVATURE - start_state_.k) / fabs(dk);
-//            } else {
-//                max_turn_ds = 1;
-//            }
-//            G2lib::ClothoidCurve curve;
-//            curve.build(start_state_.x, start_state_.y, start_state_.z, start_state_.k, dk, max_turn_ds);
-//            hmpl::State turn_curve_end;
-//            curve.evaluate(max_turn_ds, turn_curve_end.z, turn_curve_end.k, turn_curve_end.x, turn_curve_end.y);
-//            G2lib::ClothoidCurve curve_keep;
-//            curve_keep.build(turn_curve_end.x,
-//                             turn_curve_end.y,
-//                             turn_curve_end.z,
-//                             turn_curve_end.k,
-//                             0,
-//                             std::max(4.0, max_ds - max_turn_ds));
-//            double sampling_length = 2;
-//            while (sampling_length <= max_ds) {
-//                hmpl::State tmp_state;
-//                double delta_s = 0.4;
-//                std::vector<hmpl::State> sampling_result;
-//                for (size_t i = 0; i * delta_s < sampling_length; ++i) {
-//                    if (i * delta_s < max_turn_ds) {
-//                        curve.evaluate(i * delta_s, tmp_state.z, tmp_state.k, tmp_state.x, tmp_state.y);
-//                    } else {
-//                        curve_keep.evaluate(i * delta_s - max_turn_ds,
-//                                            tmp_state.z,
-//                                            tmp_state.k,
-//                                            tmp_state.x,
-//                                            tmp_state.y);
-//                    }
-//                    if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
-//                        sampling_result.push_back(tmp_state);
-//                    } else {
-//                        failed_sampling_path_set_.push_back(sampling_result);
-//                        goto try_new_dk;
-//                    }
-//                }
-//                control_sampling_path_set_.push_back(sampling_result);
-//                sampling_length += 1;
-//            }
-//            try_new_dk :
-//            dk += 0.025;
-//        }
-//        printf("control sampling get %d paths\n", control_sampling_path_set_.size());
-//        if (!control_sampling_path_set_.empty()) {
-////            std::vector<double> path_scoring;
-//            auto min_score = DBL_MAX;
-//            for (size_t i = 0; i != control_sampling_path_set_.size(); ++i) {
-//                const auto &last_state = control_sampling_path_set_[i].back();
-//                size_t min_index = 0;
-//                auto min_distance = DBL_MAX;
-//                for (size_t i = 0; i != point_num_; ++i) {
-//                    double tmp_distance = hmpl::distance(last_state, points_list_[i]);
-//                    if (tmp_distance < min_distance) {
-//                        min_distance = tmp_distance;
-//                        min_index = i;
-//                    } else if (tmp_distance > 15 && min_distance < 15) {
-//                        break;
-//                    }
-//                }
-//                double ref_angle = hmpl::angle(points_list_[min_index], points_list_[min_index + 1]);
-//                double angle_diff = fabs(constraintAngle(ref_angle - last_state.z));
-//                if (fabs(angle_diff) > 45) continue;
-//                grid_map::Position sampling_end_position(last_state.x, last_state.y);
-//                double sampling_end_clearance = grid_map_.getObstacleDistance(sampling_end_position);
-//                // TODO: path choosing strategy should be improved!
-//                double score = 5 * angle_diff + min_distance + 7 / sampling_end_clearance;
-//                if (score < min_score) {
-//                    best_sampling_index_ = i;
-//                    min_distance_for_best_path = min_distance;
-//                    min_index_for_best_path = min_index;
-//                    min_score = score;
-//                }
-//            }
-//            control_sampling_first_flag_ = true;
-//            best_path.clear();
-//            for (const auto &state : control_sampling_path_set_[best_sampling_index_]) {
-//                best_path.push_back(state);
-//            }
-//            start_state_ = best_path.back();
-//            printf("control sampling before path optimization succeeded!\n");
-//        } else {
-//            control_sampling_first_flag_ = false;
-//            printf("empty path set\n");
-//        }
-//    }
-
-//    double cte = 0;  // lateral error
-//    double epsi = 0; // navigable error
-//    hmpl::State first_point;
-//    first_point.x = smoothed_x_spline(0);
-//    first_point.y = smoothed_y_spline(0);
-//    first_point.z = atan2(smoothed_y_spline.deriv(1, 0), smoothed_x_spline.deriv(1, 0));
-//    auto first_point_local = hmpl::globalToLocal(start_state_, first_point);
-//    double min_distance = hmpl::distance(start_state_, first_point);
-//    if (first_point_local.y < 0) {
-//        cte = min_distance;
-//    } else {
-//        cte = -min_distance;
-//    }
-//    epsi = constraintAngle(start_state_.z - first_point.z);
-//
-//    // If the start heading differs a lot with the ref path, quit.
-//    if (fabs(epsi) > 75 * M_PI / 180) {
-//        LOG(WARNING) << "initial epsi is larger than 90°, quit mpc path optimization!";
-//        return false;
-//    }
-//    // Divid the reference path. Intervals are smaller at the beginning.
-//    double delta_s_smaller = 0.5;
-//    double delta_s_larger = 1.0;
-//    if (fabs(epsi) < 20 * M_PI / 180) delta_s_smaller = delta_s_larger;
-//    double tmp_max_s = delta_s_smaller;
-//    seg_s_list_.push_back(0);
-//    while (tmp_max_s < smoothed_max_s) {
-//        seg_s_list_.push_back(tmp_max_s);
-//        if (tmp_max_s <= 2) {
-//            tmp_max_s += delta_s_smaller;
-//        } else {
-//            tmp_max_s += delta_s_larger;
-//        }
-//    }
-//    if (smoothed_max_s - seg_s_list_.back() > 1) {
-//        seg_s_list_.push_back(smoothed_max_s);
-//    }
-//    auto N = seg_s_list_.size();
-//    auto original_N = N;
-//
-//    // Store reference states in vectors. They will be used later.
-//    for (size_t i = 0; i != N; ++i) {
-//        double length_on_ref_path = seg_s_list_[i];
-//        seg_x_list_.push_back(smoothed_x_spline(length_on_ref_path));
-//        seg_y_list_.push_back(smoothed_y_spline(length_on_ref_path));
-//        double x_d1 = smoothed_x_spline.deriv(1, length_on_ref_path);
-//        double y_d1 = smoothed_y_spline.deriv(1, length_on_ref_path);
-//        double x_d2 = smoothed_x_spline.deriv(2, length_on_ref_path);
-//        double y_d2 = smoothed_y_spline.deriv(2, length_on_ref_path);
-//        double tmp_h = atan2(y_d1, x_d1);
-//        double tmp_k = (x_d1 * y_d2 - y_d1 * x_d2) / pow(pow(x_d1, 2) + pow(y_d1, 2), 1.5);
-//        seg_angle_list_.push_back(tmp_h);
-//        seg_k_list_.push_back(tmp_k);
-//    }
-//
-//    // Get clearance of covering circles.
-//    for (size_t i = 0; i != N; ++i) {
-//        hmpl::State center_state;
-//        center_state.x = seg_x_list_[i];
-//        center_state.y = seg_y_list_[i];
-//        center_state.s = seg_s_list_[i];
-//        center_state.z = seg_angle_list_[i];
-//        // Function getClearance uses the center position as input.
-//        if (car_type == ACKERMANN_STEERING) {
-//            center_state.x += rear_axle_to_center_dis * cos(center_state.z);
-//            center_state.y += rear_axle_to_center_dis * sin(center_state.z);
-//        }
-//        std::vector<double> clearance;
-//        bool safety_margin_flag;
-//        if (seg_s_list_[i] < 10) safety_margin_flag = false;
-//        else safety_margin_flag = true;
-//        clearance = getClearanceFor4Circles(center_state, car_geo_, safety_margin_flag);
-//        if ((clearance[0] == clearance[1] || clearance[2] == clearance[3] || clearance[4] == clearance[5]
-//            || clearance[6] == clearance[7])
-//            && center_state.s > 0.75 * smoothed_max_s) {
-//            printf("some states near end are not satisfying\n");
-//            N = i;
-//            seg_x_list_.erase(seg_x_list_.begin() + i, seg_x_list_.end());
-//            seg_y_list_.erase(seg_y_list_.begin() + i, seg_y_list_.end());
-//            seg_s_list_.erase(seg_s_list_.begin() + i, seg_s_list_.end());
-//            seg_k_list_.erase(seg_k_list_.begin() + i, seg_k_list_.end());
-//            seg_angle_list_.erase(seg_angle_list_.begin() + i, seg_angle_list_.end());
-//            break;
-//        }
-//        seg_clearance_list_.push_back(clearance);
-//    }
     auto po_pre = std::clock();
-
     // OSQP:
     OsqpEigen::Solver solver;
     solver.settings()->setVerbosity(false);
@@ -852,13 +643,6 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
                         end_state_.z,
                         constriant_end_psi);
     auto po_osqp_pre = std::clock();
-//    std::streamsize prec = std::cout.precision();
-//    std::cout << std::setprecision(4);
-//    std::cout << "hessian:\n " << hessian << std::endl;
-//    std::cout << "constraints:\n " << linearMatrix << std::endl;
-//    std::cout << "lb:\n " << lowerBound << std::endl;
-//    std::cout << "ub:\n " << upperBound << std::endl;
-//    std::cout << std::setprecision(prec);
     // Input to solver.
     if (!solver.data()->setHessianMatrix(hessian)) return false;
     if (!solver.data()->setGradient(gradient)) return false;
@@ -1007,15 +791,6 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
 
     std::vector<double> result_x, result_y, result_s;
     double total_s = 0;
-//    if (control_sampling_first_flag_) {
-//        for (size_t i = 0; i != best_path.size() - 1; ++i) {
-//            result_x.push_back(best_path[i].x);
-//            result_y.push_back(best_path[i].y);
-//            if (i != 0) total_s += hmpl::distance(best_path[i], best_path[i - 1]);
-//            result_s.push_back(total_s);
-//        }
-//        total_s += hmpl::distance(best_path.back(), best_path[best_path.size() - 2]);
-//    }
     double last_x, last_y;
     std::vector<hmpl::State> tmp_raw_path;
     for (size_t i = 0; i != N_; ++i) {
@@ -1047,14 +822,14 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
                 printf("path optimization collision check failed at %d\n", i);
                 double psi = QPSolution(2 * i);
                 double pq = QPSolution(2 * i + 1);
-                printf("c1| lb: %f, ub: %f, result: %f\n"
-                       "c2| lb: %f, ub: %f, result: %f\n"
-                       "c3| lb: %f, ub: %f, result: %f\n"
-                       "c4| lb: %f, ub: %f, result: %f\n",
-                       seg_clearance_list_[i][1], seg_clearance_list_[i][0], (car_geo_[0] + car_geo_[5]) * psi + pq,
-                       seg_clearance_list_[i][3], seg_clearance_list_[i][2], (car_geo_[1] + car_geo_[5]) * psi + pq,
-                       seg_clearance_list_[i][5], seg_clearance_list_[i][4], (car_geo_[2] + car_geo_[5]) * psi + pq,
-                       seg_clearance_list_[i][7], seg_clearance_list_[i][6], (car_geo_[3] + car_geo_[5]) * psi + pq);
+//                printf("c1| lb: %f, ub: %f, result: %f\n"
+//                       "c2| lb: %f, ub: %f, result: %f\n"
+//                       "c3| lb: %f, ub: %f, result: %f\n"
+//                       "c4| lb: %f, ub: %f, result: %f\n",
+//                       seg_clearance_list_[i][1], seg_clearance_list_[i][0], (car_geo_[0] + car_geo_[5]) * psi + pq,
+//                       seg_clearance_list_[i][3], seg_clearance_list_[i][2], (car_geo_[1] + car_geo_[5]) * psi + pq,
+//                       seg_clearance_list_[i][5], seg_clearance_list_[i][4], (car_geo_[2] + car_geo_[5]) * psi + pq,
+//                       seg_clearance_list_[i][7], seg_clearance_list_[i][6], (car_geo_[3] + car_geo_[5]) * psi + pq);
                 break;
             }
         }
@@ -1223,125 +998,106 @@ bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
 
 }
 
-double PathOptimizer::getClearanceWithDirectionStrict(hmpl::State state, double angle, double radius) {
-    double s = 0;
-    double delta_s = 0.1;
-    size_t n = 5.0 / delta_s;
-    for (size_t i = 0; i != n; ++i) {
-        s += delta_s;
-        double x = state.x + s * cos(angle);
-        double y = state.y + s * sin(angle);
-        grid_map::Position new_position(x, y);
-        double clearance = grid_map_.getObstacleDistance(new_position);
-        if (clearance <= radius) {
-            return s - delta_s;
-        }
-    }
-    return s;
-}
-
 std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State state,
                                                                    double radius,
                                                                    bool safety_margin_flag) {
     double left_bound = 0;
     double right_bound = 0;
-    double left_s = 0;
     double delta_s = 0.2;
     double left_angle = constraintAngle(state.z + M_PI_2);
     double right_angle = constraintAngle(state.z - M_PI_2);
-    size_t n = 5.0 / delta_s;
-    for (size_t i = 0; i != n; ++i) {
-        left_s += delta_s;
-        double x = state.x + left_s * cos(left_angle);
-        double y = state.y + left_s * sin(left_angle);
-        grid_map::Position new_position(x, y);
-        double clearance = grid_map_.getObstacleDistance(new_position);
-        if (clearance <= radius && i != 0) {
+    size_t n = static_cast<size_t >(5.0 / delta_s);
+    // Check if the original position is collision free.
+    grid_map::Position original_position(state.x, state.y);
+    auto original_clearance = grid_map_.getObstacleDistance(original_position);
+    if (original_clearance > radius) {
+        // Normal case:
+        double right_s = 0;
+        for (size_t j = 0; j != n; ++j) {
+            right_s += delta_s;
+            double x = state.x + right_s * cos(right_angle);
+            double y = state.y + right_s * sin(right_angle);
+            grid_map::Position new_position(x, y);
+            double clearance = grid_map_.getObstacleDistance(new_position);
+            if (clearance < radius) {
+                break;
+            }
+        }
+        double left_s = 0;
+        for (size_t j = 0; j != n; ++j) {
+            left_s += delta_s;
+            double x = state.x + left_s * cos(left_angle);
+            double y = state.y + left_s * sin(left_angle);
+            grid_map::Position new_position(x, y);
+            double clearance = grid_map_.getObstacleDistance(new_position);
+            if (clearance < radius) {
+                break;
+            }
+        }
+        right_bound = -(right_s - delta_s);
+        left_bound = left_s - delta_s;
+    } else {
+        // Collision already; pick one side to expand:
+        double right_s = 0;
+        for (size_t j = 0; j != n / 2; ++j) {
+            right_s += delta_s;
+            double x = state.x + right_s * cos(right_angle);
+            double y = state.y + right_s * sin(right_angle);
+            grid_map::Position new_position(x, y);
+            double clearance = grid_map_.getObstacleDistance(new_position);
+            if (clearance > radius) {
+                break;
+            }
+        }
+        double left_s = 0;
+        for (size_t j = 0; j != n / 2; ++j) {
+            left_s += delta_s;
+            double x = state.x + left_s * cos(left_angle);
+            double y = state.y + left_s * sin(left_angle);
+            grid_map::Position new_position(x, y);
+            double clearance = grid_map_.getObstacleDistance(new_position);
+            if (clearance > radius) {
+                break;
+            }
+        }
+        // Compare
+        if (left_s < right_s) {
+            // Pick left side:
+            right_bound = left_s;
+            for (size_t j = 0; j != n; ++j) {
+                left_s += delta_s;
+                double x = state.x + left_s * cos(left_angle);
+                double y = state.y + left_s * sin(left_angle);
+                grid_map::Position new_position(x, y);
+                double clearance = grid_map_.getObstacleDistance(new_position);
+                if (clearance < radius) {
+                    break;
+                }
+            }
             left_bound = left_s - delta_s;
-            break;
-        } else if (clearance <= radius && i == 0) {
-            double right_s = 0;
-            for (size_t j = 0; j != n / 2; ++j) {
+        } else {
+            // Pick right side:
+            left_bound = -right_s;
+            for (size_t j = 0; j != n; ++j) {
                 right_s += delta_s;
                 double x = state.x + right_s * cos(right_angle);
                 double y = state.y + right_s * sin(right_angle);
                 grid_map::Position new_position(x, y);
                 double clearance = grid_map_.getObstacleDistance(new_position);
-                if (clearance > radius) {
-                    left_bound = -right_s;
+                if (clearance < radius) {
                     break;
-                } else if (j == n / 2 - 1) {
-                    double tmp_s = 0;
-                    for (size_t k = 0; k != n; ++k) {
-                        tmp_s += delta_s;
-                        double x = state.x + tmp_s * cos(left_angle);
-                        double y = state.y + tmp_s * sin(left_angle);
-                        grid_map::Position new_position(x, y);
-                        double clearance = grid_map_.getObstacleDistance(new_position);
-                        if (clearance > radius) {
-                            right_bound = tmp_s;
-                            break;
-                        } else if (k == n - 1) {
-                            std::vector<double> failed_result{0, 0};
-//                            printf("get a failure\n");
-                            return failed_result;
-                        }
-                    }
-//                    printf("tmp_s: %f\n", tmp_s);
-                    for (size_t k = 0; k != n; ++k) {
-                        tmp_s += delta_s;
-                        double x = state.x + tmp_s * cos(left_angle);
-                        double y = state.y + tmp_s * sin(left_angle);
-                        grid_map::Position new_position(x, y);
-                        double clearance = grid_map_.getObstacleDistance(new_position);
-//                        printf("new tmp_s: %f\n", tmp_s);
-                        if (clearance <= radius) {
-                            left_bound = tmp_s - delta_s;
-                            break;
-                        } else if (k == n - 1) {
-                            left_bound = tmp_s;
-                        }
-                    }
-//                    printf("get range: %f to %f \n", left_bound, right_bound);
-                    std::vector<double> result{left_bound, right_bound};
-                    return result;
                 }
             }
-            break;
-        } else if (i == n - 1) {
-            left_bound = left_s;
-        }
-    }
-    if (left_bound > 0) n *= 2;
-    double right_s = -left_bound;
-    for (size_t i = 0; i != n; ++i) {
-        right_s += delta_s;
-        double x = state.x + right_s * cos(right_angle);
-        double y = state.y + right_s * sin(right_angle);
-        grid_map::Position new_position(x, y);
-        double clearance = grid_map_.getObstacleDistance(new_position);
-        if (clearance <= radius) {
             right_bound = -(right_s - delta_s);
-            break;
-        } else if (i == n - 1) {
-            right_bound = -right_s;
         }
     }
     double base = std::max(left_bound - right_bound - 0.6, 0.0);
     if (safety_margin_flag) {
         double safety_margin = std::min(base * 0.24, 0.85);
-//        printf("safety margin: %f; bounds: %f, %f\n", safety_margin, left_bound - safety_margin, right_bound + safety_margin);
         left_bound -= safety_margin;
         right_bound += safety_margin;
     }
-//    else {
-//        double safety_margin = std::min(base * 0.1, 0.2);
-////        printf("safety margin: %f; bounds: %f, %f\n", safety_margin, left_bound - safety_margin, right_bound + safety_margin);
-//        left_bound -= safety_margin;
-//        right_bound += safety_margin;
-//    }
     std::vector<double> result{left_bound, right_bound};
-//    printf("get range: %f to %f \n", left_bound, right_bound);
     return result;
 }
 
@@ -1417,170 +1173,6 @@ std::vector<double> PathOptimizer::getClearanceFor4Circles(const hmpl::State &st
     front_bounds_.push_back(front_bound_r);
     return result;
 
-}
-
-//double PathOptimizer::getClearanceWithDirection(const hmpl::State &state,
-//                                                double angle,
-//                                                const std::vector<double> &car_geometry) {
-//    double s = 0;
-//    double delta_s = 0.1;
-//    size_t n = 5.0 / delta_s;
-//    for (size_t i = 0; i != n; ++i) {
-//        s += delta_s;
-//        double x = state.x + s * cos(angle);
-//        double y = state.y + s * sin(angle);
-//        double rear_x = x - car_geometry[0] * cos(state.z);
-//        double rear_y = y - car_geometry[0] * sin(state.z);
-//        double front_x = x + car_geometry[1] * cos(state.z);
-//        double front_y = y + car_geometry[1] * sin(state.z);
-//        grid_map::Position new_position(x, y);
-//        grid_map::Position new_rear_position(rear_x, rear_y);
-//        grid_map::Position new_front_position(front_x, front_y);
-//        if (grid_map_.maps.isInside(new_position) && grid_map_.maps.isInside(new_rear_position)
-//            && grid_map_.maps.isInside(new_front_position)) {
-//            double new_rear_clearance = grid_map_.getObstacleDistance(new_rear_position);
-//            double new_front_clearance = grid_map_.getObstacleDistance(new_front_position);
-//            double new_middle_clearance = grid_map_.getObstacleDistance(new_position);
-//            if (std::min(new_rear_clearance, new_front_clearance) < car_geometry[2]
-//                || new_middle_clearance < car_geometry[3]) {
-//                return s - delta_s;
-//            }
-//        } else {
-//            return s - delta_s;
-//        }
-//    }
-//    return s;
-//}
-
-//std::vector<double> PathOptimizer::getClearance(hmpl::State state,
-//                                                double ref_angle,
-//                                                const std::vector<double> &car_geometry) {
-//    // Check if the current state has collision.
-//    double rear_center_distance = car_geometry[0];
-//    double front_center_distance = car_geometry[1];
-//    double rear_front_radius = car_geometry[2];
-//    double middle_radius = car_geometry[3];
-//    // Calculate the position of the rear center, middle center and front center on current state.
-//    grid_map::Position
-//        rear_position(state.x - rear_center_distance * cos(state.z), state.y - rear_center_distance * sin(state.z));
-//    grid_map::Position
-//        middle_position(state.x, state.y);
-//    grid_map::Position
-//        front_position(state.x + front_center_distance * cos(state.z), state.y + front_center_distance * sin(state.z));
-//    double rear_clearance = grid_map_.getObstacleDistance(rear_position);
-//    double front_clearance = grid_map_.getObstacleDistance(front_position);
-//    double middle_clearance = grid_map_.getObstacleDistance(middle_position);
-//    // If the current state is collision free, then expand to left and right.
-//    if (std::min(rear_clearance, front_clearance) > rear_front_radius && middle_clearance > middle_radius) {
-//        double left_clearance = getClearanceWithDirection(state, constraintAngle(ref_angle + M_PI_2), car_geometry);
-//        double right_clearance = -getClearanceWithDirection(state, constraintAngle(ref_angle - M_PI_2), car_geometry);
-//        std::vector<double> clearance{left_clearance, right_clearance};
-//        return clearance;
-//    } else {
-//        // If the current state has collision, then search to left OR right until find a clear range.
-//        double left_limit, right_limit;
-//        bool left_exploration_succeed_flag = false;
-//        bool right_exploration_succeed_flag = false;
-//        // explore left:
-//        double s = 0;
-//        double delta_s = 0.1;
-//        size_t n = 5.0 / delta_s;
-//        for (size_t i = 0; i != n; ++i) {
-//            s += delta_s;
-//            double x = state.x + s * cos(constraintAngle(ref_angle + M_PI_2));
-//            double y = state.y + s * sin(constraintAngle(ref_angle + M_PI_2));
-//            double rear_x = x - rear_center_distance * cos(state.z);
-//            double rear_y = y - rear_center_distance * sin(state.z);
-//            double front_x = x + front_center_distance * cos(state.z);
-//            double front_y = y + front_center_distance * sin(state.z);
-//            grid_map::Position new_position(x, y);
-//            grid_map::Position new_rear_position(rear_x, rear_y);
-//            grid_map::Position new_front_position(front_x, front_y);
-//            // Search to left until a clear position is found, then continue searching to left until
-//            // a collision position is found.
-//            if (grid_map_.maps.isInside(new_position) && grid_map_.maps.isInside(new_rear_position)
-//                && grid_map_.maps.isInside(new_front_position)) {
-//                double new_rear_clearance = grid_map_.getObstacleDistance(new_rear_position);
-//                double new_front_clearance = grid_map_.getObstacleDistance(new_front_position);
-//                double new_middle_clearance = grid_map_.getObstacleDistance(new_position);
-//                if (std::min(new_rear_clearance, new_front_clearance) > rear_front_radius
-//                    && new_middle_clearance > middle_radius) {
-//                    left_exploration_succeed_flag = true;
-//                    right_limit = s;
-//                    hmpl::State new_state;
-//                    new_state.x = x;
-//                    new_state.y = y;
-//                    new_state.z = state.z;
-//                    left_limit = right_limit
-//                        + getClearanceWithDirection(new_state, constraintAngle(ref_angle + M_PI_2), car_geometry);
-//                    break;
-//                }
-//            }
-//        }
-//        if (!left_exploration_succeed_flag) {
-//            // explore right:
-//            double s = 0;
-//            double delta_s = 0.1;
-//            size_t n = 5.0 / delta_s;
-//            for (size_t i = 0; i != n; ++i) {
-//                s += delta_s;
-//                double x = state.x + s * cos(constraintAngle(ref_angle - M_PI_2));
-//                double y = state.y + s * sin(constraintAngle(ref_angle - M_PI_2));
-//                double rear_x = x - rear_center_distance * cos(state.z);
-//                double rear_y = y - rear_center_distance * sin(state.z);
-//                double front_x = x + front_center_distance * cos(state.z);
-//                double front_y = y + front_center_distance * sin(state.z);
-//                grid_map::Position new_position(x, y);
-//                grid_map::Position new_rear_position(rear_x, rear_y);
-//                grid_map::Position new_front_position(front_x, front_y);
-//                if (grid_map_.maps.isInside(new_position) && grid_map_.maps.isInside(new_rear_position)
-//                    && grid_map_.maps.isInside(new_front_position)) {
-//                    double new_rear_clearance = grid_map_.getObstacleDistance(new_rear_position);
-//                    double new_front_clearance = grid_map_.getObstacleDistance(new_front_position);
-//                    double new_middle_clearance = grid_map_.getObstacleDistance(new_position);
-//                    if (std::min(new_rear_clearance, new_front_clearance) > rear_front_radius
-//                        && new_middle_clearance > middle_radius) {
-//                        right_exploration_succeed_flag = true;
-//                        left_limit = -s;
-//                        hmpl::State new_state;
-//                        new_state.x = x;
-//                        new_state.y = y;
-//                        new_state.z = state.z;
-//                        right_limit = left_limit
-//                            - getClearanceWithDirection(new_state, constraintAngle(ref_angle - M_PI_2), car_geometry);
-//                        break;
-//                    }
-//
-//                }
-//            }
-//        }
-//        if (left_exploration_succeed_flag || right_exploration_succeed_flag) {
-//            return std::vector<double>{left_limit, right_limit};
-//        } else {
-//            return std::vector<double>{0, 0};
-//        }
-//    }
-//}
-
-double PathOptimizer::getClearanceWithDirection(const hmpl::State &state, double angle) {
-    double s = 0;
-    double delta_s = 0.1;
-    size_t n = 5.0 / delta_s;
-    for (size_t i = 0; i != n; ++i) {
-        s += delta_s;
-        double x = state.x + s * cos(angle);
-        double y = state.y + s * sin(angle);
-        grid_map::Position new_position(x, y);
-        if (grid_map_.maps.isInside(new_position)) {
-            if (grid_map_.maps.atPosition("obstacle", new_position) == 0) {
-//            if (grid_map_.getObstacleDistance(new_position) <= 1.45) {
-                return s - delta_s;
-            }
-        } else {
-            return s - delta_s;
-        }
-    }
-    return s;
 }
 
 double PathOptimizer::getPointCurvature(const double &x1,
