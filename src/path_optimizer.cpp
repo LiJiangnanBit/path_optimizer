@@ -9,7 +9,7 @@ PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
                              const hmpl::State &start_state,
                              const hmpl::State &end_state,
                              const hmpl::InternalGridMap &map,
-                             bool dnesify_path) :
+                             bool  dnesify_path) :
     grid_map_(map),
     collision_checker_(map),
     points_list_(points_list),
@@ -146,7 +146,9 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
     }
     // Divide the reference path. Intervals are smaller at the beginning.
     double delta_s_smaller = 0.5;
-    double delta_s_larger = 1.0;
+    // If we want to make the result path dense later, the interval here is 1.0m.
+    // If we want to output the result directly, the interval is smaller.
+    double delta_s_larger = densify_result ? 1.0 : 0.5;
     if (fabs(epsi_) < 20 * M_PI / 180) delta_s_smaller = delta_s_larger;
     double tmp_max_s = delta_s_smaller;
     seg_s_list_.push_back(0);
@@ -843,6 +845,11 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         last_x = tmp_x;
         last_y = tmp_y;
     }
+    if (!densify_result) {
+        std::copy(tmp_raw_path.begin(), tmp_raw_path.end(), std::back_inserter(*final_path));
+        LOG(INFO) << "output raw path!";
+        return true;
+    }
     tk::spline x_s, y_s;
     x_s.set_points(result_s, result_x);
     y_s.set_points(result_s, result_y);
@@ -872,11 +879,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         (double) (po_osqp_solve - po_osqp_pre) / CLOCKS_PER_SEC,
         (double) (po_interpolation - po_osqp_solve) / CLOCKS_PER_SEC);
     final_path->clear();
-    if (densify_result) {
-        std::copy(tmp_final_path.begin(), tmp_final_path.end(), std::back_inserter(*final_path));
-    } else {
-        std::copy(tmp_raw_path.begin(), tmp_raw_path.end(), std::back_inserter(*final_path));
-    }
+    std::copy(tmp_final_path.begin(), tmp_final_path.end(), std::back_inserter(*final_path));
     return true;
 }
 bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
