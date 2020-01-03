@@ -438,9 +438,11 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
     double max_curvature_change_abs;
     getCurvature(x_list_, y_list_, &k_list_, &max_curvature_abs, &max_curvature_change_abs);
     k_spline_.set_points(s_list_, k_list_);
-    // Divid the reference path. Intervals are smaller at the beginning.
+    // Divid the reference path.
+    double delta_beginning_s = 4;
     double delta_s = 2;
     seg_s_list_.push_back(0);
+    seg_s_list_.push_back(delta_beginning_s);
     while (seg_s_list_.back() < max_s) {
         seg_s_list_.push_back(seg_s_list_.back() + delta_s);
     }
