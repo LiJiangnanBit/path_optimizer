@@ -542,7 +542,7 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
         offset_result.push_back(v);
     }
     size_t control_points_num = N;
-    tinyspline::BSpline b_spline(control_points_num);
+    tinyspline::BSpline b_spline(control_points_num, 2, 5);
     std::vector<tinyspline::real> ctrlp = b_spline.controlPoints();
     smoothed_path_.clear();
     for (size_t i = 0; i != N; ++i) {
