@@ -9,7 +9,7 @@ PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
                              const hmpl::State &start_state,
                              const hmpl::State &end_state,
                              const hmpl::InternalGridMap &map,
-                             bool  dnesify_path) :
+                             bool dnesify_path) :
     grid_map_(map),
     collision_checker_(map),
     points_list_(points_list),
@@ -304,7 +304,7 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
     else reduced_range = 0;
     double interval = 0.3;
     std::vector<double> offset_set;
-    for(size_t i = 0; i * interval <= range - 2 * reduced_range; ++i) {
+    for (size_t i = 0; i * interval <= range - 2 * reduced_range; ++i) {
         offset_set.push_back(right_bound + reduced_range + i * interval);
     }
     offset_set.push_back(0);
@@ -439,10 +439,9 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
     getCurvature(x_list_, y_list_, &k_list_, &max_curvature_abs, &max_curvature_change_abs);
     k_spline_.set_points(s_list_, k_list_);
     // Divid the reference path.
-    double delta_beginning_s = 4;
-    double delta_s = 2;
+    double delta_s = 0.5;
     seg_s_list_.push_back(0);
-    seg_s_list_.push_back(delta_beginning_s);
+    seg_s_list_.push_back(delta_s);
     while (seg_s_list_.back() < max_s) {
         seg_s_list_.push_back(seg_s_list_.back() + delta_s);
     }
@@ -463,10 +462,13 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
 
     auto sm_pre_solve = std::clock();
     typedef CPPAD_TESTVECTOR(double) Dvector;
-    size_t n_vars = N;
+    size_t n_vars = 2 * N;
+    const auto x_range_begin = 0;
+    const auto y_range_begin = x_range_begin + N;
     Dvector vars(n_vars);
-    for (size_t i = 0; i < n_vars; i++) {
-        vars[i] = 0;
+    for (size_t i = 0; i < N; i++) {
+        vars[i + x_range_begin] = seg_x_list_[i];
+        vars[i + y_range_begin] = seg_y_list_[i];
     }
     // bounds of variables
     Dvector vars_lowerbound(n_vars);
@@ -476,18 +478,31 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
         vars_upperbound[i] = DBL_MAX;
     }
     // Start point is the start position of the vehicle.
-    vars_lowerbound[0] = 0;
-    vars_upperbound[0] = 0;
-//    double psi = start_state_.z - seg_angle_list_.front();
-//    if (fabs(psi) < 35 * M_PI / 180) {
-//        double pq1 = seg_s_list_[1] * tan(psi);
-//        vars_lowerbound[1] = pq1 - 0.05;
-//        vars_upperbound[1] = pq1 + 0.05;
-//    }
-    // Costraints inclued N - 2 curvatures and N - 2 shifts for front, center and rear circles each.
-    size_t n_constraints = 0;
+    vars_lowerbound[x_range_begin] = start_state_.x;
+    vars_upperbound[x_range_begin] = start_state_.x;
+    vars_lowerbound[y_range_begin] = start_state_.y;
+    vars_upperbound[y_range_begin] = start_state_.y;
+    // The second point is determined by the initial heading.
+    double second_x = start_state_.x + delta_s * cos(start_state_.z);
+    double second_y = start_state_.y + delta_s * sin(start_state_.z);
+    vars_lowerbound[x_range_begin + 1] = second_x;
+    vars_upperbound[x_range_begin + 1] = second_x;
+    vars_lowerbound[y_range_begin + 1] = second_y;
+    vars_upperbound[y_range_begin + 1] = second_y;
+    // Constraint the last point.
+    vars_lowerbound[x_range_begin + N - 1] = seg_x_list_.back();
+    vars_upperbound[x_range_begin + N - 1] = seg_x_list_.back();
+    vars_lowerbound[y_range_begin + N - 1] = seg_y_list_.back();
+    vars_upperbound[y_range_begin + N - 1] = seg_y_list_.back();
+    // Set constraints.
+    // Note that the constraint number should be N - 2.
+    size_t n_constraints = N - 2;
     Dvector constraints_lowerbound(n_constraints);
     Dvector constraints_upperbound(n_constraints);
+    for (int i = 0; i != n_constraints; ++i) {
+        constraints_lowerbound[i] = 0;
+        constraints_upperbound[i] = pow(4, 2);
+    }
     // options for IPOPT solver
     std::string options;
     // Uncomment this if you'd like more print information
@@ -501,7 +516,7 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
     options += "Sparse  true        reverse\n";
     // NOTE: Currently the solver has a maximum time limit of 0.1 seconds.
     // Change this as you see fit.
-    options += "Numeric max_cpu_time          0.1\n";
+    options += "Numeric max_cpu_time          1.0\n";
 
     // place to return solution
     CppAD::ipopt::solve_result<Dvector> solution;
@@ -513,18 +528,18 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
     weights.push_back(0.01); //distance to boundary weight
     weights.push_back(1); //path length weight
 
-    FgEvalFrenetSmooth fg_eval_frenet(seg_x_list_,
-                                      seg_y_list_,
-                                      seg_angle_list_,
-                                      seg_k_list_,
-                                      seg_s_list_,
-                                      N,
-                                      weights);
+    FgEvalReferenceSmoothing fg_eval_reference_smoothing(seg_x_list_,
+                                                         seg_y_list_,
+                                                         seg_angle_list_,
+                                                         seg_k_list_,
+                                                         seg_s_list_,
+                                                         N,
+                                                         weights);
     // solve the problem
-    CppAD::ipopt::solve<Dvector, FgEvalFrenetSmooth>(options, vars,
-                                                     vars_lowerbound, vars_upperbound,
-                                                     constraints_lowerbound, constraints_upperbound,
-                                                     fg_eval_frenet, solution);
+    CppAD::ipopt::solve<Dvector, FgEvalReferenceSmoothing>(options, vars,
+                                                           vars_lowerbound, vars_upperbound,
+                                                           constraints_lowerbound, constraints_upperbound,
+                                                           fg_eval_reference_smoothing, solution);
     // Check if it works
     bool ok = true;
     ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
@@ -535,22 +550,13 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
     }
     LOG(INFO) << "smoothing solver succeeded!";
     // output
-    std::vector<std::vector<double> > offset_result;
-    for (size_t i = 0; i != N; i++) {
-        double tmp[2] = {solution.x[i], double(i)};
-        std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
-        offset_result.push_back(v);
-    }
     size_t control_points_num = N;
-    tinyspline::BSpline b_spline(control_points_num, 2, 5);
+    tinyspline::BSpline b_spline(control_points_num, 2, 3);
     std::vector<tinyspline::real> ctrlp = b_spline.controlPoints();
     smoothed_path_.clear();
     for (size_t i = 0; i != N; ++i) {
-        double length_on_ref_path = seg_s_list_[i];
-        double angle = seg_angle_list_[i];
-        double new_angle = constraintAngle(angle + M_PI_2);
-        double tmp_x = x_spline_(length_on_ref_path) + offset_result[i][0] * cos(new_angle);
-        double tmp_y = y_spline_(length_on_ref_path) + offset_result[i][0] * sin(new_angle);
+        double tmp_x = solution.x[x_range_begin + i];
+        double tmp_y = solution.x[y_range_begin + i];
         if (std::isnan(tmp_x) || std::isnan(tmp_y)) {
             LOG(WARNING) << "output is not a number, smoothing failed!" << std::endl;
             return false;
@@ -582,9 +588,9 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
     y_set.push_back(result[1]);
     s_set.push_back(0);
     hmpl::State state;
-    state.x = result[0];
-    state.y = result[1];
-    smoothed_path_.push_back(state);
+//    state.x = result[0];
+//    state.y = result[1];
+//    smoothed_path_.push_back(state);
     for (size_t i = min_index_to_vehicle + 1; i <= 3 * N; ++i) {
         double t = i * step_t;
         result = b_spline.eval(t).result();
@@ -594,14 +600,23 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
         s_set.push_back(s_set.back() + ds);
         state.x = result[0];
         state.y = result[1];
-        smoothed_path_.push_back(state);
+//        smoothed_path_.push_back(state);
     }
     x_s_out->set_points(s_set, x_set);
     y_s_out->set_points(s_set, y_set);
+    // Display smoothed reference path.
+    double display_smooth_s = 0;
+    while (display_smooth_s < s_set.back()) {
+        hmpl::State display_smooth_state;
+        display_smooth_state.x = (*x_s_out)(display_smooth_s);
+        display_smooth_state.y = (*y_s_out)(display_smooth_s);
+        smoothed_path_.emplace_back(display_smooth_state);
+        display_smooth_s += 0.3;
+    }
     *max_s_out = s_set.back();
     auto sm_end = std::clock();
     printf("*********\n"
-           "sm_pre: %f\n sm_solve: %f\n sm_after: %f\n sm_all: %f\n"
+           "reference path smoothing: %f\n solve: %f\n after solving: %f\n all: %f\n"
            "**********\n",
            (double) (sm_pre_solve - sm_start) / CLOCKS_PER_SEC,
            (double) (sm_solved - sm_pre_solve) / CLOCKS_PER_SEC,
@@ -618,6 +633,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     }
     auto po_pre = std::clock();
     // OSQP:
+    // TODO: write a wrapper!
     OsqpEigen::Solver solver;
     solver.settings()->setVerbosity(false);
     solver.settings()->setWarmStart(true);
@@ -891,7 +907,7 @@ bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
                                     std::vector<double> *s_list) {
     if (!solver_dynamic_initialized) {
         std::vector<double> x_set, y_set, s_set;
-        for (const auto & point : points_list_) {
+        for (const auto &point : points_list_) {
             x_set.push_back(point.x);
             y_set.push_back(point.y);
             s_set.push_back(point.s);

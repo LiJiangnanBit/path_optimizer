@@ -23,7 +23,7 @@
 #include "tinyspline_ros/tinysplinecpp.h"
 #include "spline.h"
 #include "FgEvalFrenet.hpp"
-#include "FgEvalFrenetSmooth.hpp"
+#include "FgEvalReferenceSmoothing.hpp"
 #include "collosion_checker.hpp"
 #include "OsqpEigen/OsqpEigen.h"
 #include <Eigen/Dense>

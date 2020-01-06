@@ -77,3 +77,6 @@ target_link_libraries(${PROJECT_NAME}_benchmark glog ${IPOPT_LIBRARIES} ${catkin
 
 add_executable(${PROJECT_NAME}_test src/test_eigen.cpp)
 target_link_libraries(${PROJECT_NAME}_test OsqpEigen::OsqpEigen osqp::osqp)
+
+add_executable(test_spline src/test_spline.cpp)
+target_link_libraries(test_spline ${catkin_LIBRARIES})
