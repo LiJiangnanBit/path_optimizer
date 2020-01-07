@@ -12,8 +12,6 @@ PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
                              bool dnesify_path) :
     grid_map_(map),
     collision_checker_(map),
-    points_list_(points_list),
-    point_num_(points_list.size()),
     start_state_(start_state),
     end_state_(end_state),
     car_type(ACKERMANN_STEERING),
@@ -23,6 +21,8 @@ PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
     control_sampling_first_flag_(false),
     enable_control_sampling(true),
     densify_result(dnesify_path),
+    points_list_(points_list),
+    point_num_(points_list.size()),
     solver_dynamic_initialized(false) {
     setCarGeometry();
 }
@@ -43,13 +43,13 @@ void PathOptimizer::setCarGeometry() {
     double d3 = 1.0 / 8.0 * car_length;
     double d4 = 3.0 / 8.0 * car_length;
     double safety_margin = 0.1;
-    car_geo_.push_back(d1);
-    car_geo_.push_back(d2);
-    car_geo_.push_back(d3);
-    car_geo_.push_back(d4);
-    car_geo_.push_back(circle_r + safety_margin);
-    car_geo_.push_back(rear_axle_to_center_dis);
-    car_geo_.push_back(wheel_base);
+    car_geo_.emplace_back(d1);
+    car_geo_.emplace_back(d2);
+    car_geo_.emplace_back(d3);
+    car_geo_.emplace_back(d4);
+    car_geo_.emplace_back(circle_r + safety_margin);
+    car_geo_.emplace_back(rear_axle_to_center_dis);
+    car_geo_.emplace_back(wheel_base);
 }
 
 bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
@@ -63,7 +63,6 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         return false;
     }
     auto t2 = std::clock();
-    reset();
     if (!divideSmoothedPath(true)) {
         printf("divide stage failed, quit path optimization.\n");
         return false;
@@ -84,19 +83,6 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     return ok;
 }
 
-void PathOptimizer::reset() {
-    x_list_.clear();
-    y_list_.clear();
-    s_list_.clear();
-    k_list_.clear();
-    seg_x_list_.clear();
-    seg_y_list_.clear();
-    seg_k_list_.clear();
-    seg_angle_list_.clear();
-    seg_s_list_.clear();
-    seg_clearance_list_.clear();
-}
-
 bool PathOptimizer::samplePaths(const std::vector<double> &lon_set,
                                 const std::vector<double> &lat_set,
                                 std::vector<std::vector<hmpl::State>> *final_path_set) {
@@ -108,7 +94,6 @@ bool PathOptimizer::samplePaths(const std::vector<double> &lon_set,
         printf("smoothing stage failed, quit path optimization.\n");
         return false;
     }
-    reset();
     if (!divideSmoothedPath(false)) {
         printf("divide path failed!\n");
         return false;
@@ -118,8 +103,7 @@ bool PathOptimizer::samplePaths(const std::vector<double> &lon_set,
         if (i == lon_set.size() - 1) max_lon_flag = true;
         if (!sampleSingleLongitudinalPaths(lon_set[i], lat_set, final_path_set, max_lon_flag)) continue;
     }
-    if (final_path_set->empty()) return false;
-    else return true;
+    return !final_path_set->empty();
 }
 
 bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
@@ -127,6 +111,7 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
         LOG(INFO) << "Smoothed path is empty!";
         return false;
     }
+    // Calculate the initial deviation and angle difference.
     hmpl::State first_point;
     first_point.x = smoothed_x_spline(0);
     first_point.y = smoothed_y_spline(0);
@@ -151,9 +136,9 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
     double delta_s_larger = densify_result ? 1.0 : 0.5;
     if (fabs(epsi_) < 20 * M_PI / 180) delta_s_smaller = delta_s_larger;
     double tmp_max_s = delta_s_smaller;
-    seg_s_list_.push_back(0);
+    seg_s_list_.emplace_back(0);
     while (tmp_max_s < smoothed_max_s) {
-        seg_s_list_.push_back(tmp_max_s);
+        seg_s_list_.emplace_back(tmp_max_s);
         if (tmp_max_s <= 2) {
             tmp_max_s += delta_s_smaller;
         } else {
@@ -161,23 +146,23 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
         }
     }
     if (smoothed_max_s - seg_s_list_.back() > 1) {
-        seg_s_list_.push_back(smoothed_max_s);
+        seg_s_list_.emplace_back(smoothed_max_s);
     }
     N_ = seg_s_list_.size();
 
     // Store reference states in vectors. They will be used later.
     for (size_t i = 0; i != N_; ++i) {
         double length_on_ref_path = seg_s_list_[i];
-        seg_x_list_.push_back(smoothed_x_spline(length_on_ref_path));
-        seg_y_list_.push_back(smoothed_y_spline(length_on_ref_path));
+        seg_x_list_.emplace_back(smoothed_x_spline(length_on_ref_path));
+        seg_y_list_.emplace_back(smoothed_y_spline(length_on_ref_path));
         double x_d1 = smoothed_x_spline.deriv(1, length_on_ref_path);
         double y_d1 = smoothed_y_spline.deriv(1, length_on_ref_path);
         double x_d2 = smoothed_x_spline.deriv(2, length_on_ref_path);
         double y_d2 = smoothed_y_spline.deriv(2, length_on_ref_path);
         double tmp_h = atan2(y_d1, x_d1);
         double tmp_k = (x_d1 * y_d2 - y_d1 * x_d2) / pow(pow(x_d1, 2) + pow(y_d1, 2), 1.5);
-        seg_angle_list_.push_back(tmp_h);
-        seg_k_list_.push_back(tmp_k);
+        seg_angle_list_.emplace_back(tmp_h);
+        seg_k_list_.emplace_back(tmp_k);
     }
 
     // Get clearance of covering circles.
@@ -193,13 +178,7 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
             center_state.y += rear_axle_to_center_dis * sin(center_state.z);
         }
         std::vector<double> clearance;
-        bool safety_margin_flag;
-        if (set_safety_margin) {
-            if (seg_s_list_[i] < 10) safety_margin_flag = false;
-            else safety_margin_flag = true;
-        } else {
-            safety_margin_flag = false;
-        }
+        bool safety_margin_flag = set_safety_margin && seg_s_list_[i] >= 10;
         clearance = getClearanceFor4Circles(center_state, car_geo_, safety_margin_flag);
         if ((clearance[0] == clearance[1] || clearance[2] == clearance[3] || clearance[4] == clearance[5]
             || clearance[6] == clearance[7])
@@ -214,7 +193,7 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
             seg_angle_list_.erase(seg_angle_list_.begin() + i, seg_angle_list_.end());
             break;
         }
-        seg_clearance_list_.push_back(clearance);
+        seg_clearance_list_.emplace_back(clearance);
     }
     return true;
 }
@@ -255,8 +234,8 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
     Eigen::VectorXd upperBound;
     setHessianMatrix(N, &hessian);
     std::vector<double> init_state;
-    init_state.push_back(epsi_);
-    init_state.push_back(cte_);
+    init_state.emplace_back(epsi_);
+    init_state.emplace_back(cte_);
     double end_angle;
 //    if (max_lon_flag && use_end_psi) {
 //        end_angle = end_state_.z;
@@ -305,9 +284,9 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
     double interval = 0.3;
     std::vector<double> offset_set;
     for (size_t i = 0; i * interval <= range - 2 * reduced_range; ++i) {
-        offset_set.push_back(right_bound + reduced_range + i * interval);
+        offset_set.emplace_back(right_bound + reduced_range + i * interval);
     }
-    offset_set.push_back(0);
+    offset_set.emplace_back(0);
 //    for (size_t i = 0; i != lat_set.size(); ++i) {
     hmpl::State sample_state;
     for (size_t i = 0; i != offset_set.size(); ++i) {
@@ -339,12 +318,12 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
             double new_angle = constraintAngle(angle + M_PI_2);
             double tmp_x = smoothed_x_spline(length_on_ref_path) + QPSolution(2 * j + 1) * cos(new_angle);
             double tmp_y = smoothed_y_spline(length_on_ref_path) + QPSolution(2 * j + 1) * sin(new_angle);
-            result_x.push_back(tmp_x);
-            result_y.push_back(tmp_y);
+            result_x.emplace_back(tmp_x);
+            result_y.emplace_back(tmp_y);
             if (j != 0) {
                 total_s += sqrt(pow(tmp_x - last_x, 2) + pow(tmp_y - last_y, 2));
             }
-            result_s.push_back(total_s);
+            result_s.emplace_back(total_s);
             last_x = tmp_x;
             last_y = tmp_y;
         }
@@ -362,13 +341,13 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
             tmp_state.z = atan2(y_s.deriv(1, tmp_s), x_s.deriv(1, tmp_s));
             tmp_state.s = tmp_s;
             if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
-                tmp_final_path.push_back(tmp_state);
+                tmp_final_path.emplace_back(tmp_state);
             } else {
                 printf("path optimization collision check failed at %f of %fm, lat: %f\n",
                        tmp_s,
                        result_s.back(),
                        offset_set[i]);
-//                tmp_final_path.push_back(tmp_state);
+//                tmp_final_path.emplace_back(tmp_state);
                 break;
             }
             if ((j + 1) * delta_s > result_s.back()) {
@@ -378,12 +357,12 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
                 tmp_state.z = atan2(y_s.deriv(1, tmp_s), x_s.deriv(1, tmp_s));
                 tmp_state.s = tmp_s;
                 if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
-                    tmp_final_path.push_back(tmp_state);
+                    tmp_final_path.emplace_back(tmp_state);
                 }
             }
         }
         if (!tmp_final_path.empty()) {
-            final_path_set->push_back(tmp_final_path);
+            final_path_set->emplace_back(tmp_final_path);
             ++count;
         }
     }
@@ -404,62 +383,46 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
 
 bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double *max_s_out) {
     auto sm_start = std::clock();
+    std::vector<double> x_list, y_list, s_list, angle_list;
+    tk::spline x_spline, y_spline;
     double s = 0;
     for (size_t i = 0; i != point_num_; ++i) {
         if (i == 0) {
-            s_list_.push_back(0);
+            s_list.emplace_back(0);
         } else {
             double ds = hmpl::distance(points_list_[i], points_list_[i - 1]);
             s += ds;
-            s_list_.push_back(s);
+            s_list.emplace_back(s);
         }
-        x_list_.push_back(points_list_[i].x);
-        y_list_.push_back(points_list_[i].y);
+        x_list.emplace_back(points_list_[i].x);
+        y_list.emplace_back(points_list_[i].y);
     }
-    double max_s = s_list_.back();
+    double max_s = s_list.back();
     std::cout << "ref path length: " << max_s << std::endl;
-    x_spline_.set_points(s_list_, x_list_);
-    y_spline_.set_points(s_list_, y_list_);
+    x_spline.set_points(s_list, x_list);
+    y_spline.set_points(s_list, y_list);
     // Make the path dense, the interval being 0.3m
-    x_list_.clear();
-    y_list_.clear();
-    s_list_.clear();
-    size_t new_points_count = 0;
-    for (double new_s = 0; new_s <= max_s; new_s += 0.3) {
-        double x = x_spline_(new_s);
-        double y = y_spline_(new_s);
-        x_list_.push_back(x);
-        y_list_.push_back(y);
-        s_list_.push_back(new_s);
-        ++new_points_count;
-    }
-    point_num_ = x_list_.size();
-    double max_curvature_abs;
-    double max_curvature_change_abs;
-    getCurvature(x_list_, y_list_, &k_list_, &max_curvature_abs, &max_curvature_change_abs);
-    k_spline_.set_points(s_list_, k_list_);
-    // Divid the reference path.
+    x_list.clear();
+    y_list.clear();
+    s_list.clear();
+    // Divide the reference path.
     double delta_s = 0.5;
-    seg_s_list_.push_back(0);
-    seg_s_list_.push_back(delta_s);
-    while (seg_s_list_.back() < max_s) {
-        seg_s_list_.push_back(seg_s_list_.back() + delta_s);
+    s_list.emplace_back(0);
+    while (s_list.back() < max_s) {
+        s_list.emplace_back(s_list.back() + delta_s);
     }
-    if (max_s - seg_s_list_.back() > 1) {
-        seg_s_list_.push_back(max_s);
+    if (max_s - s_list.back() > 1) {
+        s_list.emplace_back(max_s);
     }
-    auto N = seg_s_list_.size();
+    auto N = s_list.size();
     // Store reference states in vectors. They will be used later.
     for (size_t i = 0; i != N; ++i) {
-        double length_on_ref_path = seg_s_list_[i];
-        double angle;
-        angle = atan2(y_spline_.deriv(1, length_on_ref_path), x_spline_.deriv(1, length_on_ref_path));
-        seg_angle_list_.push_back(angle);
-        seg_x_list_.push_back(x_spline_(length_on_ref_path));
-        seg_y_list_.push_back(y_spline_(length_on_ref_path));
-        seg_k_list_.push_back(k_spline_(length_on_ref_path));
+        double length_on_ref_path = s_list[i];
+        double angle = atan2(y_spline.deriv(1, length_on_ref_path), x_spline.deriv(1, length_on_ref_path));
+        angle_list.emplace_back(angle);
+        x_list.emplace_back(x_spline(length_on_ref_path));
+        y_list.emplace_back(y_spline(length_on_ref_path));
     }
-
     auto sm_pre_solve = std::clock();
     typedef CPPAD_TESTVECTOR(double) Dvector;
     size_t n_vars = 2 * N;
@@ -467,8 +430,8 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
     const auto y_range_begin = x_range_begin + N;
     Dvector vars(n_vars);
     for (size_t i = 0; i < N; i++) {
-        vars[i + x_range_begin] = seg_x_list_[i];
-        vars[i + y_range_begin] = seg_y_list_[i];
+        vars[i + x_range_begin] = x_list[i];
+        vars[i + y_range_begin] = y_list[i];
     }
     // bounds of variables
     Dvector vars_lowerbound(n_vars);
@@ -490,10 +453,10 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
 //    vars_lowerbound[y_range_begin + 1] = second_y;
 //    vars_upperbound[y_range_begin + 1] = second_y;
     // Constraint the last point.
-    vars_lowerbound[x_range_begin + N - 1] = seg_x_list_.back();
-    vars_upperbound[x_range_begin + N - 1] = seg_x_list_.back();
-    vars_lowerbound[y_range_begin + N - 1] = seg_y_list_.back();
-    vars_upperbound[y_range_begin + N - 1] = seg_y_list_.back();
+    vars_lowerbound[x_range_begin + N - 1] = x_list.back();
+    vars_upperbound[x_range_begin + N - 1] = x_list.back();
+    vars_lowerbound[y_range_begin + N - 1] = y_list.back();
+    vars_upperbound[y_range_begin + N - 1] = y_list.back();
     // Set constraints.
     // Note that the constraint number should be N - 2.
     size_t n_constraints = N - 1;
@@ -501,8 +464,8 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
     Dvector constraints_upperbound(n_constraints);
     // Get clearance for each point:
     for (size_t i = 0; i != n_constraints; ++i) {
-        double x = seg_x_list_[i + 1];
-        double y = seg_y_list_[i + 1];
+        double x = x_list[i + 1];
+        double y = y_list[i + 1];
         double clearance = grid_map_.getObstacleDistance(grid_map::Position(x, y));
         // Adjust clearance according to the original clearance.
         if (clearance > 1.5) {
@@ -532,19 +495,10 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
     CppAD::ipopt::solve_result<Dvector> solution;
     // weights of the cost function
     // TODO: use a config file
-    std::vector<double> weights;
-    weights.push_back(20); //curvature weight
-    weights.push_back(30); //curvature rate weight
-    weights.push_back(0.01); //distance to boundary weight
-    weights.push_back(1); //path length weight
-
-    FgEvalReferenceSmoothing fg_eval_reference_smoothing(seg_x_list_,
-                                                         seg_y_list_,
-                                                         seg_angle_list_,
-                                                         seg_k_list_,
-                                                         seg_s_list_,
-                                                         N,
-                                                         weights);
+    FgEvalReferenceSmoothing fg_eval_reference_smoothing(x_list,
+                                                         y_list,
+                                                         s_list,
+                                                         N);
     // solve the problem
     CppAD::ipopt::solve<Dvector, FgEvalReferenceSmoothing>(options, vars,
                                                            vars_lowerbound, vars_upperbound,
@@ -594,23 +548,19 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
     std::vector<tinyspline::real> result_next;
     std::vector<double> x_set, y_set, s_set;
     result = b_spline.eval(min_index_to_vehicle * step_t).result();
-    x_set.push_back(result[0]);
-    y_set.push_back(result[1]);
-    s_set.push_back(0);
+    x_set.emplace_back(result[0]);
+    y_set.emplace_back(result[1]);
+    s_set.emplace_back(0);
     hmpl::State state;
-//    state.x = result[0];
-//    state.y = result[1];
-//    smoothed_path_.push_back(state);
     for (size_t i = min_index_to_vehicle + 1; i <= 3 * N; ++i) {
         double t = i * step_t;
         result = b_spline.eval(t).result();
         double ds = sqrt(pow(result[0] - x_set.back(), 2) + pow(result[1] - y_set.back(), 2));
-        x_set.push_back(result[0]);
-        y_set.push_back(result[1]);
-        s_set.push_back(s_set.back() + ds);
+        x_set.emplace_back(result[0]);
+        y_set.emplace_back(result[1]);
+        s_set.emplace_back(s_set.back() + ds);
         state.x = result[0];
         state.y = result[1];
-//        smoothed_path_.push_back(state);
     }
     x_s_out->set_points(s_set, x_set);
     y_s_out->set_points(s_set, y_set);
@@ -657,8 +607,8 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     Eigen::VectorXd upperBound;
     setHessianMatrix(N_, &hessian);
     std::vector<double> init_state;
-    init_state.push_back(epsi_);
-    init_state.push_back(cte_);
+    init_state.emplace_back(epsi_);
+    init_state.emplace_back(cte_);
     bool constriant_end_psi = false;
     if (use_end_psi) constriant_end_psi = true;
     setConstraintMatrix(N_,
@@ -780,10 +730,10 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
 //    // weights of the cost function
 //    // TODO: use a config file
 //    std::vector<double> weights;
-//    weights.push_back(10); //curvature weight
-//    weights.push_back(1000); //curvature rate weight
-//    weights.push_back(0.01); //distance to boundary weight
-//    weights.push_back(0.01); //offset weight
+//    weights.emplace_back(10); //curvature weight
+//    weights.emplace_back(1000); //curvature rate weight
+//    weights.emplace_back(0.01); //distance to boundary weight
+//    weights.emplace_back(0.01); //offset weight
 //
 //    FgEvalFrenet fg_eval_frenet(seg_x_list_,
 //                                seg_y_list_,
@@ -813,7 +763,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
 //    for (size_t i = 0; i != N; i++) {
 //        double tmp[2] = {solution.x[i], double(i)};
 //        std::vector<double> v(tmp, tmp + sizeof tmp / sizeof tmp[0]);
-//        this->predicted_path_in_frenet_.push_back(v);
+//        this->predicted_path_in_frenet_.emplace_back(v);
 ////        printf("ip: %d, %f\n", i, v[0]);
 //    }
 //    auto po_ipopt_end = std::clock();
@@ -846,9 +796,9 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
                 state.z = atan2(tmp_y - last_y, tmp_x - last_x);
             }
             if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
-                tmp_raw_path.push_back(state);
+                tmp_raw_path.emplace_back(state);
             } else {
-                tmp_raw_path.push_back(state);
+                tmp_raw_path.emplace_back(state);
                 printf("path optimization collision check failed at %d\n", i);
                 double psi = QPSolution(2 * i);
                 double pq = QPSolution(2 * i + 1);
@@ -864,12 +814,12 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
             }
         }
         /// ***************if output raw path****************
-        result_x.push_back(tmp_x);
-        result_y.push_back(tmp_y);
+        result_x.emplace_back(tmp_x);
+        result_y.emplace_back(tmp_y);
         if (i != 0) {
             total_s += sqrt(pow(tmp_x - last_x, 2) + pow(tmp_y - last_y, 2));
         }
-        result_s.push_back(total_s);
+        result_s.emplace_back(total_s);
         last_x = tmp_x;
         last_y = tmp_y;
     }
@@ -896,10 +846,10 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         tmp_state.z = atan2(y_s.deriv(1, i * delta_s), x_s.deriv(1, i * delta_s));
         tmp_state.s = i * delta_s;
         if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
-            tmp_final_path.push_back(tmp_state);
+            tmp_final_path.emplace_back(tmp_state);
         } else {
             printf("path optimization collision check failed at %d\n", i);
-//            tmp_final_path.push_back(tmp_state);
+//            tmp_final_path.emplace_back(tmp_state);
             break;
         }
     }
@@ -924,9 +874,9 @@ bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
     if (!solver_dynamic_initialized) {
         std::vector<double> x_set, y_set, s_set;
         for (const auto &point : points_list_) {
-            x_set.push_back(point.x);
-            y_set.push_back(point.y);
-            s_set.push_back(point.s);
+            x_set.emplace_back(point.x);
+            y_set.emplace_back(point.y);
+            s_set.emplace_back(point.s);
         }
         xsr_.set_points(s_set, x_set);
         ysr_.set_points(s_set, y_set);
@@ -939,8 +889,8 @@ bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
             double y_d2 = ysr_.deriv(2, tmp_s);
             double h = atan2(y_d1, x_d1);
             double k = (x_d1 * y_d2 - y_d1 * x_d2) / pow(pow(x_d1, 2) + pow(y_d1, 2), 1.5);
-            angle_list.push_back(h);
-            k_list.push_back(k);
+            angle_list.emplace_back(h);
+            k_list.emplace_back(k);
         }
         auto N = sr_list.size();
         solver_dynamic.settings()->setVerbosity(false);
@@ -954,8 +904,8 @@ bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
         Eigen::SparseMatrix<double> linearMatrix;
         setHessianMatrix(N, &hessian);
         std::vector<double> init_state;
-        init_state.push_back(0);
-        init_state.push_back(0);
+        init_state.emplace_back(0);
+        init_state.emplace_back(0);
         std::vector<std::vector<double>> fuck;
         setConstraintMatrix(N,
                             sr_list,
@@ -991,9 +941,9 @@ bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
             if (j != 0) {
                 total_s += sqrt(pow(tmp_x - x_list->back(), 2) + pow(tmp_y - y_list->back(), 2));
             }
-            s_list->push_back(total_s);
-            x_list->push_back(tmp_x);
-            y_list->push_back(tmp_y);
+            s_list->emplace_back(total_s);
+            x_list->emplace_back(tmp_x);
+            y_list->emplace_back(tmp_y);
         }
         return true;
     } else {
@@ -1026,9 +976,9 @@ bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
             if (j != 0) {
                 total_s += sqrt(pow(tmp_x - x_list->back(), 2) + pow(tmp_y - y_list->back(), 2));
             }
-            s_list->push_back(total_s);
-            x_list->push_back(tmp_x);
-            y_list->push_back(tmp_y);
+            s_list->emplace_back(total_s);
+            x_list->emplace_back(tmp_x);
+            y_list->emplace_back(tmp_y);
         }
         return true;
     }
@@ -1180,14 +1130,14 @@ std::vector<double> PathOptimizer::getClearanceFor4Circles(const hmpl::State &st
 //    printf("c2_bounds: %f, %f\n", c2_bounds[0], c2_bounds[1]);
 //    printf("c3_bounds: %f, %f\n", c3_bounds[0], c3_bounds[1]);
 //    printf("use safety margin? %d\n", safety_margin_flag);
-    result.push_back(c0_bounds[0]);
-    result.push_back(c0_bounds[1]);
-    result.push_back(c1_bounds[0]);
-    result.push_back(c1_bounds[1]);
-    result.push_back(c2_bounds[0]);
-    result.push_back(c2_bounds[1]);
-    result.push_back(c3_bounds[0]);
-    result.push_back(c3_bounds[1]);
+    result.emplace_back(c0_bounds[0]);
+    result.emplace_back(c0_bounds[1]);
+    result.emplace_back(c1_bounds[0]);
+    result.emplace_back(c1_bounds[1]);
+    result.emplace_back(c2_bounds[0]);
+    result.emplace_back(c2_bounds[1]);
+    result.emplace_back(c3_bounds[0]);
+    result.emplace_back(c3_bounds[1]);
     // For visualization purpoose:
     hmpl::State rear_bound_l, center_bound_l, front_bound_l, rear_bound_r, center_bound_r, front_bound_r;
     rear_bound_l.x = c0_x + result[0] * cos(state.z + M_PI_2);
@@ -1202,12 +1152,12 @@ std::vector<double> PathOptimizer::getClearanceFor4Circles(const hmpl::State &st
     front_bound_l.y = c3_y + result[6] * sin(state.z + M_PI_2);
     front_bound_r.x = c3_x + result[7] * cos(state.z + M_PI_2);
     front_bound_r.y = c3_y + result[7] * sin(state.z + M_PI_2);
-    rear_bounds_.push_back(rear_bound_l);
-    rear_bounds_.push_back(rear_bound_r);
-    center_bounds_.push_back(center_bound_l);
-    center_bounds_.push_back(center_bound_r);
-    front_bounds_.push_back(front_bound_l);
-    front_bounds_.push_back(front_bound_r);
+    rear_bounds_.emplace_back(rear_bound_l);
+    rear_bounds_.emplace_back(rear_bound_r);
+    center_bounds_.emplace_back(center_bound_l);
+    center_bounds_.emplace_back(center_bound_r);
+    front_bounds_.emplace_back(front_bound_l);
+    front_bounds_.emplace_back(front_bound_r);
     return result;
 
 }
@@ -1280,7 +1230,7 @@ bool PathOptimizer::getCurvature(const std::vector<double> &local_x,
     double max_curvature_change = 0;
     for (size_t j = 0; j < size_n; ++j) {
         final_curvature = curvature[j];
-        pt_curvature_out->push_back(final_curvature);
+        pt_curvature_out->emplace_back(final_curvature);
         if (fabs(final_curvature) > max_curvature) {
             max_curvature = fabs(final_curvature);
         }

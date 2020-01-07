@@ -65,7 +65,6 @@ public:
     const std::vector<hmpl::State> &getSmoothedPath();
 
 private:
-    void reset();
     void setCarGeometry();
     bool smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double *max_s);
     bool optimizePath(std::vector<hmpl::State> *final_path);
