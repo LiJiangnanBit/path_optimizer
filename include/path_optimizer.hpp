@@ -17,7 +17,6 @@
 #include <cppad/ipopt/solve.hpp>
 #include <chrono>
 #include <Clothoid.hh>
-//#include <Cl n1othoidList.hh>
 #include <opt_utils/utils.hpp>
 #include <internal_grid_map/internal_grid_map.hpp>
 #include "tinyspline_ros/tinysplinecpp.h"
@@ -28,7 +27,7 @@
 #include "OsqpEigen/OsqpEigen.h"
 #include <Eigen/Dense>
 
-#define MAX_CURVATURE 0.25
+#define MAX_STEER_ANGLE 35 * M_PI / 180
 
 namespace PathOptimizationNS {
 
@@ -80,9 +79,6 @@ private:
     static double getPointCurvature(const double &x1, const double &y1,
                              const double &x2, const double &y2,
                              const double &x3, const double &y3);
-    double getClearanceWithDirection(const hmpl::State &state,
-                                     double angle);
-    double getClearanceWithDirectionStrict(hmpl::State state, double angle, double radius);
     std::vector<double> getClearanceWithDirectionStrict(hmpl::State state,
                                                         double radius,
                                                         bool safety_margin_flag);

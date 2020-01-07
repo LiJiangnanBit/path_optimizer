@@ -30,7 +30,6 @@ PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
 void PathOptimizer::setCarGeometry() {
     // Set the car geometry. Use 3 circles to approximate the car.
     // TODO: use a config file.
-    // TODO: consider back up situation
     double car_width = 2.0;
     double car_length = 4.9;
     // Vector car_geo is for function getClearanceWithDirection.
@@ -180,6 +179,7 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
         std::vector<double> clearance;
         bool safety_margin_flag = set_safety_margin && seg_s_list_[i] >= 10;
         clearance = getClearanceFor4Circles(center_state, car_geo_, safety_margin_flag);
+        // Terminate if collision is inevitable near the end.
         if ((clearance[0] == clearance[1] || clearance[2] == clearance[3] || clearance[4] == clearance[5]
             || clearance[6] == clearance[7])
             && center_state.s > 0.75 * smoothed_max_s) {
@@ -207,7 +207,6 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
     for (; index != N_; ++index) {
         if (seg_s_list_[index] > lon) break;
     }
-    printf("index: %d\n", index);
     std::vector<double> seg_s_list, seg_angle_list, seg_k_list, seg_x_list, seg_y_list;
     std::vector<std::vector<double>> seg_clearance_list;
     seg_s_list.assign(seg_s_list_.begin(), seg_s_list_.begin() + index);
@@ -217,7 +216,6 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
     seg_x_list.assign(seg_x_list_.begin(), seg_x_list_.begin() + index);
     seg_y_list.assign(seg_y_list_.begin(), seg_y_list_.begin() + index);
     auto N = seg_s_list.size();
-    printf("new N: %d\n", N);
     auto solver_init = std::clock();
     // OSQP:
     OsqpEigen::Solver solver;
@@ -771,7 +769,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
 
     std::vector<double> result_x, result_y, result_s;
     double total_s = 0;
-    double last_x, last_y;
+    double last_x = 0, last_y = 0;
     std::vector<hmpl::State> tmp_raw_path;
     for (size_t i = 0; i != N_; ++i) {
         double length_on_ref_path = seg_s_list_[i];
@@ -779,41 +777,20 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         double new_angle = constraintAngle(angle + M_PI_2);
         double tmp_x = smoothed_x_spline(length_on_ref_path) + QPSolution(2 * i + 1) * cos(new_angle);
         double tmp_y = smoothed_y_spline(length_on_ref_path) + QPSolution(2 * i + 1) * sin(new_angle);
-        /// ***************if output raw path****************
         if (!densify_result) {
+            // If output raw path:
             hmpl::State state;
             state.x = tmp_x;
             state.y = tmp_y;
-            if (i != N_ - 1) {
-                double next_x =
-                    smoothed_x_spline(seg_s_list_[i + 1])
-                        + QPSolution(2 * i + 3) * cos(seg_angle_list_[i + 1] + M_PI_2);
-                double next_y =
-                    smoothed_y_spline(seg_s_list_[i + 1])
-                        + QPSolution(2 * i + 3) * sin(seg_angle_list_[i + 1] + M_PI_2);
-                state.z = atan2(next_y - tmp_y, next_x - tmp_x);
-            } else {
-                state.z = atan2(tmp_y - last_y, tmp_x - last_x);
-            }
+            state.z = angle + QPSolution(2 * i);
             if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
                 tmp_raw_path.emplace_back(state);
             } else {
                 tmp_raw_path.emplace_back(state);
-                printf("path optimization collision check failed at %d\n", i);
-                double psi = QPSolution(2 * i);
-                double pq = QPSolution(2 * i + 1);
-//                printf("c1| lb: %f, ub: %f, result: %f\n"
-//                       "c2| lb: %f, ub: %f, result: %f\n"
-//                       "c3| lb: %f, ub: %f, result: %f\n"
-//                       "c4| lb: %f, ub: %f, result: %f\n",
-//                       seg_clearance_list_[i][1], seg_clearance_list_[i][0], (car_geo_[0] + car_geo_[5]) * psi + pq,
-//                       seg_clearance_list_[i][3], seg_clearance_list_[i][2], (car_geo_[1] + car_geo_[5]) * psi + pq,
-//                       seg_clearance_list_[i][5], seg_clearance_list_[i][4], (car_geo_[2] + car_geo_[5]) * psi + pq,
-//                       seg_clearance_list_[i][7], seg_clearance_list_[i][6], (car_geo_[3] + car_geo_[5]) * psi + pq);
+                std::cout << "path optimization collision check failed at " << i << std::endl;
                 break;
             }
         }
-        /// ***************if output raw path****************
         result_x.emplace_back(tmp_x);
         result_y.emplace_back(tmp_y);
         if (i != 0) {
@@ -824,16 +801,12 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         last_y = tmp_y;
     }
     std::vector<double> curvature_result;
-//    if (getCurvature(result_x, result_y, &curvature_result)) {
-//        for (const auto &cur : curvature_result) {
-//            std::cout << cur << std::endl;
-//        }
-//    }
     if (!densify_result) {
         std::copy(tmp_raw_path.begin(), tmp_raw_path.end(), std::back_inserter(*final_path));
         LOG(INFO) << "output raw path!";
         return true;
     }
+    // If output interpolated path:
     tk::spline x_s, y_s;
     x_s.set_points(result_s, result_x);
     y_s.set_points(result_s, result_y);
@@ -848,8 +821,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
             tmp_final_path.emplace_back(tmp_state);
         } else {
-            printf("path optimization collision check failed at %d\n", i);
-//            tmp_final_path.emplace_back(tmp_state);
+            std::cout << "path optimization collision check failed at " << i << std::endl;
             break;
         }
     }
@@ -993,7 +965,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
     double delta_s = 0.2;
     double left_angle = constraintAngle(state.z + M_PI_2);
     double right_angle = constraintAngle(state.z - M_PI_2);
-    size_t n = static_cast<size_t >(5.0 / delta_s);
+    auto n = static_cast<size_t >(5.0 / delta_s);
     // Check if the original position is collision free.
     grid_map::Position original_position(state.x, state.y);
     auto original_clearance = grid_map_.getObstacleDistance(original_position);
@@ -1241,8 +1213,8 @@ bool PathOptimizer::getCurvature(const std::vector<double> &local_x,
             }
         }
     }
-    if (max_curvature) *max_curvature_abs = max_curvature;
-    if (max_curvature_change) *max_curvature_change_abs = max_curvature_change;
+    if (max_curvature_abs) *max_curvature_abs = max_curvature;
+    if (max_curvature_change_abs) *max_curvature_change_abs = max_curvature_change;
     return true;
 }
 

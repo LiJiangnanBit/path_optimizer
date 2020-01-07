@@ -116,8 +116,8 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
             (*upper_bound)(2 * horizon + 2 * horizon - 2) = end_psi + 5 * M_PI / 180;
         }
     }
-    lower_bound->block(4 * horizon, 0, horizon - 1, 1) = Eigen::VectorXd::Constant(horizon - 1, -30 * M_PI / 180);
-    upper_bound->block(4 * horizon, 0, horizon - 1, 1) = Eigen::VectorXd::Constant(horizon - 1, 30 * M_PI / 180);
+    lower_bound->block(4 * horizon, 0, horizon - 1, 1) = Eigen::VectorXd::Constant(horizon - 1, -MAX_STEER_ANGLE);
+    upper_bound->block(4 * horizon, 0, horizon - 1, 1) = Eigen::VectorXd::Constant(horizon - 1, MAX_STEER_ANGLE);
     for (size_t i = 0; i != horizon; ++i) {
         Eigen::Vector4d ld, ud;
         ud
