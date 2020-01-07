@@ -73,11 +73,11 @@ private:
                                        const std::vector<double> &lat_set,
                                        std::vector<std::vector<hmpl::State>> *final_path_set,
                                        bool max_lon_flag);
-    static void getCurvature(const std::vector<double> &local_x,
+    static bool getCurvature(const std::vector<double> &local_x,
                       const std::vector<double> &local_y,
                       std::vector<double> *pt_curvature_out,
-                      double *max_curvature_abs,
-                      double *max_curvature_change_abs);
+                      double *max_curvature_abs = nullptr,
+                      double *max_curvature_change_abs = nullptr);
     static double getPointCurvature(const double &x1, const double &y1,
                              const double &x2, const double &y2,
                              const double &x3, const double &y3);

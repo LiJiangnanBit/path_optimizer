@@ -11,7 +11,7 @@ void PathOptimizer::setHessianMatrix(size_t horizon, Eigen::SparseMatrix<double>
     const size_t control_size = horizon - 1;
     const size_t matrix_size = state_size + control_size;
     double w_c = 10;
-    double w_cr = 100;
+    double w_cr = 1000;
     double w_pq = 0.01;
     Eigen::MatrixXd hessian = Eigen::MatrixXd::Constant(matrix_size, matrix_size, 0);
     // Populate hessian matrix

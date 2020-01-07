@@ -499,9 +499,13 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
     size_t n_constraints = N - 2;
     Dvector constraints_lowerbound(n_constraints);
     Dvector constraints_upperbound(n_constraints);
-    for (int i = 0; i != n_constraints; ++i) {
+    // Get clearance for each point:
+    for (size_t i = 0; i != n_constraints; ++i) {
+        double x = seg_x_list_[i + 2];
+        double y = seg_y_list_[i + 2];
+        double clearance = grid_map_.getObstacleDistance(grid_map::Position(x, y));
         constraints_lowerbound[i] = 0;
-        constraints_upperbound[i] = pow(4, 2);
+        constraints_upperbound[i] = pow(clearance - 1, 2);
     }
     // options for IPOPT solver
     std::string options;
@@ -863,6 +867,12 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         last_x = tmp_x;
         last_y = tmp_y;
     }
+    std::vector<double> curvature_result;
+//    if (getCurvature(result_x, result_y, &curvature_result)) {
+//        for (const auto &cur : curvature_result) {
+//            std::cout << cur << std::endl;
+//        }
+//    }
     if (!densify_result) {
         std::copy(tmp_raw_path.begin(), tmp_raw_path.end(), std::back_inserter(*final_path));
         LOG(INFO) << "output raw path!";
@@ -1236,12 +1246,16 @@ double PathOptimizer::getPointCurvature(const double &x1,
     return curv;
 }
 
-void PathOptimizer::getCurvature(const std::vector<double> &local_x,
+bool PathOptimizer::getCurvature(const std::vector<double> &local_x,
                                  const std::vector<double> &local_y,
                                  std::vector<double> *pt_curvature_out,
                                  double *max_curvature_abs,
                                  double *max_curvature_change_abs) {
     assert(local_x.size() == local_y.size());
+    if (local_x.size() < 3) {
+        std::cout << "can't get curvature: size is " << local_x.size() << std::endl;
+        return false;
+    }
     unsigned long size_n = local_x.size();
     std::vector<double> curvature = std::vector<double>(size_n);
     for (size_t i = 1; i < size_n - 1; ++i) {
@@ -1271,8 +1285,9 @@ void PathOptimizer::getCurvature(const std::vector<double> &local_x,
             }
         }
     }
-    *max_curvature_abs = max_curvature;
-    *max_curvature_change_abs = max_curvature_change;
+    if (max_curvature) *max_curvature_abs = max_curvature;
+    if (max_curvature_change) *max_curvature_change_abs = max_curvature_change;
+    return true;
 }
 
 const std::vector<std::vector<hmpl::State> > &PathOptimizer::getControlSamplingPathSet() {
