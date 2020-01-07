@@ -56,7 +56,7 @@ public:
         const auto x_range_begin = 0;
         const auto y_range_begin = x_range_begin + N;
         // The first and second points are fixed, so start from the third point.
-        for (int i = 2; i != N - 1; ++i) {
+        for (int i = 1; i != N - 1; ++i) {
             ad last_x = vars[x_range_begin + i - 1];
             ad last_y = vars[y_range_begin + i - 1];
             ad current_x = vars[x_range_begin + i];
@@ -73,7 +73,7 @@ public:
             fg[0] += cost_func_curvature_weight_
                 * (pow(next_x + last_x - 2 * current_x, 2) + pow(next_y + last_y - 2 * current_y, 2));
             // Set constraints.
-            fg[1 + i - 2] = pow(current_x - ref_x, 2) + pow(current_y - ref_y, 2);
+            fg[1 + i - 1] = pow(current_x - ref_x, 2) + pow(current_y - ref_y, 2);
         }
         //
         fg[0] += cost_func_curvature_weight_

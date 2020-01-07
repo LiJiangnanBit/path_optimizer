@@ -64,7 +64,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
     auto t2 = std::clock();
     reset();
-    if (!divideSmoothedPath(true)) {
+    if (!divideSmoothedPath(true )) {
         printf("divide stage failed, quit path optimization.\n");
         return false;
     };
@@ -483,12 +483,12 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
     vars_lowerbound[y_range_begin] = start_state_.y;
     vars_upperbound[y_range_begin] = start_state_.y;
     // The second point is determined by the initial heading.
-    double second_x = start_state_.x + delta_s * cos(start_state_.z);
-    double second_y = start_state_.y + delta_s * sin(start_state_.z);
-    vars_lowerbound[x_range_begin + 1] = second_x;
-    vars_upperbound[x_range_begin + 1] = second_x;
-    vars_lowerbound[y_range_begin + 1] = second_y;
-    vars_upperbound[y_range_begin + 1] = second_y;
+//    double second_x = start_state_.x + delta_s * cos(start_state_.z);
+//    double second_y = start_state_.y + delta_s * sin(start_state_.z);
+//    vars_lowerbound[x_range_begin + 1] = second_x;
+//    vars_upperbound[x_range_begin + 1] = second_x;
+//    vars_lowerbound[y_range_begin + 1] = second_y;
+//    vars_upperbound[y_range_begin + 1] = second_y;
     // Constraint the last point.
     vars_lowerbound[x_range_begin + N - 1] = seg_x_list_.back();
     vars_upperbound[x_range_begin + N - 1] = seg_x_list_.back();
@@ -496,13 +496,13 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
     vars_upperbound[y_range_begin + N - 1] = seg_y_list_.back();
     // Set constraints.
     // Note that the constraint number should be N - 2.
-    size_t n_constraints = N - 2;
+    size_t n_constraints = N - 1;
     Dvector constraints_lowerbound(n_constraints);
     Dvector constraints_upperbound(n_constraints);
     // Get clearance for each point:
     for (size_t i = 0; i != n_constraints; ++i) {
-        double x = seg_x_list_[i + 2];
-        double y = seg_y_list_[i + 2];
+        double x = seg_x_list_[i + 1];
+        double y = seg_y_list_[i + 1];
         double clearance = grid_map_.getObstacleDistance(grid_map::Position(x, y));
         constraints_lowerbound[i] = 0;
         constraints_upperbound[i] = pow(clearance - 1, 2);
