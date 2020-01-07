@@ -64,7 +64,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     }
     auto t2 = std::clock();
     reset();
-    if (!divideSmoothedPath(true )) {
+    if (!divideSmoothedPath(true)) {
         printf("divide stage failed, quit path optimization.\n");
         return false;
     };
@@ -504,8 +504,14 @@ bool PathOptimizer::smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double 
         double x = seg_x_list_[i + 1];
         double y = seg_y_list_[i + 1];
         double clearance = grid_map_.getObstacleDistance(grid_map::Position(x, y));
+        // Adjust clearance according to the original clearance.
+        if (clearance > 1.5) {
+            clearance -= 1.5;
+        } else {
+            clearance *= 0.66;
+        }
         constraints_lowerbound[i] = 0;
-        constraints_upperbound[i] = pow(clearance - 1, 2);
+        constraints_upperbound[i] = pow(clearance, 2);
     }
     // options for IPOPT solver
     std::string options;
@@ -1124,7 +1130,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
     }
     double base = std::max(left_bound - right_bound - 0.6, 0.0);
     if (safety_margin_flag) {
-        double safety_margin = std::min(base * 0.24, 0.85);
+        double safety_margin = std::min(base * 0.2, 0.5);
         left_bound -= safety_margin;
         right_bound += safety_margin;
     }
