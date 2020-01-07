@@ -51,17 +51,17 @@ public:
                          std::vector<double> *x_list,
                          std::vector<double> *y_list,
                          std::vector<double> *s_list);
-    const std::vector<std::vector<hmpl::State> > &getControlSamplingPathSet();
+    const std::vector<std::vector<hmpl::State> > &getControlSamplingPathSet() const;
     // Just for visualization purpose.
-    const std::vector<std::vector<hmpl::State> > &getControlSamplingFailedPathSet();
-    const std::vector<hmpl::State> &getBestSamplingPath();
-    const std::vector<hmpl::State> &getLeftBound();
-    const std::vector<hmpl::State> &getRightBound();
-    const std::vector<hmpl::State> &getSecondThirdPoint();
-    const std::vector<hmpl::State> &getRearBounds();
-    const std::vector<hmpl::State> &getCenterBounds();
-    const std::vector<hmpl::State> &getFrontBounds();
-    const std::vector<hmpl::State> &getSmoothedPath();
+    const std::vector<std::vector<hmpl::State> > &getControlSamplingFailedPathSet() const;
+    const std::vector<hmpl::State> &getBestSamplingPath() const;
+    const std::vector<hmpl::State> &getLeftBound() const;
+    const std::vector<hmpl::State> &getRightBound() const;
+    const std::vector<hmpl::State> &getSecondThirdPoint() const;
+    const std::vector<hmpl::State> &getRearBounds() const;
+    const std::vector<hmpl::State> &getCenterBounds() const;
+    const std::vector<hmpl::State> &getFrontBounds() const;
+    const std::vector<hmpl::State> &getSmoothedPath() const;
 
 private:
     void setCarGeometry();
@@ -81,7 +81,7 @@ private:
                              const double &x3, const double &y3);
     std::vector<double> getClearanceWithDirectionStrict(hmpl::State state,
                                                         double radius,
-                                                        bool safety_margin_flag);
+                                                        bool safety_margin_flag) const;
     std::vector<double> getClearanceFor4Circles(const hmpl::State &state,
                                                 const std::vector<double> &car_geometry,
                                                 bool safety_margin_flag);
@@ -89,7 +89,7 @@ private:
     bool divideSmoothedPath(bool safety_margin_flag);
 
     // Set angle range to -pi ~ pi.
-    inline double constraintAngle(double angle) {
+    inline double constraintAngle(double angle) const {
         if (angle > M_PI) {
             angle -= 2 * M_PI;
             return constraintAngle(angle);
@@ -158,27 +158,17 @@ private:
     double cte_;
     double epsi_;
     bool densify_result;
-
     // Only for smoothing phase
     std::vector<hmpl::State> points_list_;
     size_t point_num_;
-    std::vector<double> x_list_;
-    std::vector<double> y_list_;
-    std::vector<double> k_list_;
-    std::vector<double> s_list_;
-    tk::spline x_spline_;
-    tk::spline y_spline_;
-    tk::spline k_spline_;
     tk::spline smoothed_x_spline;
     tk::spline smoothed_y_spline;
-
     // For dynamic obstacle avoidace.
     OsqpEigen::Solver solver_dynamic;
     bool solver_dynamic_initialized;
     Eigen::VectorXd lower_bound_dynamic_;
     Eigen::VectorXd upper_bound_dynamic_;
     tk::spline xsr_, ysr_;
-
     // For visualization purpose.
     std::vector<std::vector<hmpl::State> > control_sampling_path_set_;
     std::vector<std::vector<hmpl::State> > failed_sampling_path_set_;

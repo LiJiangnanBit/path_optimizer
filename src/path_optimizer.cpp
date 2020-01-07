@@ -959,7 +959,7 @@ bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
 
 std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State state,
                                                                    double radius,
-                                                                   bool safety_margin_flag) {
+                                                                   bool safety_margin_flag) const {
     double left_bound = 0;
     double right_bound = 0;
     double delta_s = 0.2;
@@ -1062,9 +1062,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
 
 std::vector<double> PathOptimizer::getClearanceFor4Circles(const hmpl::State &state,
                                                            const std::vector<double> &car_geometry,
-                                                           bool safety_margin_flag) {
-//    double rear_front_radius = car_geometry[2];
-//    double middle_radius = car_geometry[3];
+                                                           bool safety_margin_flag){
     double circle_r = car_geometry[4];
     hmpl::State c0, c1, c2, c3;
     double center_x = state.x;
@@ -1077,9 +1075,6 @@ std::vector<double> PathOptimizer::getClearanceFor4Circles(const hmpl::State &st
     double c2_y = center_y + car_geometry[2] * sin(state.z);
     double c3_x = center_x + car_geometry[3] * cos(state.z);
     double c3_y = center_y + car_geometry[3] * sin(state.z);
-//    center.x = center_x;
-//    center.y = center_y;
-//    center.z = state.z;
     c0.x = c0_x;
     c0.y = c0_y;
     c0.z = state.z;
@@ -1097,11 +1092,6 @@ std::vector<double> PathOptimizer::getClearanceFor4Circles(const hmpl::State &st
     std::vector<double> c1_bounds = getClearanceWithDirectionStrict(c1, circle_r, safety_margin_flag);
     std::vector<double> c2_bounds = getClearanceWithDirectionStrict(c2, circle_r, safety_margin_flag);
     std::vector<double> c3_bounds = getClearanceWithDirectionStrict(c3, circle_r, safety_margin_flag);
-//    printf("c0_bounds: %f, %f\n", c0_bounds[0], c0_bounds[1]);
-//    printf("c1_bounds: %f, %f\n", c1_bounds[0], c1_bounds[1]);
-//    printf("c2_bounds: %f, %f\n", c2_bounds[0], c2_bounds[1]);
-//    printf("c3_bounds: %f, %f\n", c3_bounds[0], c3_bounds[1]);
-//    printf("use safety margin? %d\n", safety_margin_flag);
     result.emplace_back(c0_bounds[0]);
     result.emplace_back(c0_bounds[1]);
     result.emplace_back(c1_bounds[0]);
@@ -1218,15 +1208,15 @@ bool PathOptimizer::getCurvature(const std::vector<double> &local_x,
     return true;
 }
 
-const std::vector<std::vector<hmpl::State> > &PathOptimizer::getControlSamplingPathSet() {
+const std::vector<std::vector<hmpl::State> > &PathOptimizer::getControlSamplingPathSet() const {
     return this->control_sampling_path_set_;
 };
 
-const std::vector<std::vector<hmpl::State> > &PathOptimizer::getControlSamplingFailedPathSet() {
+const std::vector<std::vector<hmpl::State> > &PathOptimizer::getControlSamplingFailedPathSet() const {
     return this->failed_sampling_path_set_;
 };
 
-const std::vector<hmpl::State> &PathOptimizer::getBestSamplingPath() {
+const std::vector<hmpl::State> &PathOptimizer::getBestSamplingPath() const {
     if (control_sampling_first_flag_) {
         return this->control_sampling_path_set_[best_sampling_index_];
     } else {
@@ -1234,31 +1224,31 @@ const std::vector<hmpl::State> &PathOptimizer::getBestSamplingPath() {
     }
 }
 
-const std::vector<hmpl::State> &PathOptimizer::getLeftBound() {
+const std::vector<hmpl::State> &PathOptimizer::getLeftBound() const {
     return this->left_bound_;
 }
 
-const std::vector<hmpl::State> &PathOptimizer::getRightBound() {
+const std::vector<hmpl::State> &PathOptimizer::getRightBound() const {
     return this->right_bound_;
 }
 
-const std::vector<hmpl::State> &PathOptimizer::getSecondThirdPoint() {
+const std::vector<hmpl::State> &PathOptimizer::getSecondThirdPoint() const {
     return this->second_third_point_;
 }
 
-const std::vector<hmpl::State> &PathOptimizer::getRearBounds() {
+const std::vector<hmpl::State> &PathOptimizer::getRearBounds() const {
     return this->rear_bounds_;
 }
 
-const std::vector<hmpl::State> &PathOptimizer::getCenterBounds() {
+const std::vector<hmpl::State> &PathOptimizer::getCenterBounds() const {
     return this->center_bounds_;
 }
 
-const std::vector<hmpl::State> &PathOptimizer::getFrontBounds() {
+const std::vector<hmpl::State> &PathOptimizer::getFrontBounds() const {
     return this->front_bounds_;
 }
 
-const std::vector<hmpl::State> &PathOptimizer::getSmoothedPath() {
+const std::vector<hmpl::State> &PathOptimizer::getSmoothedPath() const {
     return this->smoothed_path_;
 }
 }
