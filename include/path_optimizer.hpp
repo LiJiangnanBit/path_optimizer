@@ -13,6 +13,7 @@
 #include <glog/logging.h>
 #include <cmath>
 #include <ctime>
+#include <Eigen/Dense>
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
 #include <chrono>
@@ -23,9 +24,9 @@
 #include "spline.h"
 #include "FgEvalFrenet.hpp"
 #include "FgEvalReferenceSmoothing.hpp"
+#include "FgEvalReferenceSmoothingFrenet.hpp"
 #include "collosion_checker.hpp"
 #include "OsqpEigen/OsqpEigen.h"
-#include <Eigen/Dense>
 
 #define MAX_STEER_ANGLE 35 * M_PI / 180
 
@@ -66,6 +67,8 @@ public:
 private:
     void setCarGeometry();
     bool smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double *max_s);
+    bool smoothPathCartesian(tk::spline *x_s_out, tk::spline *y_s_out, double *max_s);
+    bool smoothPathFrenet(tk::spline *x_s_out, tk::spline *y_s_out, double *max_s);
     bool optimizePath(std::vector<hmpl::State> *final_path);
     bool sampleSingleLongitudinalPaths(double lon,
                                        const std::vector<double> &lat_set,
@@ -140,7 +143,6 @@ private:
     std::vector<double> car_geo_;
     double rear_axle_to_center_dis;
     double wheel_base;
-
     std::vector<double> seg_s_list_;
     std::vector<double> seg_k_list_;
     std::vector<double> seg_x_list_;
