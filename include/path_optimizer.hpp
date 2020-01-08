@@ -33,6 +33,24 @@
 namespace PathOptimizationNS {
 
 enum CarType { ACKERMANN_STEERING = 0, SKID_STEERING = 1, };
+enum SmoothingMethod {FRENET = 0, CARTESIAN = 1};
+
+class Config {
+public:
+    Config() = default;
+    // Car param:
+    CarType car_type_;
+    double circle_radius_;
+    double wheel_base_;
+    double rear_axle_to_center_distance_; // Distance from rear axle center to the center of the vehicle.
+    double d1, d2, d3, d4; // Distance from vehicle center to the covering circles, from rear to front.
+    // Smoothing phase related:
+    SmoothingMethod smoothing_method_;
+    double frenet_curvature_w, frenet_curvature_rate_w, frenet_deviation_w; // Frenet method weights.
+    double cartesian_curvature_w, cartesian_deviation_w; // Cartesian method weight.
+    // Optimization phase related:
+    double opt_curvature_w, opt_curvature_rate_w, opt_deviation_w;
+};
 
 class PathOptimizer {
 public:
@@ -141,6 +159,7 @@ private:
     CollisionChecker collision_checker_;
     CarType car_type;
     std::vector<double> car_geo_;
+    Config config_;
     double rear_axle_to_center_dis;
     double wheel_base;
     std::vector<double> seg_s_list_;
