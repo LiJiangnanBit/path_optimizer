@@ -676,7 +676,7 @@ bool PathOptimizer::smoothPathCartesian(tk::spline *x_s_out, tk::spline *y_s_out
     options += "Sparse  true        reverse\n";
     // NOTE: Currently the solver has a maximum time limit of 0.1 seconds.
     // Change this as you see fit.
-    options += "Numeric max_cpu_time          1.0\n";
+    options += "Numeric max_cpu_time          0.3\n";
 
     // place to return solution
     CppAD::ipopt::solve_result<Dvector> solution;
