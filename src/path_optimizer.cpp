@@ -129,10 +129,10 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
         return false;
     }
     // Divide the reference path. Intervals are smaller at the beginning.
-    double delta_s_smaller = 0.5;
+    double delta_s_smaller = 0.3;
     // If we want to make the result path dense later, the interval here is 1.0m.
     // If we want to output the result directly, the interval is smaller.
-    double delta_s_larger = densify_result ? 1.0 : 0.5;
+    double delta_s_larger = densify_result ? 1.0 : 0.3;
     if (fabs(epsi_) < 20 * M_PI / 180) delta_s_smaller = delta_s_larger;
     double tmp_max_s = delta_s_smaller;
     seg_s_list_.emplace_back(0);

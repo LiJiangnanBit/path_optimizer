@@ -43,13 +43,17 @@ public:
     double circle_radius_;
     double wheel_base_;
     double rear_axle_to_center_distance_; // Distance from rear axle center to the center of the vehicle.
-    double d1, d2, d3, d4; // Distance from vehicle center to the covering circles, from rear to front.
+    double d1_, d2_, d3_, d4_; // Distance from vehicle center to the covering circles, from rear to front.
+    double max_steer_angle_;
     // Smoothing phase related:
     SmoothingMethod smoothing_method_;
-    double frenet_curvature_w, frenet_curvature_rate_w, frenet_deviation_w; // Frenet method weights.
-    double cartesian_curvature_w, cartesian_deviation_w; // Cartesian method weight.
+    double frenet_curvature_w_, frenet_curvature_rate_w_, frenet_deviation_w_; // Frenet method weights.
+    double cartesian_curvature_w_, cartesian_deviation_w_; // Cartesian method weight.
     // Optimization phase related:
-    double opt_curvature_w, opt_curvature_rate_w, opt_deviation_w;
+    double opt_curvature_w_, opt_curvature_rate_w_, opt_deviation_w_;
+    // Output option
+    bool raw_result_;
+    double output_interval_;
 };
 
 class PathOptimizer {
