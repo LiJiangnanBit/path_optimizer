@@ -74,9 +74,3 @@ target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES
 add_executable(${PROJECT_NAME}_benchmark src/path_optimizer_benchmark.cpp src/path_optimizer.cpp src/collision_checker.cpp src/osqp_related.cpp)
 target_link_libraries(${PROJECT_NAME}_benchmark glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark ${Clothoids_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
         )
-
-add_executable(${PROJECT_NAME}_test src/test_eigen.cpp)
-target_link_libraries(${PROJECT_NAME}_test OsqpEigen::OsqpEigen osqp::osqp)
-
-add_executable(test_spline src/test_spline.cpp)
-target_link_libraries(test_spline ${catkin_LIBRARIES})
