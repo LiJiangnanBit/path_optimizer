@@ -2,7 +2,7 @@
 // Created by ljn on 19-11-15.
 //
 
-#include "path_optimizer.hpp"
+#include "path_optimizer/path_optimizer.hpp"
 namespace PathOptimizationNS {
 
 // TODO: set these functions as static ones.

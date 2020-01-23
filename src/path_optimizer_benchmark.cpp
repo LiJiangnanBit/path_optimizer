@@ -6,7 +6,7 @@
 #include <benchmark/benchmark.h>
 #include <vector>
 #include <opencv/cv.hpp>
-#include <path_optimizer.hpp>
+#include <path_optimizer/path_optimizer.hpp>
 
 static void BM_optimizePath(benchmark::State &state) {
     cv::Mat1b image = cv::imread(

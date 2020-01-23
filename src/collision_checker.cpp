@@ -1,7 +1,7 @@
 //
 // Created by yangt on 19-5-8.
 //
-#include "../include/collosion_checker.hpp"
+#include "path_optimizer/collosion_checker.hpp"
 
 namespace PathOptimizationNS {
 

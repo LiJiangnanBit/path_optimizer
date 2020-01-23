@@ -2,7 +2,7 @@
 // Created by ljn on 19-8-16.
 //
 
-#include "path_optimizer.hpp"
+#include "path_optimizer/path_optimizer.hpp"
 namespace PathOptimizationNS {
 
 PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
