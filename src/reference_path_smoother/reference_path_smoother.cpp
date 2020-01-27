@@ -1,6 +1,7 @@
 //
 // Created by ljn on 20-1-26.
 //
+#include <path_optimizer/path_optimizer.hpp>
 #include "reference_path_smoother/reference_path_smoother.hpp"
 
 namespace PathOptimizationNS {
@@ -15,23 +16,17 @@ ReferencePathSmoother::ReferencePathSmoother(const std::vector<hmpl::State> &inp
     config_(config) {
 }
 
-bool ReferencePathSmoother::testFcn(double d)  {
-    return true;
-}
 
-bool ReferencePathSmoother::smooth(tk::spline *x_s_out,
-                                   tk::spline *y_s_out,
-                                   double *max_s_out,
-                                   std::vector<hmpl::State> *smoothed_path_display) const {
+bool ReferencePathSmoother::smooth(ReferencePath *reference_path, std::vector<hmpl::State> *smoothed_path_display) const {
     if (config_.smoothing_method_ == FRENET) {
-        return smoothPathFrenet(x_s_out,
-                                y_s_out,
-                                max_s_out,
+        return smoothPathFrenet(&reference_path->x_s_,
+                                &reference_path->y_s_,
+                                &reference_path->max_s_,
                                 smoothed_path_display);
     } else if (config_.smoothing_method_ == CARTESIAN) {
-        return smoothPathCartesian(x_s_out,
-                                   y_s_out,
-                                   max_s_out,
+        return smoothPathCartesian(&reference_path->x_s_,
+                                   &reference_path->y_s_,
+                                   &reference_path->max_s_,
                                    smoothed_path_display);
     }
     return true;

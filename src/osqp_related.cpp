@@ -58,17 +58,17 @@ void PathOptimizer::setDynamicMatrix(size_t i,
 }
 
 void PathOptimizer::setConstraintMatrix(size_t horizon,
-                                        const DividedSegments &divided_segments,
+                                        const ReferencePath &reference_path,
                                         Eigen::SparseMatrix<double> *matrix_constraints,
                                         Eigen::VectorXd *lower_bound,
                                         Eigen::VectorXd *upper_bound,
                                         const std::vector<double> &init_state,
                                         double end_heading,
                                         bool constraint_end_psi) {
-    const auto &seg_s_list = divided_segments.seg_s_list_;
-    const auto &seg_k_list = divided_segments.seg_k_list_;
-    const auto &seg_angle_list = divided_segments.seg_angle_list_;
-    const auto &seg_clearance_list = divided_segments.seg_clearance_list_;
+    const auto &seg_s_list = reference_path.seg_s_list_;
+    const auto &seg_k_list = reference_path.seg_k_list_;
+    const auto &seg_angle_list = reference_path.seg_angle_list_;
+    const auto &seg_clearance_list = reference_path.seg_clearance_list_;
     Eigen::MatrixXd cons = Eigen::MatrixXd::Zero(9 * horizon - 1, 3 * horizon - 1);
     for (size_t i = 0; i != 2 * horizon; ++i) {
         cons(i, i) = -1;
@@ -131,7 +131,7 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
 }
 
 void PathOptimizer::setConstraintMatrix(size_t horizon,
-                                        const DividedSegments &divided_segments,
+                                        const ReferencePath &reference_path,
                                         Eigen::SparseMatrix<double> *matrix_constraints,
                                         Eigen::VectorXd *lower_bound,
                                         Eigen::VectorXd *upper_bound,
@@ -141,10 +141,10 @@ void PathOptimizer::setConstraintMatrix(size_t horizon,
                                         double angle_error_allowed,
                                         double offset_error_allowed) {
     CHECK(angle_error_allowed >= 0 && offset_error_allowed >= 0);
-    const auto &seg_s_list = divided_segments.seg_s_list_;
-    const auto &seg_k_list = divided_segments.seg_k_list_;
-    const auto &seg_angle_list = divided_segments.seg_angle_list_;
-    const auto &seg_clearance_list = divided_segments.seg_clearance_list_;
+    const auto &seg_s_list = reference_path.seg_s_list_;
+    const auto &seg_k_list = reference_path.seg_k_list_;
+    const auto &seg_angle_list = reference_path.seg_angle_list_;
+    const auto &seg_clearance_list = reference_path.seg_clearance_list_;
     Eigen::MatrixXd cons = Eigen::MatrixXd::Zero(9 * horizon - 1, 3 * horizon - 1);
     for (size_t i = 0; i != 2 * horizon; ++i) {
         cons(i, i) = -1;

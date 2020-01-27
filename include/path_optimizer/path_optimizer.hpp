@@ -31,29 +31,6 @@
 
 namespace PathOptimizationNS {
 
-// Used to store divided smoothed path.
-struct DividedSegments {
-    DividedSegments() = default;
-    // Copy some elements from another one.
-    DividedSegments(const DividedSegments &divided_segments_, size_t target_index) {
-        assert(target_index <= divided_segments_.seg_angle_list_.size());
-        seg_s_list_.assign(divided_segments_.seg_s_list_.begin(), divided_segments_.seg_s_list_.begin() + target_index);
-        seg_angle_list_.assign(divided_segments_.seg_angle_list_.begin(),
-                               divided_segments_.seg_angle_list_.begin() + target_index);
-        seg_k_list_.assign(divided_segments_.seg_k_list_.begin(), divided_segments_.seg_k_list_.begin() + target_index);
-        seg_clearance_list_.assign(divided_segments_.seg_clearance_list_.begin(),
-                                   divided_segments_.seg_clearance_list_.begin() + target_index);
-        seg_x_list_.assign(divided_segments_.seg_x_list_.begin(), divided_segments_.seg_x_list_.begin() + target_index);
-        seg_y_list_.assign(divided_segments_.seg_y_list_.begin(), divided_segments_.seg_y_list_.begin() + target_index);
-    }
-    std::vector<double> seg_s_list_;
-    std::vector<double> seg_k_list_;
-    std::vector<double> seg_x_list_;
-    std::vector<double> seg_y_list_;
-    std::vector<double> seg_angle_list_;
-    std::vector<std::vector<double> > seg_clearance_list_;
-};
-
 class PathOptimizer {
 public:
     PathOptimizer() = delete;
@@ -109,7 +86,7 @@ private:
                           Eigen::Matrix<double, 2, 2> *matrix_a,
                           Eigen::Matrix<double, 2, 1> *matrix_b);
     void setConstraintMatrix(size_t horizon,
-                             const DividedSegments &divided_segments,
+                             const ReferencePath &reference_path,
                              Eigen::SparseMatrix<double> *matrix_constraints,
                              Eigen::VectorXd *lower_bound,
                              Eigen::VectorXd *upper_bound,
@@ -118,7 +95,7 @@ private:
                              bool constraint_end_psi);
 
     void setConstraintMatrix(size_t horizon,
-                             const DividedSegments &divided_segments,
+                             const ReferencePath &reference_path,
                              Eigen::SparseMatrix<double> *matrix_constraints,
                              Eigen::VectorXd *lower_bound,
                              Eigen::VectorXd *upper_bound,
@@ -135,27 +112,19 @@ private:
     Config config_;
     double rear_axle_to_center_dis;///x
     double wheel_base;///x
-//    std::vector<double> seg_s_list_;
-//    std::vector<double> seg_k_list_;
-//    std::vector<double> seg_x_list_;
-//    std::vector<double> seg_y_list_;
-//    std::vector<double> seg_angle_list_;
-    DividedSegments divided_segments_;
-//    std::vector<std::vector<double> > seg_clearance_list_;
+    ReferencePath reference_path_;
+    // Vehicle state.
     hmpl::State start_state_;
     hmpl::State end_state_;
-    double smoothed_max_s;
-    size_t N_;
-    bool use_end_psi;
-    // Start position and angle error with smoothed path.
+    // Initial offset and heading error.
     double cte_;
     double epsi_;
-    bool densify_result;
-    // Only for smoothing phase
+    size_t N_;
+    bool use_end_psi; ///x
+    bool densify_result;///x
+    // Input path
     std::vector<hmpl::State> points_list_;
     size_t point_num_;
-    tk::spline smoothed_x_spline;
-    tk::spline smoothed_y_spline;
     // For dynamic obstacle avoidace.
     OsqpEigen::Solver solver_dynamic;
     bool solver_dynamic_initialized;
