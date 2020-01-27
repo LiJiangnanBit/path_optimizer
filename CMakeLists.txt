@@ -3,7 +3,8 @@ project(path_optimizer)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_definitions(-std=c++11)
-set(CMAKE_CXX_FLAGS "-Wall -Wextra ${CMAKE_CXX_FLAGS}")
+add_definitions(-fPIC)
+set(CMAKE_CXX_FLAGS " -Wall -Wextra ${CMAKE_CXX_FLAGS}")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -59,18 +60,24 @@ include_directories(
         include
         ${catkin_INCLUDE_DIRS}
         ${Clothoids_INCLUDE_DIRS}
-        SYSTEM
         ${EIGEN3_INCLUDE_DIR}
 )
 
 # Declare a C++ library
 add_library(${PROJECT_NAME}
-        src/path_optimizer.cpp src/collision_checker.cpp src/osqp_related.cpp)
+        src/tools/spline.cpp
+        src/path_optimizer.cpp
+        src/reference_path_smoother/reference_path_smoother.cpp
+        src/tools/collision_checker.cpp
+        src/osqp_related.cpp
+        src/tools/tools.cpp
+
+        )
 target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} ${Clothoids_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
         )
 
-## Add folders to be run by python nosetests
-# catkin_add_nosetests(test)
-add_executable(${PROJECT_NAME}_benchmark src/path_optimizer_benchmark.cpp src/path_optimizer.cpp src/collision_checker.cpp src/osqp_related.cpp)
-target_link_libraries(${PROJECT_NAME}_benchmark glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark ${Clothoids_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
+add_executable(${PROJECT_NAME}_benchmark
+        src/path_optimizer_benchmark.cpp
+        )
+target_link_libraries(${PROJECT_NAME}_benchmark ${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark ${Clothoids_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
         )

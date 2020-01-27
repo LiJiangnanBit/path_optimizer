@@ -20,41 +20,16 @@
 #include <Clothoid.hh>
 #include <opt_utils/utils.hpp>
 #include <internal_grid_map/internal_grid_map.hpp>
-#include "tinyspline_ros/tinysplinecpp.h"
-#include "spline.h"
+#include <tinyspline_ros/tinysplinecpp.h>
+#include <OsqpEigen/OsqpEigen.h>
+#include "reference_path_smoother/reference_path_smoother.hpp"
+#include "tools/spline.h"
+#include "tools/tools.hpp"
 #include "FgEvalFrenet.hpp"
-#include "FgEvalReferenceSmoothing.hpp"
-#include "FgEvalReferenceSmoothingFrenet.hpp"
-#include "collosion_checker.hpp"
-#include "OsqpEigen/OsqpEigen.h"
-
-#define MAX_STEER_ANGLE 35 * M_PI / 180
+#include "tools/collosion_checker.hpp"
+#include "config/config.hpp"
 
 namespace PathOptimizationNS {
-
-enum CarType { ACKERMANN_STEERING = 0, SKID_STEERING = 1, };
-enum SmoothingMethod {FRENET = 0, CARTESIAN = 1};
-
-class Config {
-public:
-    Config() = default;
-    // Car param:
-    CarType car_type_;
-    double circle_radius_;
-    double wheel_base_;
-    double rear_axle_to_center_distance_; // Distance from rear axle center to the center of the vehicle.
-    double d1_, d2_, d3_, d4_; // Distance from vehicle center to the covering circles, from rear to front.
-    double max_steer_angle_;
-    // Smoothing phase related:
-    SmoothingMethod smoothing_method_;
-    double frenet_curvature_w_, frenet_curvature_rate_w_, frenet_deviation_w_; // Frenet method weights.
-    double cartesian_curvature_w_, cartesian_deviation_w_; // Cartesian method weight.
-    // Optimization phase related:
-    double opt_curvature_w_, opt_curvature_rate_w_, opt_deviation_w_;
-    // Output option
-    bool raw_result_;
-    double output_interval_;
-};
 
 class PathOptimizer {
 public:
@@ -64,7 +39,9 @@ public:
                   const hmpl::State &end_state,
                   const hmpl::InternalGridMap &map,
                   bool densify_path = true);
+    // Call this to get the final path.
     bool solve(std::vector<hmpl::State> *final_path);
+    // Sample a set of candidate paths of various longitudinal distance and lateral offset.
     bool samplePaths(const std::vector<double> &lon_set,
                      const std::vector<double> &lat_set,
                      std::vector<std::vector<hmpl::State>> *final_path_set);
@@ -74,8 +51,9 @@ public:
                          std::vector<double> *x_list,
                          std::vector<double> *y_list,
                          std::vector<double> *s_list);
+    // Only for visualization purpose.
+    // TODO: some of these functions are no longer used.
     const std::vector<std::vector<hmpl::State> > &getControlSamplingPathSet() const;
-    // Just for visualization purpose.
     const std::vector<std::vector<hmpl::State> > &getControlSamplingFailedPathSet() const;
     const std::vector<hmpl::State> &getBestSamplingPath() const;
     const std::vector<hmpl::State> &getLeftBound() const;
@@ -87,44 +65,21 @@ public:
     const std::vector<hmpl::State> &getSmoothedPath() const;
 
 private:
+    // TODO: abandon this function, use the config class instead.
     void setCarGeometry();
-    bool smoothPath(tk::spline *x_s_out, tk::spline *y_s_out, double *max_s);
-    bool smoothPathCartesian(tk::spline *x_s_out, tk::spline *y_s_out, double *max_s);
-    bool smoothPathFrenet(tk::spline *x_s_out, tk::spline *y_s_out, double *max_s);
+    void setConfig();
     bool optimizePath(std::vector<hmpl::State> *final_path);
     bool sampleSingleLongitudinalPaths(double lon,
                                        const std::vector<double> &lat_set,
                                        std::vector<std::vector<hmpl::State>> *final_path_set,
                                        bool max_lon_flag);
-    static bool getCurvature(const std::vector<double> &local_x,
-                      const std::vector<double> &local_y,
-                      std::vector<double> *pt_curvature_out,
-                      double *max_curvature_abs = nullptr,
-                      double *max_curvature_change_abs = nullptr);
-    static double getPointCurvature(const double &x1, const double &y1,
-                             const double &x2, const double &y2,
-                             const double &x3, const double &y3);
     std::vector<double> getClearanceWithDirectionStrict(hmpl::State state,
                                                         double radius,
                                                         bool safety_margin_flag) const;
     std::vector<double> getClearanceFor4Circles(const hmpl::State &state,
                                                 const std::vector<double> &car_geometry,
                                                 bool safety_margin_flag);
-
     bool divideSmoothedPath(bool safety_margin_flag);
-
-    // Set angle range to -pi ~ pi.
-    inline double constraintAngle(double angle) const {
-        if (angle > M_PI) {
-            angle -= 2 * M_PI;
-            return constraintAngle(angle);
-        } else if (angle < -M_PI) {
-            angle += 2 * M_PI;
-            return constraintAngle(angle);
-        } else {
-            return angle;
-        }
-    }
 
     //OSQP solver related
     void setHessianMatrix(size_t horizon, Eigen::SparseMatrix<double> *matrix_h);
