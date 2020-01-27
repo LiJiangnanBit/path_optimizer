@@ -31,6 +31,29 @@
 
 namespace PathOptimizationNS {
 
+// Used to store divided smoothed path.
+struct DividedSegments {
+    DividedSegments() = default;
+    // Copy some elements from another one.
+    DividedSegments(const DividedSegments &divided_segments_, size_t target_index) {
+        assert(target_index <= divided_segments_.seg_angle_list_.size());
+        seg_s_list_.assign(divided_segments_.seg_s_list_.begin(), divided_segments_.seg_s_list_.begin() + target_index);
+        seg_angle_list_.assign(divided_segments_.seg_angle_list_.begin(),
+                               divided_segments_.seg_angle_list_.begin() + target_index);
+        seg_k_list_.assign(divided_segments_.seg_k_list_.begin(), divided_segments_.seg_k_list_.begin() + target_index);
+        seg_clearance_list_.assign(divided_segments_.seg_clearance_list_.begin(),
+                                   divided_segments_.seg_clearance_list_.begin() + target_index);
+        seg_x_list_.assign(divided_segments_.seg_x_list_.begin(), divided_segments_.seg_x_list_.begin() + target_index);
+        seg_y_list_.assign(divided_segments_.seg_y_list_.begin(), divided_segments_.seg_y_list_.begin() + target_index);
+    }
+    std::vector<double> seg_s_list_;
+    std::vector<double> seg_k_list_;
+    std::vector<double> seg_x_list_;
+    std::vector<double> seg_y_list_;
+    std::vector<double> seg_angle_list_;
+    std::vector<std::vector<double> > seg_clearance_list_;
+};
+
 class PathOptimizer {
 public:
     PathOptimizer() = delete;
@@ -53,9 +76,6 @@ public:
                          std::vector<double> *s_list);
     // Only for visualization purpose.
     // TODO: some of these functions are no longer used.
-    const std::vector<std::vector<hmpl::State> > &getControlSamplingPathSet() const;
-    const std::vector<std::vector<hmpl::State> > &getControlSamplingFailedPathSet() const;
-    const std::vector<hmpl::State> &getBestSamplingPath() const;
     const std::vector<hmpl::State> &getLeftBound() const;
     const std::vector<hmpl::State> &getRightBound() const;
     const std::vector<hmpl::State> &getSecondThirdPoint() const;
@@ -89,10 +109,7 @@ private:
                           Eigen::Matrix<double, 2, 2> *matrix_a,
                           Eigen::Matrix<double, 2, 1> *matrix_b);
     void setConstraintMatrix(size_t horizon,
-                             const std::vector<double> &seg_s_list,
-                             const std::vector<double> &seg_angle_list,
-                             const std::vector<double> &seg_k_list,
-                             const std::vector<std::vector<double>> &seg_clearance_list,
+                             const DividedSegments &divided_segments,
                              Eigen::SparseMatrix<double> *matrix_constraints,
                              Eigen::VectorXd *lower_bound,
                              Eigen::VectorXd *upper_bound,
@@ -101,10 +118,7 @@ private:
                              bool constraint_end_psi);
 
     void setConstraintMatrix(size_t horizon,
-                             const std::vector<double> &seg_s_list,
-                             const std::vector<double> &seg_angle_list,
-                             const std::vector<double> &seg_k_list,
-                             const std::vector<std::vector<double>> &seg_clearance_list,
+                             const DividedSegments &divided_segments,
                              Eigen::SparseMatrix<double> *matrix_constraints,
                              Eigen::VectorXd *lower_bound,
                              Eigen::VectorXd *upper_bound,
@@ -116,19 +130,18 @@ private:
 
     hmpl::InternalGridMap grid_map_;
     CollisionChecker collision_checker_;
-    CarType car_type;
-    std::vector<double> car_geo_;
+    CarType car_type; ///x
+    std::vector<double> car_geo_;///x
     Config config_;
-    double rear_axle_to_center_dis;
-    double wheel_base;
-    std::vector<double> seg_s_list_;
-    std::vector<double> seg_k_list_;
-    std::vector<double> seg_x_list_;
-    std::vector<double> seg_y_list_;
-    std::vector<double> seg_angle_list_;
-    std::vector<std::vector<double> > seg_clearance_list_;
-    bool control_sampling_first_flag_;
-    bool enable_control_sampling;
+    double rear_axle_to_center_dis;///x
+    double wheel_base;///x
+//    std::vector<double> seg_s_list_;
+//    std::vector<double> seg_k_list_;
+//    std::vector<double> seg_x_list_;
+//    std::vector<double> seg_y_list_;
+//    std::vector<double> seg_angle_list_;
+    DividedSegments divided_segments_;
+//    std::vector<std::vector<double> > seg_clearance_list_;
     hmpl::State start_state_;
     hmpl::State end_state_;
     double smoothed_max_s;
