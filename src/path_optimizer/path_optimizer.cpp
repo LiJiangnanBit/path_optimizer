@@ -78,10 +78,10 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
            "optimize phase t: %f\n"
            "all t: %f\n"
            "############\n",
-           (double) (t2 - t1) / CLOCKS_PER_SEC,
-           (double) (t3 - t2) / CLOCKS_PER_SEC,
-           (double) (t4 - t3) / CLOCKS_PER_SEC,
-           (double) (t4 - t1) / CLOCKS_PER_SEC);
+           time_s(t1, t2),
+           time_s(t2, t3),
+           time_s(t3, t4),
+           time_s(t1, t4));
     return ok;
 }
 
@@ -211,18 +211,19 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
                                                   const std::vector<double> &lat_set,
                                                   std::vector<std::vector<hmpl::State>> *final_path_set,
                                                   bool max_lon_flag) {
-    auto start = std::clock();
+    // TODO: use provided lateral set.
+    auto t1 = std::clock();
     size_t index = 0;
     for (; index != N_; ++index) {
         if (reference_path_.seg_s_list_[index] > lon) break;
     }
     ReferencePath divided_segments(reference_path_, index);
     auto N = divided_segments.seg_s_list_.size();
-    auto solver_init = std::clock();
+    auto t2 = std::clock();
     SolverInterface solver_interface(config_, reference_path_, vehicle_state_, N);
     double target_angle = divided_segments.seg_angle_list_.back();
     solver_interface.initializeSampling(target_angle, 0, 0.1);
-    auto solving = std::clock();
+    auto t3 = std::clock();
     size_t count = 0;
     double left_bound = divided_segments.seg_clearance_list_.back()[0];
     double right_bound = divided_segments.seg_clearance_list_.back()[1];
@@ -292,7 +293,6 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
                        tmp_s,
                        result_s.back(),
                        offset_set[i]);
-//                tmp_final_path.emplace_back(tmp_state);
                 break;
             }
             if ((j + 1) * delta_s > result_s.back()) {
@@ -311,7 +311,7 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
             ++count;
         }
     }
-    auto solved = std::clock();
+    auto t4 = std::clock();
     printf("got %d paths at %fm\n", static_cast<int>(count), lon);
     printf("**********\n"
            "preprocess: %f\n"
@@ -319,10 +319,10 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
            "solve: %f\n"
            "all: %f\n"
            "**********\n",
-           (double) (solver_init - start) / CLOCKS_PER_SEC,
-           (double) (solving - solver_init) / CLOCKS_PER_SEC,
-           (double) (solved - solving) / CLOCKS_PER_SEC,
-           (double) (solved - start) / CLOCKS_PER_SEC);
+           time_s(t1, t2),
+           time_s(t2, t3),
+           time_s(t3, t4),
+           time_s(t1, t4));
     return true;
 }
 
@@ -337,7 +337,9 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
                                      reference_path_,
                                      vehicle_state_,
                                      N_);
-    solver_interface.solve(&QPSolution);
+    if (!solver_interface.solve(&QPSolution)) {
+        return false;
+    }
     // Output.
     std::vector<double> result_x, result_y, result_s;
     double total_s = 0;
