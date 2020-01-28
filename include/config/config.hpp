@@ -27,6 +27,7 @@ public:
     double cartesian_curvature_w_, cartesian_deviation_w_; // Cartesian method weight.
     // Optimization phase related:
     double opt_curvature_w_, opt_curvature_rate_w_, opt_deviation_w_;
+    bool constraint_end_heading_;
     // Output option
     bool raw_result_;
     double output_interval_;

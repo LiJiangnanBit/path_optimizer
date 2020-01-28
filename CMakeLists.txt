@@ -66,13 +66,11 @@ include_directories(
 # Declare a C++ library
 add_library(${PROJECT_NAME}
         src/tools/spline.cpp
-        src/path_optimizer.cpp
+        src/path_optimizer/path_optimizer.cpp
         src/reference_path_smoother/reference_path_smoother.cpp
         src/tools/collision_checker.cpp
-        src/osqp_related.cpp
         src/tools/tools.cpp
-
-        )
+        src/path_optimizer/solver_interface.cpp)
 target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} ${Clothoids_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
         )
 
