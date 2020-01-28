@@ -40,8 +40,8 @@ private:
                              double *max_s_out,
                              std::vector<hmpl::State> *smoothed_path_display) const;
     const std::vector<hmpl::State> &points_list_;
-    const hmpl::State start_state_;
-    const hmpl::InternalGridMap grid_map_;
+    const hmpl::State &start_state_;
+    const hmpl::InternalGridMap &grid_map_;
     const Config &config_;
 };
 }
