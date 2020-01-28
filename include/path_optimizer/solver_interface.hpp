@@ -27,22 +27,16 @@ public:
     bool solveDynamicUpdate(Eigen::VectorXd *solution,
                             const std::vector<std::vector<double>> &clearance);
 private:
-    void setHessianMatrix(size_t horizon, Eigen::SparseMatrix<double> *matrix_h) const;
+    void setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const;
     void setDynamicMatrix(size_t n,
                           const std::vector<double> &seg_s_list,
                           const std::vector<double> &seg_k_list,
                           Eigen::Matrix<double, 2, 2> *matrix_a,
                           Eigen::Matrix<double, 2, 1> *matrix_b) const;
-    void setConstraintMatrix(size_t horizon,
-                             const ReferencePath &reference_path,
-                             const VehicleState &vehicle_state,
-                             Eigen::SparseMatrix<double> *matrix_constraints,
+    void setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_constraints,
                              Eigen::VectorXd *lower_bound,
                              Eigen::VectorXd *upper_bound) const;
-    void setConstraintMatrixWithOffset(size_t horizon,
-                                       const ReferencePath &reference_path,
-                                       const VehicleState &vehicle_state,
-                                       double offset,
+    void setConstraintMatrixWithOffset(double offset,
                                        double target_angle,
                                        double angle_error_allowed,
                                        double offset_error_allowed,

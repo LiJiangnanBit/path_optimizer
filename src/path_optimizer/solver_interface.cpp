@@ -31,14 +31,12 @@ bool SolverInterface::solve(Eigen::VectorXd *solution) {
     Eigen::VectorXd lowerBound;
     Eigen::VectorXd upperBound;
     // Set Hessian matrix.
-    setHessianMatrix(horizon_, &hessian);
+    setHessianMatrix(&hessian);
     // Set state transition matrix, constraint matrix and bound vector.
-    setConstraintMatrix(horizon_,
-                        reference_path_,
-                        vehicle_state_,
-                        &linearMatrix,
-                        &lowerBound,
-                        &upperBound);
+    setConstraintMatrix(
+        &linearMatrix,
+        &lowerBound,
+        &upperBound);
     // Input to solver.
     if (!solver_.data()->setHessianMatrix(hessian)) return false;
     if (!solver_.data()->setGradient(gradient)) return false;
@@ -64,18 +62,16 @@ bool SolverInterface::initializeSampling(double target_angle, double angle_error
     Eigen::VectorXd gradient = Eigen::VectorXd::Zero(3 * horizon_ - 1);
     Eigen::SparseMatrix<double> linearMatrix;
     // Set Hessian matrix.
-    setHessianMatrix(horizon_, &hessian);
+    setHessianMatrix(&hessian);
     // Set state transition matrix, constraint matrix and bound vector.
-    setConstraintMatrixWithOffset(horizon_,
-                                  reference_path_,
-                                  vehicle_state_,
-                                  0,
-                                  target_angle,
-                                  angle_error_allowed,
-                                  offset_error_allowed,
-                                  &linearMatrix,
-                                  &lowerBound_,
-                                  &upperBound_);
+    setConstraintMatrixWithOffset(
+        0,
+        target_angle,
+        angle_error_allowed,
+        offset_error_allowed,
+        &linearMatrix,
+        &lowerBound_,
+        &upperBound_);
     // Input to solver.
     if (!solver_for_sampling_.data()->setHessianMatrix(hessian)) return false;
     if (!solver_for_sampling_.data()->setGradient(gradient)) return false;
@@ -112,37 +108,34 @@ bool SolverInterface::solveSampling(Eigen::VectorXd *solution,
 }
 
 bool SolverInterface::solveDynamic(Eigen::VectorXd *solution) {
-        solver_for_dynamic_env_.settings()->setVerbosity(false);
-        solver_for_dynamic_env_.settings()->setWarmStart(true);
+    solver_for_dynamic_env_.settings()->setVerbosity(false);
+    solver_for_dynamic_env_.settings()->setWarmStart(true);
 //        solver_dynamic.settings()->setMaxIteraction(250);
-        solver_for_dynamic_env_.data()->setNumberOfVariables(3 * horizon_ - 1);
-        solver_for_dynamic_env_.data()->setNumberOfConstraints(9 * horizon_ - 1);
-        // Allocate QP problem matrices and vectors.
-        Eigen::SparseMatrix<double> hessian;
-        Eigen::VectorXd gradient = Eigen::VectorXd::Zero(3 * horizon_ - 1);
-        Eigen::SparseMatrix<double> linearMatrix;
-        setHessianMatrix(horizon_, &hessian);
-        setConstraintMatrix(horizon_,
-                            reference_path_,
-                            vehicle_state_,
-                            &linearMatrix,
-                            &lowerBound_,
-                            &upperBound_);
-        if (!solver_for_dynamic_env_.data()->setHessianMatrix(hessian)) return false;
-        if (!solver_for_dynamic_env_.data()->setGradient(gradient)) return false;
-        if (!solver_for_dynamic_env_.data()->setLinearConstraintsMatrix(linearMatrix)) return false;
-        if (!solver_for_dynamic_env_.data()->setLowerBound(lowerBound_)) return false;
-        if (!solver_for_dynamic_env_.data()->setUpperBound(upperBound_)) return false;
-        if (!solver_for_dynamic_env_.initSolver()) return false;
-        solver_for_dynamic_initialized_flag_ = true;
-        bool ok = solver_for_dynamic_env_.solve();
-        if (!ok) {
-            printf("dynamic solver failed\n");
-            return false;
-        }
-        *solution = solver_for_dynamic_env_.getSolution();
-        solver_for_dynamic_initialized_flag_ = true;
-        return true;
+    solver_for_dynamic_env_.data()->setNumberOfVariables(3 * horizon_ - 1);
+    solver_for_dynamic_env_.data()->setNumberOfConstraints(9 * horizon_ - 1);
+    // Allocate QP problem matrices and vectors.
+    Eigen::SparseMatrix<double> hessian;
+    Eigen::VectorXd gradient = Eigen::VectorXd::Zero(3 * horizon_ - 1);
+    Eigen::SparseMatrix<double> linearMatrix;
+    setHessianMatrix(&hessian);
+    setConstraintMatrix(&linearMatrix,
+                        &lowerBound_,
+                        &upperBound_);
+    if (!solver_for_dynamic_env_.data()->setHessianMatrix(hessian)) return false;
+    if (!solver_for_dynamic_env_.data()->setGradient(gradient)) return false;
+    if (!solver_for_dynamic_env_.data()->setLinearConstraintsMatrix(linearMatrix)) return false;
+    if (!solver_for_dynamic_env_.data()->setLowerBound(lowerBound_)) return false;
+    if (!solver_for_dynamic_env_.data()->setUpperBound(upperBound_)) return false;
+    if (!solver_for_dynamic_env_.initSolver()) return false;
+    solver_for_dynamic_initialized_flag_ = true;
+    bool ok = solver_for_dynamic_env_.solve();
+    if (!ok) {
+        printf("dynamic solver failed\n");
+        return false;
+    }
+    *solution = solver_for_dynamic_env_.getSolution();
+    solver_for_dynamic_initialized_flag_ = true;
+    return true;
 }
 
 bool SolverInterface::solveDynamicUpdate(Eigen::VectorXd *solution, const std::vector<std::vector<double>> &clearance) {
@@ -169,9 +162,9 @@ bool SolverInterface::solveDynamicUpdate(Eigen::VectorXd *solution, const std::v
     }
 }
 
-void SolverInterface::setHessianMatrix(size_t horizon, Eigen::SparseMatrix<double> *matrix_h) const {
-    const size_t state_size = 2 * horizon;
-    const size_t control_size = horizon - 1;
+void SolverInterface::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const {
+    const size_t state_size = 2 * horizon_;
+    const size_t control_size = horizon_ - 1;
     const size_t matrix_size = state_size + control_size;
     double w_c = 10;
     double w_cr = 100;
@@ -196,10 +189,10 @@ void SolverInterface::setHessianMatrix(size_t horizon, Eigen::SparseMatrix<doubl
             }
         }
     }
-    for (size_t i = 0; i != horizon; ++i) {
+    for (size_t i = 0; i != horizon_; ++i) {
         hessian.block(2 * i, 2 * i, 2, 2) = matrix_Q;
     }
-    hessian.block(2 * horizon, 2 * horizon, horizon - 1, horizon - 1) = matrix_R;
+    hessian.block(2 * horizon_, 2 * horizon_, horizon_ - 1, horizon_ - 1) = matrix_R;
     *matrix_h = hessian.sparseView();
 }
 
@@ -220,47 +213,44 @@ void SolverInterface::setDynamicMatrix(size_t i,
     *matrix_b = b;
 }
 
-void SolverInterface::setConstraintMatrix(size_t horizon,
-                                          const ReferencePath &reference_path,
-                                          const VehicleState &vehicle_state,
-                                          Eigen::SparseMatrix<double> *matrix_constraints,
+void SolverInterface::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_constraints,
                                           Eigen::VectorXd *lower_bound,
                                           Eigen::VectorXd *upper_bound) const {
-    const auto &seg_s_list = reference_path.seg_s_list_;
-    const auto &seg_k_list = reference_path.seg_k_list_;
-    const auto &seg_angle_list = reference_path.seg_angle_list_;
-    const auto &seg_clearance_list = reference_path.seg_clearance_list_;
-    Eigen::MatrixXd cons = Eigen::MatrixXd::Zero(9 * horizon - 1, 3 * horizon - 1);
-    for (size_t i = 0; i != 2 * horizon; ++i) {
+    const auto &seg_s_list = reference_path_.seg_s_list_;
+    const auto &seg_k_list = reference_path_.seg_k_list_;
+    const auto &seg_angle_list = reference_path_.seg_angle_list_;
+    const auto &seg_clearance_list = reference_path_.seg_clearance_list_;
+    Eigen::MatrixXd cons = Eigen::MatrixXd::Zero(9 * horizon_ - 1, 3 * horizon_ - 1);
+    for (size_t i = 0; i != 2 * horizon_; ++i) {
         cons(i, i) = -1;
     }
     Eigen::Matrix<double, 2, 2> a;
     Eigen::Matrix<double, 2, 1> b;
-    for (size_t i = 0; i != horizon - 1; ++i) {
+    for (size_t i = 0; i != horizon_ - 1; ++i) {
         setDynamicMatrix(i, seg_s_list, seg_k_list, &a, &b);
         cons.block(2 * (i + 1), 2 * i, 2, 2) = a;
-        cons.block(2 * (i + 1), 2 * horizon + i, 2, 1) = b;
+        cons.block(2 * (i + 1), 2 * horizon_ + i, 2, 1) = b;
     }
-    for (size_t i = 0; i != 3 * horizon - 1; ++i) {
-        cons(2 * horizon + i, i) = 1;
+    for (size_t i = 0; i != 3 * horizon_ - 1; ++i) {
+        cons(2 * horizon_ + i, i) = 1;
     }
     Eigen::Matrix<double, 4, 2> collision;
     collision << config_.d1_ + config_.rear_axle_to_center_distance_, 1,
         config_.d2_ + config_.rear_axle_to_center_distance_, 1,
         config_.d3_ + config_.rear_axle_to_center_distance_, 1,
         config_.d4_ + config_.rear_axle_to_center_distance_, 1;
-    for (size_t i = 0; i != horizon; ++i) {
-        cons.block(5 * horizon - 1 + 4 * i, 2 * i, 4, 2) = collision;
+    for (size_t i = 0; i != horizon_; ++i) {
+        cons.block(5 * horizon_ - 1 + 4 * i, 2 * i, 4, 2) = collision;
     }
     *matrix_constraints = cons.sparseView();
 
-    *lower_bound = Eigen::MatrixXd::Zero(9 * horizon - 1, 1);
-    *upper_bound = Eigen::MatrixXd::Zero(9 * horizon - 1, 1);
+    *lower_bound = Eigen::MatrixXd::Zero(9 * horizon_ - 1, 1);
+    *upper_bound = Eigen::MatrixXd::Zero(9 * horizon_ - 1, 1);
     Eigen::Matrix<double, 2, 1> x0;
-    x0 << vehicle_state.initial_heading_error_, vehicle_state.initial_offset_;
+    x0 << vehicle_state_.initial_heading_error_, vehicle_state_.initial_offset_;
     lower_bound->block(0, 0, 2, 1) = -x0;
     upper_bound->block(0, 0, 2, 1) = -x0;
-    for (size_t i = 0; i != horizon - 1; ++i) {
+    for (size_t i = 0; i != horizon_ - 1; ++i) {
         double ds = seg_s_list[i + 1] - seg_s_list[i];
         double steer = atan(seg_k_list[i] * config_.wheel_base_);
         Eigen::Vector2d c;
@@ -268,33 +258,30 @@ void SolverInterface::setConstraintMatrix(size_t horizon,
         lower_bound->block(2 + 2 * i, 0, 2, 1) = c;
         upper_bound->block(2 + 2 * i, 0, 2, 1) = c;
     }
-    lower_bound->block(2 * horizon, 0, 2 * horizon, 1) = Eigen::VectorXd::Constant(2 * horizon, -OsqpEigen::INFTY);
-    upper_bound->block(2 * horizon, 0, 2 * horizon, 1) = Eigen::VectorXd::Constant(2 * horizon, OsqpEigen::INFTY);
+    lower_bound->block(2 * horizon_, 0, 2 * horizon_, 1) = Eigen::VectorXd::Constant(2 * horizon_, -OsqpEigen::INFTY);
+    upper_bound->block(2 * horizon_, 0, 2 * horizon_, 1) = Eigen::VectorXd::Constant(2 * horizon_, OsqpEigen::INFTY);
     // Add end state constraint.
     if (config_.constraint_end_heading_) {
-        double end_psi = constraintAngle(vehicle_state.end_state_.z - seg_angle_list.back());
+        double end_psi = constraintAngle(vehicle_state_.end_state_.z - seg_angle_list.back());
         if (end_psi < 70 * M_PI / 180) {
-            (*lower_bound)(2 * horizon + 2 * horizon - 2) = end_psi - 5 * M_PI / 180;
-            (*upper_bound)(2 * horizon + 2 * horizon - 2) = end_psi + 5 * M_PI / 180;
+            (*lower_bound)(2 * horizon_ + 2 * horizon_ - 2) = end_psi - 5 * M_PI / 180;
+            (*upper_bound)(2 * horizon_ + 2 * horizon_ - 2) = end_psi + 5 * M_PI / 180;
         }
     }
-    lower_bound->block(4 * horizon, 0, horizon - 1, 1) = Eigen::VectorXd::Constant(horizon - 1, -MAX_STEER_ANGLE);
-    upper_bound->block(4 * horizon, 0, horizon - 1, 1) = Eigen::VectorXd::Constant(horizon - 1, MAX_STEER_ANGLE);
-    for (size_t i = 0; i != horizon; ++i) {
+    lower_bound->block(4 * horizon_, 0, horizon_ - 1, 1) = Eigen::VectorXd::Constant(horizon_ - 1, -MAX_STEER_ANGLE);
+    upper_bound->block(4 * horizon_, 0, horizon_ - 1, 1) = Eigen::VectorXd::Constant(horizon_ - 1, MAX_STEER_ANGLE);
+    for (size_t i = 0; i != horizon_; ++i) {
         Eigen::Vector4d ld, ud;
         ud
             << seg_clearance_list[i][0], seg_clearance_list[i][2], seg_clearance_list[i][4], seg_clearance_list[i][6];
         ld
             << seg_clearance_list[i][1], seg_clearance_list[i][3], seg_clearance_list[i][5], seg_clearance_list[i][7];
-        lower_bound->block(5 * horizon - 1 + 4 * i, 0, 4, 1) = ld;
-        upper_bound->block(5 * horizon - 1 + 4 * i, 0, 4, 1) = ud;
+        lower_bound->block(5 * horizon_ - 1 + 4 * i, 0, 4, 1) = ld;
+        upper_bound->block(5 * horizon_ - 1 + 4 * i, 0, 4, 1) = ud;
     }
 }
 
-void SolverInterface::setConstraintMatrixWithOffset(size_t horizon,
-                                                    const ReferencePath &reference_path,
-                                                    const VehicleState &vehicle_state,
-                                                    double offset,
+void SolverInterface::setConstraintMatrixWithOffset(double offset,
                                                     double target_angle,
                                                     double angle_error_allowed,
                                                     double offset_error_allowed,
@@ -302,41 +289,41 @@ void SolverInterface::setConstraintMatrixWithOffset(size_t horizon,
                                                     Eigen::VectorXd *lower_bound,
                                                     Eigen::VectorXd *upper_bound) const {
     CHECK(angle_error_allowed >= 0 && offset_error_allowed >= 0);
-    const auto &seg_s_list = reference_path.seg_s_list_;
-    const auto &seg_k_list = reference_path.seg_k_list_;
-    const auto &seg_angle_list = reference_path.seg_angle_list_;
-    const auto &seg_clearance_list = reference_path.seg_clearance_list_;
-    Eigen::MatrixXd cons = Eigen::MatrixXd::Zero(9 * horizon - 1, 3 * horizon - 1);
-    for (size_t i = 0; i != 2 * horizon; ++i) {
+    const auto &seg_s_list = reference_path_.seg_s_list_;
+    const auto &seg_k_list = reference_path_.seg_k_list_;
+    const auto &seg_angle_list = reference_path_.seg_angle_list_;
+    const auto &seg_clearance_list = reference_path_.seg_clearance_list_;
+    Eigen::MatrixXd cons = Eigen::MatrixXd::Zero(9 * horizon_ - 1, 3 * horizon_ - 1);
+    for (size_t i = 0; i != 2 * horizon_; ++i) {
         cons(i, i) = -1;
     }
     Eigen::Matrix<double, 2, 2> a;
     Eigen::Matrix<double, 2, 1> b;
-    for (size_t i = 0; i != horizon - 1; ++i) {
+    for (size_t i = 0; i != horizon_ - 1; ++i) {
         setDynamicMatrix(i, seg_s_list, seg_k_list, &a, &b);
         cons.block(2 * (i + 1), 2 * i, 2, 2) = a;
-        cons.block(2 * (i + 1), 2 * horizon + i, 2, 1) = b;
+        cons.block(2 * (i + 1), 2 * horizon_ + i, 2, 1) = b;
     }
-    for (size_t i = 0; i != 3 * horizon - 1; ++i) {
-        cons(2 * horizon + i, i) = 1;
+    for (size_t i = 0; i != 3 * horizon_ - 1; ++i) {
+        cons(2 * horizon_ + i, i) = 1;
     }
     Eigen::Matrix<double, 4, 2> collision;
     collision << config_.d1_ + config_.rear_axle_to_center_distance_, 1,
         config_.d2_ + config_.rear_axle_to_center_distance_, 1,
         config_.d3_ + config_.rear_axle_to_center_distance_, 1,
         config_.d4_ + config_.rear_axle_to_center_distance_, 1;
-    for (size_t i = 0; i != horizon; ++i) {
-        cons.block(5 * horizon - 1 + 4 * i, 2 * i, 4, 2) = collision;
+    for (size_t i = 0; i != horizon_; ++i) {
+        cons.block(5 * horizon_ - 1 + 4 * i, 2 * i, 4, 2) = collision;
     }
     *matrix_constraints = cons.sparseView();
 
-    *lower_bound = Eigen::MatrixXd::Zero(9 * horizon - 1, 1);
-    *upper_bound = Eigen::MatrixXd::Zero(9 * horizon - 1, 1);
+    *lower_bound = Eigen::MatrixXd::Zero(9 * horizon_ - 1, 1);
+    *upper_bound = Eigen::MatrixXd::Zero(9 * horizon_ - 1, 1);
     Eigen::Matrix<double, 2, 1> x0;
-    x0 << vehicle_state.initial_heading_error_, vehicle_state.initial_offset_;
+    x0 << vehicle_state_.initial_heading_error_, vehicle_state_.initial_offset_;
     lower_bound->block(0, 0, 2, 1) = -x0;
     upper_bound->block(0, 0, 2, 1) = -x0;
-    for (size_t i = 0; i != horizon - 1; ++i) {
+    for (size_t i = 0; i != horizon_ - 1; ++i) {
         double ds = seg_s_list[i + 1] - seg_s_list[i];
         double steer = atan(seg_k_list[i] * config_.wheel_base_);
         Eigen::Vector2d c;
@@ -344,24 +331,24 @@ void SolverInterface::setConstraintMatrixWithOffset(size_t horizon,
         lower_bound->block(2 + 2 * i, 0, 2, 1) = c;
         upper_bound->block(2 + 2 * i, 0, 2, 1) = c;
     }
-    lower_bound->block(2 * horizon, 0, 2 * horizon, 1) = Eigen::VectorXd::Constant(2 * horizon, -OsqpEigen::INFTY);
-    upper_bound->block(2 * horizon, 0, 2 * horizon, 1) = Eigen::VectorXd::Constant(2 * horizon, OsqpEigen::INFTY);
+    lower_bound->block(2 * horizon_, 0, 2 * horizon_, 1) = Eigen::VectorXd::Constant(2 * horizon_, -OsqpEigen::INFTY);
+    upper_bound->block(2 * horizon_, 0, 2 * horizon_, 1) = Eigen::VectorXd::Constant(2 * horizon_, OsqpEigen::INFTY);
     // Add end state constraint.
-    double end_psi = constraintAngle(vehicle_state.end_state_.z - seg_angle_list.back());
-    (*lower_bound)(2 * horizon + 2 * horizon - 2) = end_psi - angle_error_allowed / 2;
-    (*upper_bound)(2 * horizon + 2 * horizon - 2) = end_psi + angle_error_allowed / 2;
-    (*lower_bound)(2 * horizon + 2 * horizon - 1) = offset - offset_error_allowed / 2;
-    (*upper_bound)(2 * horizon + 2 * horizon - 1) = offset + offset_error_allowed / 2;
-    lower_bound->block(4 * horizon, 0, horizon - 1, 1) = Eigen::VectorXd::Constant(horizon - 1, -30 * M_PI / 180);
-    upper_bound->block(4 * horizon, 0, horizon - 1, 1) = Eigen::VectorXd::Constant(horizon - 1, 30 * M_PI / 180);
-    for (size_t i = 0; i != horizon; ++i) {
+    double end_psi = constraintAngle(target_angle - seg_angle_list.back());
+    (*lower_bound)(2 * horizon_ + 2 * horizon_ - 2) = end_psi - angle_error_allowed / 2;
+    (*upper_bound)(2 * horizon_ + 2 * horizon_ - 2) = end_psi + angle_error_allowed / 2;
+    (*lower_bound)(2 * horizon_ + 2 * horizon_ - 1) = offset - offset_error_allowed / 2;
+    (*upper_bound)(2 * horizon_ + 2 * horizon_ - 1) = offset + offset_error_allowed / 2;
+    lower_bound->block(4 * horizon_, 0, horizon_ - 1, 1) = Eigen::VectorXd::Constant(horizon_ - 1, -30 * M_PI / 180);
+    upper_bound->block(4 * horizon_, 0, horizon_ - 1, 1) = Eigen::VectorXd::Constant(horizon_ - 1, 30 * M_PI / 180);
+    for (size_t i = 0; i != horizon_; ++i) {
         Eigen::Vector4d ld, ud;
         ud
             << seg_clearance_list[i][0], seg_clearance_list[i][2], seg_clearance_list[i][4], seg_clearance_list[i][6];
         ld
             << seg_clearance_list[i][1], seg_clearance_list[i][3], seg_clearance_list[i][5], seg_clearance_list[i][7];
-        lower_bound->block(5 * horizon - 1 + 4 * i, 0, 4, 1) = ld;
-        upper_bound->block(5 * horizon - 1 + 4 * i, 0, 4, 1) = ud;
+        lower_bound->block(5 * horizon_ - 1 + 4 * i, 0, 4, 1) = ld;
+        upper_bound->block(5 * horizon_ - 1 + 4 * i, 0, 4, 1) = ud;
     }
 }
 
