@@ -4,7 +4,10 @@
 
 #ifndef PATH_OPTIMIZER_INCLUDE_FGEVALREFERENCESMOOTHINGFRENET_HPP_
 #define PATH_OPTIMIZER_INCLUDE_FGEVALREFERENCESMOOTHINGFRENET_HPP_
+#include "tools/tools.hpp"
+
 namespace PathOptimizationNS {
+
 using CppAD::AD;
 class FgEvalFrenetSmooth {
 public:
@@ -24,18 +27,6 @@ public:
         cost_func_bound_weight_(cost_func[2]),
         cost_func_s_weight_(cost_func[3]) {}
 public:
-
-    AD<double> constraintAngle(AD<double> angle) {
-        if (angle > M_PI) {
-            angle -= 2 * M_PI;
-            return constraintAngle(angle);
-        } else if (angle < -M_PI) {
-            angle += 2 * M_PI;
-            return constraintAngle(angle);
-        } else {
-            return angle;
-        }
-    }
     size_t N;
     const std::vector<double> &seg_s_list_;
     const std::vector<double> &seg_x_list_;
