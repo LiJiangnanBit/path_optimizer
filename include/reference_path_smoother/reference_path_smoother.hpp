@@ -22,23 +22,34 @@
 namespace PathOptimizationNS {
 
 class ReferencePathSmoother {
+    
 public:
+    
     ReferencePathSmoother() = delete;
+    
+    
     explicit ReferencePathSmoother(const std::vector<hmpl::State> &input_points,
                                    const hmpl::State &start_state,
                                    const hmpl::InternalGridMap &grid_map,
                                    const Config &config);
+    
+    // Core function.
     bool smooth(ReferencePath *reference_path, std::vector<hmpl::State> *smoothed_path_display = nullptr) const;
 
 private:
+    
+    // Smoothing in frenet frame.
     bool smoothPathFrenet(tk::spline *x_s_out,
                           tk::spline *y_s_out,
                           double *max_s_out,
                           std::vector<hmpl::State> *smoothed_path_display) const;
+    
+    // Smoothing in Cartesian frame. Much slower than the other method.
     bool smoothPathCartesian(tk::spline *x_s_out,
                              tk::spline *y_s_out,
                              double *max_s_out,
                              std::vector<hmpl::State> *smoothed_path_display) const;
+    
     const std::vector<hmpl::State> &points_list_;
     const hmpl::State &start_state_;
     const hmpl::InternalGridMap &grid_map_;

@@ -29,7 +29,6 @@ bool ReferencePathSmoother::smooth(ReferencePath *reference_path, std::vector<hm
                                    &reference_path->max_s_,
                                    smoothed_path_display);
     }
-    return true;
 }
 
 bool ReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
@@ -292,13 +291,6 @@ bool ReferencePathSmoother::smoothPathCartesian(tk::spline *x_s_out,
     vars_upperbound[x_range_begin] = start_state_.x;
     vars_lowerbound[y_range_begin] = start_state_.y;
     vars_upperbound[y_range_begin] = start_state_.y;
-    // The second point is determined by the initial heading.
-//    double second_x = start_state_.x + delta_s * cos(start_state_.z);
-//    double second_y = start_state_.y + delta_s * sin(start_state_.z);
-//    vars_lowerbound[x_range_begin + 1] = second_x;
-//    vars_upperbound[x_range_begin + 1] = second_x;
-//    vars_lowerbound[y_range_begin + 1] = second_y;
-//    vars_upperbound[y_range_begin + 1] = second_y;
     // Constraint the last point.
     vars_lowerbound[x_range_begin + N - 1] = x_list.back();
     vars_upperbound[x_range_begin + N - 1] = x_list.back();

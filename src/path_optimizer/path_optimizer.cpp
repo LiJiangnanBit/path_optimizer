@@ -59,17 +59,20 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         printf("empty input, quit path optimization\n");
         return false;
     }
+    // Smooth reference path.
     ReferencePathSmoother reference_path_smoother(points_list_, vehicle_state_.start_state_, grid_map_, config_);
     if (!reference_path_smoother.smooth(&reference_path_, &smoothed_path_)) {
         printf("smoothing stage failed, quit path optimization.\n");
         return false;
     }
     auto t2 = std::clock();
+    // Divide reference path into segments and store infomation into vectors.
     if (!divideSmoothedPath(true)) {
         printf("divide stage failed, quit path optimization.\n");
         return false;
     };
     auto t3 = std::clock();
+    // Optimize.
     bool ok = optimizePath(final_path);
     auto t4 = std::clock();
     printf("############\n"
@@ -92,15 +95,18 @@ bool PathOptimizer::samplePaths(const std::vector<double> &lon_set,
         printf("empty input, quit path optimization\n");
         return false;
     }
+    // Smooth reference path.
     ReferencePathSmoother reference_path_smoother(points_list_, vehicle_state_.start_state_, grid_map_, config_);
     if (!reference_path_smoother.smooth(&reference_path_, &smoothed_path_)) {
         printf("smoothing stage failed, quit path optimization.\n");
         return false;
     }
+    // Divide reference path into segments and store infomation into vectors.
     if (!divideSmoothedPath(false)) {
         printf("divide path failed!\n");
         return false;
     }
+    // Sample paths for each longitudinal s.
     bool max_lon_flag = false;
     for (size_t i = 0; i != lon_set.size(); ++i) {
         if (i == lon_set.size() - 1) max_lon_flag = true;
@@ -167,7 +173,6 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
         reference_path_.seg_angle_list_.emplace_back(tmp_h);
         reference_path_.seg_k_list_.emplace_back(tmp_k);
     }
-
     // Get clearance of covering circles.
     for (size_t i = 0; i != N_; ++i) {
         hmpl::State center_state;
@@ -219,10 +224,12 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
     }
     ReferencePath divided_segments(reference_path_, index);
     auto N = divided_segments.seg_s_list_.size();
+
     auto t2 = std::clock();
     SolverInterface solver_interface(config_, reference_path_, vehicle_state_, N);
     double target_angle = divided_segments.seg_angle_list_.back();
     solver_interface.initializeSampling(target_angle, 0, 0.1);
+
     auto t3 = std::clock();
     size_t count = 0;
     double left_bound = divided_segments.seg_clearance_list_.back()[0];
@@ -311,6 +318,7 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
             ++count;
         }
     }
+
     auto t4 = std::clock();
     printf("got %d paths at %fm\n", static_cast<int>(count), lon);
     printf("**********\n"
@@ -331,6 +339,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
         LOG(INFO) << "path optimization input is empty!";
         return false;
     }
+
     // Solve problem.
     Eigen::VectorXd QPSolution;
     SolverInterface solver_interface(config_,
@@ -340,7 +349,10 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     if (!solver_interface.solve(&QPSolution)) {
         return false;
     }
-    // Output.
+
+    // Output. Choose from:
+    // 1. set the interval smaller and output the result directly.
+    // 2. set the interval larger and use interpolation to make the result dense.
     std::vector<double> result_x, result_y, result_s;
     double total_s = 0;
     double last_x = 0, last_y = 0;
@@ -403,6 +415,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     std::copy(tmp_final_path.begin(), tmp_final_path.end(), std::back_inserter(*final_path));
     return true;
 }
+
 bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
                                     const std::vector<std::vector<double>> &clearance_list,
                                     std::vector<double> *x_list,

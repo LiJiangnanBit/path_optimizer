@@ -12,24 +12,12 @@
 
 // Set angle to -pi ~ pi
 template<typename T>
-T constraintAngle(T angle) {
-    if (angle > M_PI) {
-        angle -= 2 * M_PI;
-        return constraintAngle(angle);
-    } else if (angle < -M_PI) {
-        angle += 2 * M_PI;
-        return constraintAngle(angle);
-    } else {
-        return angle;
-    }
-}
+T constraintAngle(T angle);
 
-double time_s(const clock_t &begin, const clock_t &end) {
-    return static_cast<double>(end - begin) / CLOCKS_PER_SEC;
-}
+// Output time duration in seconds.
+double time_s(const clock_t &begin, const clock_t &end);
 
-double time_ms(const clock_t &begin, const clock_t &end) {
-    return static_cast<double>(end - begin) / CLOCKS_PER_SEC * 1000;
-}
+// Output time duration in ms.
+double time_ms(const clock_t &begin, const clock_t &end);
 
 #endif //PATH_OPTIMIZER_INCLUDE_TOOLS_TOOLS_HPP_

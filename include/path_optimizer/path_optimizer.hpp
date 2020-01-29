@@ -40,7 +40,8 @@ public:
                   const hmpl::State &end_state,
                   const hmpl::InternalGridMap &map,
                   bool densify_path = true);
-    // Call this to get the final path.
+    
+    // Call this to get the optimized path.
     bool solve(std::vector<hmpl::State> *final_path);
 
     // Only for test:
@@ -70,15 +71,23 @@ public:
 private:
     // TODO: abandon this function, use the config class instead.
     void setConfig();
+    
+    // Core function.
     bool optimizePath(std::vector<hmpl::State> *final_path);
+    
+    // Generate a set of paths with the same longitudinal length on reference line.
     bool sampleSingleLongitudinalPaths(double lon,
                                        const std::vector<double> &lat_set,
                                        std::vector<std::vector<hmpl::State>> *final_path_set,
                                        bool max_lon_flag);
+    
+    // Get bounds for each circle at each sampling point.
     std::vector<double> getClearanceWithDirectionStrict(hmpl::State state,
                                                         double radius,
                                                         bool safety_margin_flag) const;
     std::vector<double> getClearanceFor4Circles(const hmpl::State &state, bool safety_margin_flag);
+    
+    // Divide smoothed path into segments.
     bool divideSmoothedPath(bool safety_margin_flag);
 
     hmpl::InternalGridMap grid_map_;

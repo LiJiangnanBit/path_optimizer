@@ -14,28 +14,39 @@ namespace PathOptimizationNS {
 
 class SolverInterface {
 public:
-    SolverInterface();
+    SolverInterface() = delete;
+
     SolverInterface(const Config &config,
                     const ReferencePath &reference_path,
                     const VehicleState &vehicle_state,
                     const size_t &horizon);
+
+    // Core function.
     bool solve(Eigen::VectorXd *solution);
+
+    // Used to sample paths. Call initializeSampling first and then solveSampling.
     bool initializeSampling(double target_angle, double angle_error_allowed, double offset_error_allowed);
     bool solveSampling(Eigen::VectorXd *solution,
                        double offset);
+
+    // For dynamic obstacle avoidance.
     bool solveDynamic(Eigen::VectorXd *solution);
     bool solveDynamicUpdate(Eigen::VectorXd *solution,
                             const std::vector<std::vector<double>> &clearance);
 private:
+    // Set Matrices for osqp solver.
     void setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const;
+
     void setDynamicMatrix(size_t n,
                           const std::vector<double> &seg_s_list,
                           const std::vector<double> &seg_k_list,
                           Eigen::Matrix<double, 2, 2> *matrix_a,
                           Eigen::Matrix<double, 2, 1> *matrix_b) const;
+
     void setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_constraints,
                              Eigen::VectorXd *lower_bound,
                              Eigen::VectorXd *upper_bound) const;
+
     void setConstraintMatrixWithOffset(double offset,
                                        double target_angle,
                                        double angle_error_allowed,
