@@ -24,6 +24,8 @@
 #include <OsqpEigen/OsqpEigen.h>
 #include "data_struct/data_struct.hpp"
 #include "reference_path_smoother/reference_path_smoother.hpp"
+#include "reference_path_smoother/frenet_reference_path_smoother.hpp"
+#include "reference_path_smoother/cartesian_reference_path_smoother.hpp"
 #include "tools/spline.h"
 #include "tools/tools.hpp"
 #include "tools/collosion_checker.hpp"

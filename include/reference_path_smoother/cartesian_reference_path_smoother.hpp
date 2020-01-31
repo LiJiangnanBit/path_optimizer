@@ -1,10 +1,24 @@
 //
-// Created by ljn on 19-10-26.
+// Created by ljn on 20-1-31.
 //
 
-#ifndef PATH_OPTIMIZER_INCLUDE_FGEVALREFERENCESMOOTHING_HPP_
-#define PATH_OPTIMIZER_INCLUDE_FGEVALREFERENCESMOOTHING_HPP_
+#ifndef PATH_OPTIMIZER_INCLUDE_REFERENCE_PATH_SMOOTHER_CARTESIAN_REFERENCE_PATH_SMOOTHER_HPP_
+#define PATH_OPTIMIZER_INCLUDE_REFERENCE_PATH_SMOOTHER_CARTESIAN_REFERENCE_PATH_SMOOTHER_HPP_
+
+#include <vector>
+#include <opt_utils/opt_utils.hpp>
+#include <cppad/cppad.hpp>
+#include <cppad/ipopt/solve.hpp>
+#include <tinyspline_ros/tinysplinecpp.h>
+#include <internal_grid_map/internal_grid_map.hpp>
+#include <path_optimizer/path_optimizer.hpp>
+#include "data_struct/data_struct.hpp"
+#include "config/config.hpp"
+#include "tools/spline.h"
+#include "tools/tools.hpp"
+
 namespace PathOptimizationNS {
+
 using CppAD::AD;
 class FgEvalReferenceSmoothing {
 public:
@@ -55,5 +69,34 @@ public:
             + pow(vars[y_range_begin + N - 1] - seg_y_list_.back(), 2);
     }
 };
+
+class CartesianReferencePathSmoother {
+
+public:
+
+    CartesianReferencePathSmoother() = delete;
+
+    CartesianReferencePathSmoother(const std::vector<hmpl::State> &input_points,
+                                   const hmpl::State &start_state,
+                                   const hmpl::InternalGridMap &grid_map,
+                                   const Config &config);
+
+    // Core function.
+    bool smooth(ReferencePath *reference_path, std::vector<hmpl::State> *smoothed_path_display = nullptr) const;
+
+private:
+
+    // Smoothing in Cartesian frame. Much slower than the other method.
+    bool smoothPathCartesian(tk::spline *x_s_out,
+                             tk::spline *y_s_out,
+                             double *max_s_out,
+                             std::vector<hmpl::State> *smoothed_path_display) const;
+
+    const std::vector<hmpl::State> &points_list_;
+    const hmpl::State &start_state_;
+    const hmpl::InternalGridMap &grid_map_;
+    const Config &config_;
+};
 }
-#endif //PATH_OPTIMIZER_INCLUDE_FGEVALREFERENCESMOOTHING_HPP_
+
+#endif //PATH_OPTIMIZER_INCLUDE_REFERENCE_PATH_SMOOTHER_CARTESIAN_REFERENCE_PATH_SMOOTHER_HPP_

@@ -60,8 +60,8 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         return false;
     }
     // Smooth reference path.
-    ReferencePathSmoother reference_path_smoother(points_list_, vehicle_state_.start_state_, grid_map_, config_);
-    if (!reference_path_smoother.smooth(&reference_path_, &smoothed_path_)) {
+    ReferencePathSmoother<FrenetReferencePathSmoother> reference_path_smoother(points_list_, vehicle_state_.start_state_, grid_map_, config_);
+    if (!reference_path_smoother.solve(&reference_path_, &smoothed_path_)) {
         printf("smoothing stage failed, quit path optimization.\n");
         return false;
     }
@@ -96,8 +96,8 @@ bool PathOptimizer::samplePaths(const std::vector<double> &lon_set,
         return false;
     }
     // Smooth reference path.
-    ReferencePathSmoother reference_path_smoother(points_list_, vehicle_state_.start_state_, grid_map_, config_);
-    if (!reference_path_smoother.smooth(&reference_path_, &smoothed_path_)) {
+    ReferencePathSmoother<FrenetReferencePathSmoother> reference_path_smoother(points_list_, vehicle_state_.start_state_, grid_map_, config_);
+    if (!reference_path_smoother.solve(&reference_path_, &smoothed_path_)) {
         printf("smoothing stage failed, quit path optimization.\n");
         return false;
     }
