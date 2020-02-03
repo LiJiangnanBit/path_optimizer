@@ -447,12 +447,10 @@ bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
         reference_path_.seg_k_list_ = std::move(k_list);
         reference_path_.seg_s_list_.assign(sr_list.cbegin(), sr_list.cend());
         reference_path_.seg_clearance_list_.assign(clearance_list.cbegin(), clearance_list.cend());
-    }
-    static SolverInterface solver_interface(config_, reference_path_, vehicle_state_, sr_list.size());
-
-    if (!solver_dynamic_initialized) {
+        // Initialize solver.
+        dynamic_solver_ptr = std::make_shared<SolverInterface>(config_, reference_path_, vehicle_state_, N);
         Eigen::VectorXd QPSolution;
-        solver_interface.solveDynamic(&QPSolution);
+        dynamic_solver_ptr->solveDynamic(&QPSolution);
         double total_s = 0;
         for (size_t j = 0; j != N; ++j) {
             double length_on_ref_path = sr_list[j];
@@ -467,11 +465,11 @@ bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
             x_list->emplace_back(tmp_x);
             y_list->emplace_back(tmp_y);
         }
+        solver_dynamic_initialized = true;
         return true;
     } else {
-        auto N = sr_list.size();
         Eigen::VectorXd QPSolution;
-        solver_interface.solveDynamicUpdate(&QPSolution, clearance_list);
+        dynamic_solver_ptr->solveDynamicUpdate(&QPSolution, clearance_list);
         double total_s = 0;
         for (size_t j = 0; j != N; ++j) {
             double length_on_ref_path = sr_list[j];
@@ -490,7 +488,6 @@ bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
         }
         return true;
     }
-
 }
 
 std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State state,

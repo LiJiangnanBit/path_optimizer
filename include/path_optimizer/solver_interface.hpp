@@ -56,7 +56,7 @@ private:
                                        Eigen::VectorXd *upper_bound) const;
 
     const Config &config_;
-    const size_t &horizon_;
+    const size_t horizon_;
     const ReferencePath &reference_path_;
     const VehicleState &vehicle_state_;
     // Solvers

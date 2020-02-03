@@ -17,6 +17,7 @@
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
 #include <chrono>
+#include <memory>
 #include <Clothoid.hh>
 #include <opt_utils/utils.hpp>
 #include <internal_grid_map/internal_grid_map.hpp>
@@ -53,7 +54,7 @@ public:
                      const std::vector<double> &lat_set,
                      std::vector<std::vector<hmpl::State>> *final_path_set);
 
-    // For dynamic obstacle avoidance.
+    // For dynamic obstacle avoidance. Please Ignore this.
     bool optimizeDynamic(const std::vector<double> &sr_list,
                          const std::vector<std::vector<double>> &clearance_list,
                          std::vector<double> *x_list,
@@ -101,8 +102,9 @@ private:
     // Input path
     std::vector<hmpl::State> points_list_;
     size_t point_num_;
-    // For dynamic obstacle avoidace.
-    OsqpEigen::Solver solver_dynamic;
+    // For dynamic obstacle avoidace. Please Ignore this.
+    std::shared_ptr<SolverInterface> dynamic_solver_ptr;
+    OsqpEigen::Solver dynamic_solver_;
     bool solver_dynamic_initialized;
     tk::spline xsr_, ysr_;
     // For visualization purpose.

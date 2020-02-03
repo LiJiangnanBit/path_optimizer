@@ -17,7 +17,10 @@ SolverInterface::SolverInterface(const Config &config,
     vehicle_state_(vehicle_state),
     solver_for_sampling_initialized_flag_(false),
     solver_for_dynamic_initialized_flag_(false),
-    offset_error_allowed_(0) {}
+    offset_error_allowed_(0) {
+    std::cout << "horizon: " << horizon_ << std::endl;
+    std::cout << "start xy " << vehicle_state_.start_state_.x << " " << vehicle_state_.start_state_.y << std::endl;
+}
 
 bool SolverInterface::solve(Eigen::VectorXd *solution) {
     solver_.settings()->setVerbosity(false);
