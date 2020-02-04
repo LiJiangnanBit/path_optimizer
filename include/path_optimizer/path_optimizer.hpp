@@ -6,23 +6,16 @@
 #define PATH_OPTIMIZER__PATHOPTIMIZER_HPP_
 
 #include <iostream>
-#include <ios>
-#include <iomanip>
 #include <string>
 #include <vector>
 #include <glog/logging.h>
 #include <cmath>
 #include <ctime>
 #include <Eigen/Dense>
-#include <cppad/cppad.hpp>
-#include <cppad/ipopt/solve.hpp>
-#include <chrono>
 #include <memory>
-#include <Clothoid.hh>
 #include <opt_utils/utils.hpp>
 #include <internal_grid_map/internal_grid_map.hpp>
 #include <tinyspline_ros/tinysplinecpp.h>
-#include <OsqpEigen/OsqpEigen.h>
 #include "data_struct/data_struct.hpp"
 #include "reference_path_smoother/reference_path_smoother.hpp"
 #include "reference_path_smoother/frenet_reference_path_smoother.hpp"
@@ -104,7 +97,6 @@ private:
     size_t point_num_;
     // For dynamic obstacle avoidace. Please Ignore this.
     std::shared_ptr<SolverInterface> dynamic_solver_ptr;
-    OsqpEigen::Solver dynamic_solver_;
     bool solver_dynamic_initialized;
     tk::spline xsr_, ysr_;
     // For visualization purpose.

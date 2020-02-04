@@ -77,7 +77,14 @@ target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES
         )
 
 add_executable(${PROJECT_NAME}_benchmark
-        src/path_optimizer_benchmark.cpp
+        src/test/path_optimizer_benchmark.cpp
         )
-target_link_libraries(${PROJECT_NAME}_benchmark ${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark ${Clothoids_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
+target_link_libraries(${PROJECT_NAME}_benchmark
+        ${PROJECT_NAME} benchmark::benchmark
         )
+
+add_executable(${PROJECT_NAME}_demo
+        src/test/demo.cpp)
+target_link_libraries(${PROJECT_NAME}_demo
+        ${PROJECT_NAME}
+)
