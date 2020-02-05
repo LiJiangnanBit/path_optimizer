@@ -108,6 +108,35 @@ int main(int argc, char **argv) {
             reference_marker.points.push_back(p);
         }
         markers.append(reference_marker);
+        // Visualize start and end point selected by mouse.
+        geometry_msgs::Vector3 scale;
+        scale.x = 2.0;
+        scale.y = 0.3;
+        scale.z = 0.3;
+        geometry_msgs::Pose start_pose;
+        start_pose.position.x = start_state.x;
+        start_pose.position.y = start_state.y;
+        start_pose.position.z = 1.0;
+        auto start_quat = tf::createQuaternionFromYaw(start_state.z);
+        start_pose.orientation.x = start_quat.x();
+        start_pose.orientation.y = start_quat.y();
+        start_pose.orientation.z = start_quat.z();
+        start_pose.orientation.w = start_quat.w();
+        visualization_msgs::Marker start_marker =
+            markers.newArrow(scale, start_pose, "start point", id++, ros_viz_tools::CYAN, marker_frame_id);
+        markers.append(start_marker);
+        geometry_msgs::Pose end_pose;
+        end_pose.position.x = end_state.x;
+        end_pose.position.y = end_state.y;
+        end_pose.position.z = 1.0;
+        auto end_quat = tf::createQuaternionFromYaw(end_state.z);
+        end_pose.orientation.x = end_quat.x();
+        end_pose.orientation.y = end_quat.y();
+        end_pose.orientation.z = end_quat.z();
+        end_pose.orientation.w = end_quat.w();
+        visualization_msgs::Marker end_marker =
+            markers.newArrow(scale, end_pose, "end point", id++, ros_viz_tools::CYAN, marker_frame_id);
+        markers.append(end_marker);
 
         // Calculate.
         std::vector<hmpl::State> result_path, smoothed_reference_path;
@@ -116,34 +145,35 @@ int main(int argc, char **argv) {
             if (path_optimizer.solve(&result_path)) {
                 std::cout << "ok!" << std::endl;
             }
-            // Visualize result path.
-            visualization_msgs::Marker result_marker =
-                markers.newLineStrip(0.2, "optimized path", id++, ros_viz_tools::GREEN, marker_frame_id);
-            for (size_t i = 0; i != result_path.size(); ++i) {
-                geometry_msgs::Point p;
-                p.x = result_path[i].x;
-                p.y = result_path[i].y;
-                p.z = 1.0;
-                result_marker.points.push_back(p);
-            }
-            markers.append(result_marker);
-            // Visualize smoothed reference path.
             smoothed_reference_path = path_optimizer.getSmoothedPath();
-            visualization_msgs::Marker smoothed_reference_marker =
-                markers.newLineStrip(0.1,
-                                     "smoothed reference path",
-                                     id++,
-                                     ros_viz_tools::LIGHT_BLUE,
-                                     marker_frame_id);
-            for (size_t i = 0; i != smoothed_reference_path.size(); ++i) {
-                geometry_msgs::Point p;
-                p.x = smoothed_reference_path[i].x;
-                p.y = smoothed_reference_path[i].y;
-                p.z = 1.0;
-                smoothed_reference_marker.points.push_back(p);
-            }
-            markers.append(smoothed_reference_marker);
         }
+
+        // Visualize result path.
+        visualization_msgs::Marker result_marker =
+            markers.newLineStrip(0.2, "optimized path", id++, ros_viz_tools::GREEN, marker_frame_id);
+        for (size_t i = 0; i != result_path.size(); ++i) {
+            geometry_msgs::Point p;
+            p.x = result_path[i].x;
+            p.y = result_path[i].y;
+            p.z = 1.0;
+            result_marker.points.push_back(p);
+        }
+        markers.append(result_marker);
+        // Visualize smoothed reference path.
+        visualization_msgs::Marker smoothed_reference_marker =
+            markers.newLineStrip(0.1,
+                                 "smoothed reference path",
+                                 id++,
+                                 ros_viz_tools::LIGHT_BLUE,
+                                 marker_frame_id);
+        for (size_t i = 0; i != smoothed_reference_path.size(); ++i) {
+            geometry_msgs::Point p;
+            p.x = smoothed_reference_path[i].x;
+            p.y = smoothed_reference_path[i].y;
+            p.z = 1.0;
+            smoothed_reference_marker.points.push_back(p);
+        }
+        markers.append(smoothed_reference_marker);
 
         // Publish the grid_map.
         in_gm.maps.setTimestamp(time.toNSec());
