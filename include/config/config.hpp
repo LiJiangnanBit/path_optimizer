@@ -28,6 +28,7 @@ public:
     // Optimization phase related:
     double opt_curvature_w_, opt_curvature_rate_w_, opt_deviation_w_;
     bool constraint_end_heading_;
+    bool exact_end_position_;
     // Output option
     bool raw_result_;
     double output_interval_;

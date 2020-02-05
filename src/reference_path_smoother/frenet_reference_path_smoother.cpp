@@ -98,7 +98,6 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
         vars_lowerbound[i] = -DBL_MAX;
         vars_upperbound[i] = DBL_MAX;
     }
-    // Start point is the start position of the vehicle.
     vars_lowerbound[0] = 0;
     vars_upperbound[0] = 0;
     size_t n_constraints = 0;
@@ -168,20 +167,25 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
     x_spline.set_points(result_s_list, result_x_list);
     y_spline.set_points(result_s_list, result_y_list);
     // Find the closest point to the vehicle.
-    auto min_dis_to_vehicle = DBL_MAX;
     double min_dis_s = 0;
-    double tmp_s_1 = 0;
-    while (tmp_s_1 <= max_s) {
-        double x = x_spline(tmp_s_1);
-        double y = y_spline(tmp_s_1);
-        double dis = sqrt(pow(x - start_state_.x, 2) + pow(y - start_state_.y, 2));
-        if (dis <= min_dis_to_vehicle) {
-            min_dis_to_vehicle = dis;
-            min_dis_s = tmp_s_1;
-        } else if (dis > 15 && min_dis_to_vehicle < 15) {
-            break;
+    double start_distance =
+        sqrt(pow(start_state_.x - x_spline(0), 2) +
+            pow(start_state_.y - y_spline(0), 2));
+    if (start_distance > 0.001) {
+        auto min_dis_to_vehicle = start_distance;
+        double tmp_s_1 = 0 + 0.1;
+        while (tmp_s_1 <= max_s) {
+            double x = x_spline(tmp_s_1);
+            double y = y_spline(tmp_s_1);
+            double dis = sqrt(pow(x - start_state_.x, 2) + pow(y - start_state_.y, 2));
+            if (dis <= min_dis_to_vehicle) {
+                min_dis_to_vehicle = dis;
+                min_dis_s = tmp_s_1;
+            } else if (dis > 15 && min_dis_to_vehicle < 15) {
+                break;
+            }
+            tmp_s_1 += 0.1;
         }
-        tmp_s_1 += 0.1;
     }
     // Output.
     result_x_list.clear();

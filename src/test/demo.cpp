@@ -174,6 +174,61 @@ int main(int argc, char **argv) {
             smoothed_reference_marker.points.push_back(p);
         }
         markers.append(smoothed_reference_marker);
+        // Visualize vehicle geometry.
+        std::vector<visualization_msgs::Marker> vehicle_geometry_markers(result_path.size());
+        for (size_t i = 0; i != result_path.size(); ++i) {
+            vehicle_geometry_markers[i] =
+                markers.newLineStrip(0.07, "vehicle", id++, ros_viz_tools::LIME_GREEN, marker_frame_id);
+            double heading = result_path[i].z;
+            hmpl::State p1, p2, p3, p4;
+            p1.x = 3.9;
+            p1.y = 1;
+            p2.x = 3.9;
+            p2.y = -1;
+            p3.x = -1.0;
+            p3.y = 1;
+            p4.x = -1.0;
+            p4.y = -1;
+            auto tmp_relto = result_path[i];
+            tmp_relto.z = heading;
+            p1 = hmpl::localToGlobal(tmp_relto, p1);
+            p2 = hmpl::localToGlobal(tmp_relto, p2);
+            p3 = hmpl::localToGlobal(tmp_relto, p3);
+            p4 = hmpl::localToGlobal(tmp_relto, p4);
+            geometry_msgs::Point pp1, pp2, pp3, pp4;
+            pp1.x = p1.x;
+            pp1.y = p1.y;
+            pp1.z = 0.1;
+            pp2.x = p2.x;
+            pp2.y = p2.y;
+            pp2.z = 0.1;
+            pp3.x = p3.x;
+            pp3.y = p3.y;
+            pp3.z = 0.1;
+            pp4.x = p4.x;
+            pp4.y = p4.y;
+            pp4.z = 0.1;
+            vehicle_geometry_markers[i].points.push_back(pp1);
+            vehicle_geometry_markers[i].points.push_back(pp2);
+            vehicle_geometry_markers[i].points.push_back(pp4);
+            vehicle_geometry_markers[i].points.push_back(pp3);
+            vehicle_geometry_markers[i].points.push_back(pp1);
+            markers.append(vehicle_geometry_markers[i]);
+        }
+//        if (result_path.empty()) {
+//            visualization_msgs::Marker
+//                empty_marker = markers.newLineStrip(0.07, "vehicle", id++, ros_viz_tools::LIME_GREEN, marker_frame_id);
+//            geometry_msgs::Point p1, p2;
+//            p1.x = 0;
+//            p1.y = 0;
+//            p1.z = 1.0;
+//            p2.x = 1;
+//            p2.y = 1;
+//            p2.z = 1.0;
+//            empty_marker.points.push_back(p1);
+//            empty_marker.points.push_back(p2);
+//            markers.append(empty_marker);
+//        }
 
         // Publish the grid_map.
         in_gm.maps.setTimestamp(time.toNSec());

@@ -48,6 +48,8 @@ void PathOptimizer::setConfig() {
     config_.opt_curvature_rate_w_ = 100;
     config_.opt_deviation_w_ = 0.05;
     config_.constraint_end_heading_ = true;
+    // TODO: use this condition.
+    config_.exact_end_position_ = false;
     //
     config_.raw_result_ = true;
     config_.output_interval_ = 0.3;
@@ -60,7 +62,8 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         return false;
     }
     // Smooth reference path.
-    ReferencePathSmoother<FrenetReferencePathSmoother> reference_path_smoother(points_list_, vehicle_state_.start_state_, grid_map_, config_);
+    ReferencePathSmoother<FrenetReferencePathSmoother>
+        reference_path_smoother(points_list_, vehicle_state_.start_state_, grid_map_, config_);
     if (!reference_path_smoother.solve(&reference_path_, &smoothed_path_)) {
         printf("smoothing stage failed, quit path optimization.\n");
         return false;
@@ -96,7 +99,8 @@ bool PathOptimizer::samplePaths(const std::vector<double> &lon_set,
         return false;
     }
     // Smooth reference path.
-    ReferencePathSmoother<FrenetReferencePathSmoother> reference_path_smoother(points_list_, vehicle_state_.start_state_, grid_map_, config_);
+    ReferencePathSmoother<FrenetReferencePathSmoother>
+        reference_path_smoother(points_list_, vehicle_state_.start_state_, grid_map_, config_);
     if (!reference_path_smoother.solve(&reference_path_, &smoothed_path_)) {
         printf("smoothing stage failed, quit path optimization.\n");
         return false;
@@ -137,6 +141,34 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
     if (fabs(vehicle_state_.initial_heading_error_) > 75 * M_PI / 180) {
         LOG(WARNING) << "initial epsi is larger than 90°, quit mpc path optimization!";
         return false;
+    }
+
+    double end_distance =
+        sqrt(pow(vehicle_state_.end_state_.x - reference_path_.x_s_(reference_path_.max_s_), 2) +
+            pow(vehicle_state_.end_state_.y - reference_path_.y_s_(reference_path_.max_s_), 2));
+    if (end_distance > 0.001) {
+        // If the goal position is not the same as the end position of the reference line,
+        // then find the closest point to the goal and change max_s of the reference line.
+        double search_delta_s = 0;
+        if (config_.exact_end_position_) {
+            search_delta_s = 0.1;
+        } else {
+            search_delta_s = 0.3;
+        }
+        double tmp_s = reference_path_.max_s_ - search_delta_s;
+        auto min_dis_to_goal = end_distance;
+        double min_dis_s = 0;
+        while (tmp_s > 0) {
+            double x = reference_path_.x_s_(tmp_s);
+            double y = reference_path_.y_s_(tmp_s);
+            double tmp_dis = sqrt(pow(x - vehicle_state_.end_state_.x, 2) + pow(y - vehicle_state_.end_state_.y, 2));
+            if (tmp_dis < min_dis_to_goal) {
+                min_dis_to_goal = tmp_dis;
+                min_dis_s = tmp_s;
+            }
+            tmp_s -= search_delta_s;
+        }
+        reference_path_.max_s_ = min_dis_s;
     }
     // Divide the reference path. Intervals are smaller at the beginning.
     double delta_s_smaller = 0.3;
