@@ -1,25 +1,14 @@
 # path_optimization
-分为两阶段:  
-1. 对输入的路径进行平滑，目标函数里不考虑车辆约束和障碍物，速度快；  
-2. 将平滑后的路径作为参考路径进行优化，用离散的线性化的车辆模型，考虑障碍物和起点终点位姿等，优化问题的形式是二次规划。  
-## 图示
-输入（灰色）：
-![in.png](https://i.loli.net/2019/10/31/v8rGYNW6RHxOcwy.png)  
-平滑：  
-![smt.png](https://i.loli.net/2019/10/31/bTsxhRrW1LnJIoQ.png)  
-第二次优化：    
-![cargeo.png](https://i.loli.net/2019/10/31/dqz6TF4ypvYGbeE.png)  
-## 依赖
-
-- IPOPT    
-- google [benckmark](https://github.com/google/benchmark)
-- [osqp-eigen](https://github.com/robotology/osqp-eigen)  
-  - [osqp](https://github.com/oxfordcontrol/osqp)    
-  - [Eigen3](http://eigen.tuxfamily.org/index.php?title=Main_Page)
+根据参考路径（点）生成可行路径。
 
 ## 运行  
+### demo1
+选择参考路径点  
+![image](https://github.com/bit-ivrc/path_optimizer/blob/visualization/picture/ref.gif)  
+选择起点和终点  
+![image](https://github.com/bit-ivrc/path_optimizer/blob/visualization/picture/calsulate.gif)
 
-### 测试 
+### demo2 
 
 克隆分支mpc_path_optimization_display到本地
 
@@ -51,3 +40,17 @@ roslaunch state_sampling state_sampling.launch
 ```
 rosrun path_optimizer path_optimizer_benchmark
 ``` 
+## 依赖
+- IPOPT    
+- google [benckmark](https://github.com/google/benchmark)
+- [osqp-eigen](https://github.com/robotology/osqp-eigen)  
+  - [osqp](https://github.com/oxfordcontrol/osqp)    
+  - [Eigen3](http://eigen.tuxfamily.org/index.php?title=Main_Page)
+
+## 原理
+输入（灰色）：
+![in.png](https://i.loli.net/2019/10/31/v8rGYNW6RHxOcwy.png)  
+平滑：  
+![smt.png](https://i.loli.net/2019/10/31/bTsxhRrW1LnJIoQ.png)  
+第二次优化：    
+![cargeo.png](https://i.loli.net/2019/10/31/dqz6TF4ypvYGbeE.png)  
