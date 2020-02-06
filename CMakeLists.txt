@@ -11,11 +11,13 @@ set(CMAKE_CXX_FLAGS " -Wall -Wextra ${CMAKE_CXX_FLAGS}")
 ## is used, also find other catkin packages
 
 set(catkin_deps
+        roscpp
         opt_utils
         grid_map_ros
         internal_grid_map
         car_model
         tinyspline_ros
+        ros_viz_tools
         )
 
 find_package(catkin REQUIRED COMPONENTS
@@ -31,6 +33,7 @@ find_package(IPOPT REQUIRED)
 find_package(benchmark REQUIRED)
 find_package(OsqpEigen REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(OpenCV REQUIRED)
 
 ###################################
 ## catkin specific configuration ##
@@ -47,7 +50,7 @@ catkin_package(
         INCLUDE_DIRS include
         LIBRARIES ${PROJECT_NAME}
         CATKIN_DEPENDS ${catkin_deps}
-        DEPENDS Clothoids
+        DEPENDS OpenCV
 )
 
 ###########
@@ -58,6 +61,7 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
         include
+        ${OpenCV_INCLUDE_DIRS}
         ${catkin_INCLUDE_DIRS}
         ${Clothoids_INCLUDE_DIRS}
         ${EIGEN3_INCLUDE_DIR}
@@ -77,7 +81,14 @@ target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES
         )
 
 add_executable(${PROJECT_NAME}_benchmark
-        src/path_optimizer_benchmark.cpp
+        src/test/path_optimizer_benchmark.cpp
         )
-target_link_libraries(${PROJECT_NAME}_benchmark ${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} benchmark::benchmark ${Clothoids_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
+target_link_libraries(${PROJECT_NAME}_benchmark
+        ${PROJECT_NAME} benchmark::benchmark
+        )
+
+add_executable(${PROJECT_NAME}_demo
+        src/test/demo.cpp)
+target_link_libraries(${PROJECT_NAME}_demo
+        ${PROJECT_NAME} ${OpenCV_LIBRARIES}
         )
