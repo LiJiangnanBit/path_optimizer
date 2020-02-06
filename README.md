@@ -9,7 +9,8 @@
 - [google benckmark](https://github.com/google/benchmark)
 - [osqp-eigen](https://github.com/robotology/osqp-eigen)  
   - [osqp](https://github.com/oxfordcontrol/osqp)    
-  - [Eigen3](http://eigen.tuxfamily.org/index.php?title=Main_Page)  
+  - [Eigen3](http://eigen.tuxfamily.org/index.php?title=Main_Page)
+- [ros_viz_tools](https://github.com/Magic-wei/ros_viz_tools)
   
 ### 准备
 克隆分支mpc_path_optimization_display到本地
