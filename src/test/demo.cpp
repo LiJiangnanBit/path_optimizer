@@ -97,9 +97,19 @@ int main(int argc, char **argv) {
         markers.clear();
         int id = 0;
 
+        // Cancel.
+        if (reference_path.size() >= 2) {
+            const auto &p1 = reference_path[reference_path.size() - 2];
+            const auto &p2 = reference_path.back();
+            if (hmpl::distance(p1, p2) <= 0.001) {
+                reference_path.clear();
+                reference_rcv = false;
+            }
+        }
+
         // Visualize reference path selected by mouse.
         visualization_msgs::Marker reference_marker =
-            markers.newSphereList(0.5, "reference point", id++, ros_viz_tools::YELLOW, marker_frame_id);
+            markers.newSphereList(0.5, "reference point", id++, ros_viz_tools::RED, marker_frame_id);
         for (size_t i = 0; i != reference_path.size(); ++i) {
             geometry_msgs::Point p;
             p.x = reference_path[i].x;
@@ -150,7 +160,7 @@ int main(int argc, char **argv) {
 
         // Visualize result path.
         visualization_msgs::Marker result_marker =
-            markers.newLineStrip(0.2, "optimized path", id++, ros_viz_tools::GREEN, marker_frame_id);
+            markers.newLineStrip(0.15, "optimized path", id++, ros_viz_tools::GREEN, marker_frame_id);
         for (size_t i = 0; i != result_path.size(); ++i) {
             geometry_msgs::Point p;
             p.x = result_path[i].x;
@@ -161,10 +171,10 @@ int main(int argc, char **argv) {
         markers.append(result_marker);
         // Visualize smoothed reference path.
         visualization_msgs::Marker smoothed_reference_marker =
-            markers.newLineStrip(0.1,
+            markers.newLineStrip(0.07,
                                  "smoothed reference path",
                                  id++,
-                                 ros_viz_tools::LIGHT_BLUE,
+                                 ros_viz_tools::YELLOW,
                                  marker_frame_id);
         for (size_t i = 0; i != smoothed_reference_path.size(); ++i) {
             geometry_msgs::Point p;
@@ -174,11 +184,10 @@ int main(int argc, char **argv) {
             smoothed_reference_marker.points.push_back(p);
         }
         markers.append(smoothed_reference_marker);
-        visualization_msgs::Marker vehicle_geometry_marker;
+        visualization_msgs::Marker vehicle_geometry_marker =
+            markers.newLineList(0.1, "vehicle", id++, ros_viz_tools::LIME_GREEN, marker_frame_id);
         // Visualize vehicle geometry.
         for (size_t i = 0; i != result_path.size(); ++i) {
-            vehicle_geometry_marker =
-                markers.newLineStrip(0.07, "vehicle", id++, ros_viz_tools::LIME_GREEN, marker_frame_id);
             double heading = result_path[i].z;
             hmpl::State p1, p2, p3, p4;
             p1.x = 3.9;
@@ -186,9 +195,9 @@ int main(int argc, char **argv) {
             p2.x = 3.9;
             p2.y = -1;
             p3.x = -1.0;
-            p3.y = 1;
+            p3.y = -1;
             p4.x = -1.0;
-            p4.y = -1;
+            p4.y = 1;
             auto tmp_relto = result_path[i];
             tmp_relto.z = heading;
             p1 = hmpl::localToGlobal(tmp_relto, p1);
@@ -210,11 +219,14 @@ int main(int argc, char **argv) {
             pp4.z = 0.1;
             vehicle_geometry_marker.points.push_back(pp1);
             vehicle_geometry_marker.points.push_back(pp2);
-            vehicle_geometry_marker.points.push_back(pp4);
+            vehicle_geometry_marker.points.push_back(pp2);
             vehicle_geometry_marker.points.push_back(pp3);
+            vehicle_geometry_marker.points.push_back(pp3);
+            vehicle_geometry_marker.points.push_back(pp4);
+            vehicle_geometry_marker.points.push_back(pp4);
             vehicle_geometry_marker.points.push_back(pp1);
-            markers.append(vehicle_geometry_marker);
         }
+        markers.append(vehicle_geometry_marker);
 
         // Publish the grid_map.
         in_gm.maps.setTimestamp(time.toNSec());

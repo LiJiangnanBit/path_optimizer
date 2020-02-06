@@ -49,6 +49,9 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
         y_list.emplace_back(result[1]);
         tmp_t += delta_t;
     }
+    auto result = b_spline_raw.eval(1).result();
+    x_list.emplace_back(result[0]);
+    y_list.emplace_back(result[1]);
     s_list.emplace_back(0);
     for (size_t i = 1; i != x_list.size(); ++i) {
         double dis = sqrt(pow(x_list[i] - x_list[i - 1], 2) + pow(y_list[i] - y_list[i - 1], 2));
