@@ -237,6 +237,7 @@ int main(int argc, char **argv) {
 
         // Publish markers.
         markers.publish();
+        ROS_INFO("map published");
 
         // Wait for next cycle.
         ros::spinOnce();

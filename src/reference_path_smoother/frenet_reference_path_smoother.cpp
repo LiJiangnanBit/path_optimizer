@@ -34,7 +34,13 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
     for (size_t i = 0; i != points_list_.size() - 1; ++i) {
         length += hmpl::distance(points_list_[i], points_list_[i + 1]);
     }
-    tinyspline::BSpline b_spline_raw(points_list_.size(), 2, 5);
+    int degree = 3;
+    double average_length = length / points_list_.size();
+    if (average_length > 10) degree = 3;
+    else if (average_length > 5) degree = 4;
+    else degree = 5;
+    std::cout << "b spline degree: " << degree << std::endl;
+    tinyspline::BSpline b_spline_raw(points_list_.size(), 2, degree);
     std::vector<tinyspline::real> ctrlp_raw = b_spline_raw.controlPoints();
     for (size_t i = 0; i != points_list_.size(); ++i) {
         ctrlp_raw[2 * (i)] = points_list_[i].x;
