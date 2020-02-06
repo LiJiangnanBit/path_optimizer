@@ -174,10 +174,10 @@ int main(int argc, char **argv) {
             smoothed_reference_marker.points.push_back(p);
         }
         markers.append(smoothed_reference_marker);
+        visualization_msgs::Marker vehicle_geometry_marker;
         // Visualize vehicle geometry.
-        std::vector<visualization_msgs::Marker> vehicle_geometry_markers(result_path.size());
         for (size_t i = 0; i != result_path.size(); ++i) {
-            vehicle_geometry_markers[i] =
+            vehicle_geometry_marker =
                 markers.newLineStrip(0.07, "vehicle", id++, ros_viz_tools::LIME_GREEN, marker_frame_id);
             double heading = result_path[i].z;
             hmpl::State p1, p2, p3, p4;
@@ -208,27 +208,13 @@ int main(int argc, char **argv) {
             pp4.x = p4.x;
             pp4.y = p4.y;
             pp4.z = 0.1;
-            vehicle_geometry_markers[i].points.push_back(pp1);
-            vehicle_geometry_markers[i].points.push_back(pp2);
-            vehicle_geometry_markers[i].points.push_back(pp4);
-            vehicle_geometry_markers[i].points.push_back(pp3);
-            vehicle_geometry_markers[i].points.push_back(pp1);
-            markers.append(vehicle_geometry_markers[i]);
+            vehicle_geometry_marker.points.push_back(pp1);
+            vehicle_geometry_marker.points.push_back(pp2);
+            vehicle_geometry_marker.points.push_back(pp4);
+            vehicle_geometry_marker.points.push_back(pp3);
+            vehicle_geometry_marker.points.push_back(pp1);
+            markers.append(vehicle_geometry_marker);
         }
-//        if (result_path.empty()) {
-//            visualization_msgs::Marker
-//                empty_marker = markers.newLineStrip(0.07, "vehicle", id++, ros_viz_tools::LIME_GREEN, marker_frame_id);
-//            geometry_msgs::Point p1, p2;
-//            p1.x = 0;
-//            p1.y = 0;
-//            p1.z = 1.0;
-//            p2.x = 1;
-//            p2.y = 1;
-//            p2.z = 1.0;
-//            empty_marker.points.push_back(p1);
-//            empty_marker.points.push_back(p2);
-//            markers.append(empty_marker);
-//        }
 
         // Publish the grid_map.
         in_gm.maps.setTimestamp(time.toNSec());
