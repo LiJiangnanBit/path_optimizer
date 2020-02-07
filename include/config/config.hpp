@@ -16,6 +16,8 @@ public:
     Config() = default;
     // Car param:
     CarType car_type_;
+    double car_width_;
+    double car_length_;
     double circle_radius_;
     double wheel_base_;
     double rear_axle_to_center_distance_; // Distance from rear axle center to the center of the vehicle.
@@ -23,6 +25,7 @@ public:
     double max_steer_angle_;
     // Smoothing phase related:
     SmoothingMethod smoothing_method_;
+    bool modify_input_points_;
     double frenet_curvature_w_, frenet_curvature_rate_w_, frenet_deviation_w_; // Frenet method weights.
     double cartesian_curvature_w_, cartesian_deviation_w_; // Cartesian method weight.
     // Optimization phase related:

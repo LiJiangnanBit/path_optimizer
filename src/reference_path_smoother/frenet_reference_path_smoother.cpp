@@ -6,11 +6,15 @@
 
 namespace PathOptimizationNS {
 
-FrenetReferencePathSmoother::FrenetReferencePathSmoother(const std::vector<hmpl::State> &input_points,
+FrenetReferencePathSmoother::FrenetReferencePathSmoother(const std::vector<double> &x_list,
+                                                         const std::vector<double> &y_list,
+                                                         const std::vector<double> &s_list,
                                                          const hmpl::State &start_state,
                                                          const hmpl::InternalGridMap &grid_map,
                                                          const Config &config) :
-    points_list_(input_points),
+    x_list_(x_list),
+    y_list_(y_list),
+    s_list_(s_list),
     start_state_(start_state),
     grid_map_(grid_map),
     config_(config) {}
@@ -29,49 +33,15 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
                                                    std::vector<hmpl::State> *smoothed_path_display) const {
     auto sm_start = std::clock();
     std::vector<double> x_list, y_list, s_list, angle_list;
-    // B spline smoothing.
-    double length = 0;
-    for (size_t i = 0; i != points_list_.size() - 1; ++i) {
-        length += hmpl::distance(points_list_[i], points_list_[i + 1]);
-    }
-    int degree = 3;
-    double average_length = length / points_list_.size();
-    if (average_length > 10) degree = 3;
-    else if (average_length > 5) degree = 4;
-    else degree = 5;
-    std::cout << "b spline degree: " << degree << std::endl;
-    tinyspline::BSpline b_spline_raw(points_list_.size(), 2, degree);
-    std::vector<tinyspline::real> ctrlp_raw = b_spline_raw.controlPoints();
-    for (size_t i = 0; i != points_list_.size(); ++i) {
-        ctrlp_raw[2 * (i)] = points_list_[i].x;
-        ctrlp_raw[2 * (i) + 1] = points_list_[i].y;
-    }
-    b_spline_raw.setControlPoints(ctrlp_raw);
-    double delta_t = 1.0 / length;
-    double tmp_t = 0;
-    while (tmp_t <= 1) {
-        auto result = b_spline_raw.eval(tmp_t).result();
-        x_list.emplace_back(result[0]);
-        y_list.emplace_back(result[1]);
-        tmp_t += delta_t;
-    }
-    auto result = b_spline_raw.eval(1).result();
-    x_list.emplace_back(result[0]);
-    y_list.emplace_back(result[1]);
-    s_list.emplace_back(0);
-    for (size_t i = 1; i != x_list.size(); ++i) {
-        double dis = sqrt(pow(x_list[i] - x_list[i - 1], 2) + pow(y_list[i] - y_list[i - 1], 2));
-        s_list.emplace_back(s_list.back() + dis);
-    }
     tk::spline x_spline, y_spline;
-    x_spline.set_points(s_list, x_list);
-    y_spline.set_points(s_list, y_list);
-    double max_s = s_list.back();
+    x_spline.set_points(s_list_, x_list_);
+    y_spline.set_points(s_list_, y_list_);
+    double max_s = s_list_.back();
     // Make the path dense, the interval being 0.3m
     x_list.clear();
     y_list.clear();
     s_list.clear();
-    // Divid the reference path.
+    // Divide the reference path.
     double delta_beginning_s = 4;
     double delta_s = 2;
     s_list.push_back(0);

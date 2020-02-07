@@ -63,6 +63,7 @@ public:
     const std::vector<hmpl::State> &getCenterBounds() const;
     const std::vector<hmpl::State> &getFrontBounds() const;
     const std::vector<hmpl::State> &getSmoothedPath() const;
+    std::vector<std::vector<double>> a_star_display_;
 
 private:
     // TODO: abandon this function, use the config class instead.

@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
         markers.clear();
         int id = 0;
 
-        // Cancel.
+        // Cancel at double click.
         if (reference_path.size() >= 2) {
             const auto &p1 = reference_path[reference_path.size() - 2];
             const auto &p2 = reference_path.back();
@@ -150,13 +150,27 @@ int main(int argc, char **argv) {
 
         // Calculate.
         std::vector<hmpl::State> result_path, smoothed_reference_path;
+        std::vector<std::vector<double>> a_star_display(3);
         if (reference_rcv && start_state_rcv && end_state_rcv) {
             PathOptimizationNS::PathOptimizer path_optimizer(reference_path, start_state, end_state, in_gm);
             if (path_optimizer.solve(&result_path)) {
                 std::cout << "ok!" << std::endl;
             }
             smoothed_reference_path = path_optimizer.getSmoothedPath();
+            a_star_display = path_optimizer.a_star_display_;
         }
+
+        // Visualize a-star.
+        visualization_msgs::Marker a_star_marker =
+            markers.newSphereList(0.3, "a_star point", id++, ros_viz_tools::YELLOW, marker_frame_id);
+        for (size_t i = 0; i != a_star_display[0].size(); ++i) {
+            geometry_msgs::Point p;
+            p.x = a_star_display[0][i];
+            p.y = a_star_display[1][i];
+            p.z = 1.0;
+            a_star_marker.points.push_back(p);
+        }
+        markers.append(a_star_marker);
 
         // Visualize result path.
         visualization_msgs::Marker result_marker =

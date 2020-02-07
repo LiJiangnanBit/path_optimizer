@@ -23,19 +23,20 @@ PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
 void PathOptimizer::setConfig() {
     // TODO: read from config file.
     config_.car_type_ = ACKERMANN_STEERING;
-    double car_width = 2.0;
-    double car_length = 4.9;
-    config_.circle_radius_ = sqrt(pow(car_length / 8, 2) + pow(car_width / 2, 2));
+    config_.car_width_ = 2.0;
+    config_.car_length_ = 4.9;
+    config_.circle_radius_ = sqrt(pow(config_.car_length_ / 8, 2) + pow(config_.car_width_ / 2, 2));
     double safety_margin = 0.1;
     config_.circle_radius_ += safety_margin;
     config_.wheel_base_ = 2.85;
     config_.rear_axle_to_center_distance_ = 1.45;
-    config_.d1_ = -3.0 / 8.0 * car_length;
-    config_.d2_ = -1.0 / 8.0 * car_length;
-    config_.d3_ = 1.0 / 8.0 * car_length;
-    config_.d4_ = 3.0 / 8.0 * car_length;
+    config_.d1_ = -3.0 / 8.0 * config_.car_length_;
+    config_.d2_ = -1.0 / 8.0 * config_.car_length_;
+    config_.d3_ = 1.0 / 8.0 * config_.car_length_;
+    config_.d4_ = 3.0 / 8.0 * config_.car_length_;
     config_.max_steer_angle_ = 30 * M_PI / 180;
     config_.smoothing_method_ = FRENET;
+    config_.modify_input_points_ = true;
     //
     config_.frenet_curvature_rate_w_ = 30;
     config_.frenet_curvature_w_ = 20;
@@ -66,8 +67,10 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         reference_path_smoother(points_list_, vehicle_state_.start_state_, grid_map_, config_);
     if (!reference_path_smoother.solve(&reference_path_, &smoothed_path_)) {
         printf("smoothing stage failed, quit path optimization.\n");
+        a_star_display_ = reference_path_smoother.display();
         return false;
     }
+    a_star_display_ = reference_path_smoother.display();
     auto t2 = std::clock();
     // Divide reference path into segments and store infomation into vectors.
     if (!divideSmoothedPath(true)) {
@@ -170,6 +173,7 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
         }
         reference_path_.max_s_ = min_dis_s;
     }
+    // TODO: adjust the interval according to the distance to the obstacles?
     // Divide the reference path. Intervals are smaller at the beginning.
     double delta_s_smaller = 0.3;
     // If we want to make the result path dense later, the interval here is 1.0m. This makes computation faster;
@@ -563,7 +567,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
     } else {
         // Collision already; pick one side to expand:
         double right_s = 0;
-        for (size_t j = 0; j != n / 2; ++j) {
+        for (size_t j = 0; j != n; ++j) {
             right_s += delta_s;
             double x = state.x + right_s * cos(right_angle);
             double y = state.y + right_s * sin(right_angle);
@@ -574,7 +578,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(hmpl::State s
             }
         }
         double left_s = 0;
-        for (size_t j = 0; j != n / 2; ++j) {
+        for (size_t j = 0; j != n; ++j) {
             left_s += delta_s;
             double x = state.x + left_s * cos(left_angle);
             double y = state.y + left_s * sin(left_angle);
