@@ -9,6 +9,7 @@
 #include <vector>
 #include <cassert>
 #include <ctime>
+#include "tools/spline.h"
 
 // Set angle to -pi ~ pi
 //template<typename T>
@@ -33,5 +34,9 @@ double time_s(const clock_t &begin, const clock_t &end);
 
 // Output time duration in ms.
 double time_ms(const clock_t &begin, const clock_t &end);
+
+bool isEqual(double a, double b);
+
+double getHeading(const tk::spline &xs, const tk::spline &ys, double s);
 
 #endif //PATH_OPTIMIZER_INCLUDE_TOOLS_TOOLS_HPP_
