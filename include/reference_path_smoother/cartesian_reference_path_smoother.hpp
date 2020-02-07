@@ -76,7 +76,9 @@ public:
 
     CartesianReferencePathSmoother() = delete;
 
-    CartesianReferencePathSmoother(const std::vector<hmpl::State> &input_points,
+    CartesianReferencePathSmoother(const std::vector<double> &x_list,
+                                   const std::vector<double> &y_list,
+                                   const std::vector<double> &s_list,
                                    const hmpl::State &start_state,
                                    const hmpl::InternalGridMap &grid_map,
                                    const Config &config);
@@ -92,7 +94,7 @@ private:
                              double *max_s_out,
                              std::vector<hmpl::State> *smoothed_path_display) const;
 
-    const std::vector<hmpl::State> &points_list_;
+    const std::vector<double> &x_list_, &y_list_, &s_list_;
     const hmpl::State &start_state_;
     const hmpl::InternalGridMap &grid_map_;
     const Config &config_;

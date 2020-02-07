@@ -37,7 +37,7 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
     x_spline.set_points(s_list_, x_list_);
     y_spline.set_points(s_list_, y_list_);
     double max_s = s_list_.back();
-    // Make the path dense, the interval being 0.3m
+    std::cout << "ref path length: " << max_s << std::endl;
     x_list.clear();
     y_list.clear();
     s_list.clear();
@@ -188,7 +188,7 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
     }
     x_s_out->set_points(result_s_list, result_x_list);
     y_s_out->set_points(result_s_list, result_y_list);
-    *max_s_out = result_s_list.back();
+    *max_s_out = result_s_list.back() + 3;
     auto sm_end = std::clock();
     printf("*********\n"
            "sm_pre: %f\n sm_solve: %f\n sm_after: %f\n sm_all: %f\n"

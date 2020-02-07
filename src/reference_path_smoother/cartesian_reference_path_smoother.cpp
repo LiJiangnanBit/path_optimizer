@@ -6,11 +6,15 @@
 
 namespace PathOptimizationNS {
 
-CartesianReferencePathSmoother::CartesianReferencePathSmoother(const std::vector<hmpl::State> &input_points,
+CartesianReferencePathSmoother::CartesianReferencePathSmoother(const std::vector<double> &x_list,
+                                                               const std::vector<double> &y_list,
+                                                               const std::vector<double> &s_list,
                                                                const hmpl::State &start_state,
                                                                const hmpl::InternalGridMap &grid_map,
                                                                const Config &config) :
-    points_list_(input_points),
+    x_list_(x_list),
+    y_list_(y_list),
+    s_list_(s_list),
     start_state_(start_state),
     grid_map_(grid_map),
     config_(config) {}
@@ -30,28 +34,15 @@ bool CartesianReferencePathSmoother::smoothPathCartesian(tk::spline *x_s_out,
     auto sm_start = std::clock();
     std::vector<double> x_list, y_list, s_list, angle_list;
     tk::spline x_spline, y_spline;
-    double s = 0;
-    for (size_t i = 0; i != points_list_.size(); ++i) {
-        if (i == 0) {
-            s_list.emplace_back(0);
-        } else {
-            double ds = hmpl::distance(points_list_[i], points_list_[i - 1]);
-            s += ds;
-            s_list.emplace_back(s);
-        }
-        x_list.emplace_back(points_list_[i].x);
-        y_list.emplace_back(points_list_[i].y);
-    }
-    double max_s = s_list.back();
+    double max_s = s_list_.back();
     std::cout << "ref path length: " << max_s << std::endl;
-    x_spline.set_points(s_list, x_list);
-    y_spline.set_points(s_list, y_list);
-    // Make the path dense, the interval being 0.3m
+    x_spline.set_points(s_list_, x_list_);
+    y_spline.set_points(s_list_, y_list_);
     x_list.clear();
     y_list.clear();
     s_list.clear();
     // Divide the reference path.
-    double delta_s = 0.5;
+    double delta_s = 2.0;
     s_list.emplace_back(0);
     while (s_list.back() < max_s) {
         s_list.emplace_back(s_list.back() + delta_s);
@@ -86,10 +77,10 @@ bool CartesianReferencePathSmoother::smoothPathCartesian(tk::spline *x_s_out,
         vars_upperbound[i] = DBL_MAX;
     }
     // Start point is the start position of the vehicle.
-    vars_lowerbound[x_range_begin] = start_state_.x;
-    vars_upperbound[x_range_begin] = start_state_.x;
-    vars_lowerbound[y_range_begin] = start_state_.y;
-    vars_upperbound[y_range_begin] = start_state_.y;
+    vars_lowerbound[x_range_begin] = x_list.front();
+    vars_upperbound[x_range_begin] = x_list.front();
+    vars_lowerbound[y_range_begin] = y_list.front();
+    vars_upperbound[y_range_begin] = y_list.front();
     // Constraint the last point.
     vars_lowerbound[x_range_begin + N - 1] = x_list.back();
     vars_upperbound[x_range_begin + N - 1] = x_list.back();
@@ -199,21 +190,49 @@ bool CartesianReferencePathSmoother::smoothPathCartesian(tk::spline *x_s_out,
         state.x = result[0];
         state.y = result[1];
     }
-    x_s_out->set_points(s_set, x_set);
-    y_s_out->set_points(s_set, y_set);
-    // Display smoothed reference path.
-    if (smoothed_path_display) {
-        smoothed_path_display->clear();
-        double display_smooth_s = 0;
-        while (display_smooth_s < s_set.back()) {
-            hmpl::State display_smooth_state;
-            display_smooth_state.x = (*x_s_out)(display_smooth_s);
-            display_smooth_state.y = (*y_s_out)(display_smooth_s);
-            smoothed_path_display->emplace_back(display_smooth_state);
-            display_smooth_s += 0.3;
+    x_spline.set_points(s_set, x_set);
+    y_spline.set_points(s_set, y_set);
+    // Find the closest point to the vehicle.
+    double min_dis_s = 0;
+    double start_distance =
+        sqrt(pow(start_state_.x - x_spline(0), 2) +
+            pow(start_state_.y - y_spline(0), 2));
+    if (start_distance > 0.001) {
+        auto min_dis_to_vehicle = start_distance;
+        double tmp_s_1 = 0 + 0.1;
+        while (tmp_s_1 <= max_s) {
+            double x = x_spline(tmp_s_1);
+            double y = y_spline(tmp_s_1);
+            double dis = sqrt(pow(x - start_state_.x, 2) + pow(y - start_state_.y, 2));
+            if (dis <= min_dis_to_vehicle) {
+                min_dis_to_vehicle = dis;
+                min_dis_s = tmp_s_1;
+            } else if (dis > 15 && min_dis_to_vehicle < 15) {
+                break;
+            }
+            tmp_s_1 += 0.1;
         }
     }
-    *max_s_out = s_set.back();
+    std::vector<double> result_x_list, result_y_list, result_s_list;
+    double tmp_s_2 = min_dis_s;
+    if (smoothed_path_display) smoothed_path_display->clear();
+    while (tmp_s_2 <= max_s) {
+        double x = x_spline(tmp_s_2);
+        double y = y_spline(tmp_s_2);
+        result_x_list.emplace_back(x);
+        result_y_list.emplace_back(y);
+        result_s_list.emplace_back(tmp_s_2 - min_dis_s);
+        if (smoothed_path_display) {
+            hmpl::State state;
+            state.x = x;
+            state.y = y;
+            smoothed_path_display->push_back(state);
+        }
+        tmp_s_2 += 0.3;
+    }
+    x_s_out->set_points(result_s_list, result_x_list);
+    y_s_out->set_points(result_s_list, result_y_list);
+    *max_s_out = result_s_list.back();
     auto sm_end = std::clock();
     printf("*********\n"
            "reference path smoothing: %f\n solve: %f\n after solving: %f\n all: %f\n"
