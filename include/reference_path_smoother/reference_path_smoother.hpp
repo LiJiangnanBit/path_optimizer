@@ -19,30 +19,8 @@
 namespace PathOptimizationNS {
 #define OBSTACLE_COST 0.5
 
-// Point for A* search.
-struct APoint {
-    double x = 0;
-    double y = 0;
-    double s = 0;
-    double l = 0;
-    double g = 0;
-    double h = 0;
-    // Layer denotes the index of the longitudinal layer that the point lies on.
-    int layer = -1;
-    bool is_in_open_set = false;
-    APoint *parent = nullptr;
-    inline double f() {
-        return g + h;
-    }
-};
-
-class PointComparator {
-public:
-    bool operator()(APoint *a, APoint *b) {
-        return a->f() > b->f();
-    }
-};
-
+// This class use A* search to improve the quality of the input points(if needed), and
+// then uses a smoother to obtain a smoothed reference path.
 template<typename Smoother>
 class ReferencePathSmoother {
 
@@ -60,12 +38,14 @@ public:
 
 private:
     void bSpline();
+    // A* search.
     bool modifyInputPoints();
     bool checkExistenceInClosedSet(const APoint &point) const;
     double getG(const APoint &point, const APoint &parent) const;
     inline double getH(const APoint &p) {
         return target_s_ - p.s;
     }
+
     const std::vector<hmpl::State> &input_points_;
     const hmpl::State &start_state_;
     const hmpl::InternalGridMap &grid_map_;
@@ -102,11 +82,11 @@ bool ReferencePathSmoother<Smoother>::modifyInputPoints() {
     x_s.set_points(s_list_, x_list_);
     y_s.set_points(s_list_, y_list_);
     // Sampling interval.
-    double longitudinal_interval = 1.5, tmp_s = 0;
+    double tmp_s = 0;
     std::vector<double> layers_s_list;
     while (tmp_s <= s_list_.back()) {
         layers_s_list.emplace_back(tmp_s);
-        tmp_s += longitudinal_interval;
+        tmp_s += config_.a_star_longitudinal_interval_;
     }
     if (s_list_.back() - layers_s_list.back() > 0.3) layers_s_list.emplace_back(s_list_.back());
     target_s_ = layers_s_list.back();
@@ -121,15 +101,14 @@ bool ReferencePathSmoother<Smoother>::modifyInputPoints() {
     start_point.g = 0;
     start_point.h = getH(start_point);
     sampled_points_.emplace_back(std::vector<APoint>{start_point});
-    double offset_interval = 0.6;
     for (size_t i = 1; i != layers_s_list.size(); ++i) {
         double sr = layers_s_list[i];
         double xr = x_s(sr);
         double yr = y_s(sr);
         double hr = getHeading(x_s, y_s, sr);
         std::vector<APoint> point_set;
-        double offset = -6;
-        while (offset <= 6) {
+        double offset = -config_.a_star_lateral_range_;
+        while (offset <= config_.a_star_lateral_range_ ) {
             APoint point;
             point.s = sr;
             point.l = offset;
@@ -138,12 +117,12 @@ bool ReferencePathSmoother<Smoother>::modifyInputPoints() {
             point.layer = i;
             grid_map::Position position(point.x, point.y);
             if (!grid_map_.maps.isInside(position)
-                || grid_map_.getObstacleDistance(position) < config_.car_width_ / 2.0 + 0.1) {
-                offset += offset_interval;
+                || grid_map_.getObstacleDistance(position) < config_.circle_radius_) {
+                offset += config_.a_star_lateral_interval_;
                 continue;
             }
             point_set.emplace_back(point);
-            offset += offset_interval;
+            offset += config_.a_star_lateral_interval_;
         }
         sampled_points_.emplace_back(point_set);
     }
@@ -202,7 +181,7 @@ bool ReferencePathSmoother<Smoother>::modifyInputPoints() {
     std::reverse(a_y_list.begin(), a_y_list.end());
     
     // Modify.
-    tinyspline::BSpline b_spline(a_x_list.size(), 2, 4);
+    tinyspline::BSpline b_spline(a_x_list.size(), 2, 3);
     std::vector<tinyspline::real> ctrlp = b_spline.controlPoints();
     for (size_t i = 0; i != a_x_list.size(); ++i) {
         ctrlp[2 * (i)] = a_x_list[i];

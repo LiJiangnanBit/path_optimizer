@@ -49,6 +49,29 @@ struct VehicleState {
     double initial_heading_error_;
 };
 
+// Point for A* search.
+struct APoint {
+    double x = 0;
+    double y = 0;
+    double s = 0;
+    double l = 0;
+    double g = 0;
+    double h = 0;
+    // Layer denotes the index of the longitudinal layer that the point lies on.
+    int layer = -1;
+    bool is_in_open_set = false;
+    APoint *parent = nullptr;
+    inline double f() {
+        return g + h;
+    }
+};
+
+class PointComparator {
+public:
+    bool operator()(APoint *a, APoint *b) {
+        return a->f() > b->f();
+    }
+};
 
 }
 #endif //PATH_OPTIMIZER_INCLUDE_DATA_STRUCT_DATA_STRUCT_HPP_

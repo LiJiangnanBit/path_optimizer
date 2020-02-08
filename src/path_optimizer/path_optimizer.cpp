@@ -35,8 +35,13 @@ void PathOptimizer::setConfig() {
     config_.d3_ = 1.0 / 8.0 * config_.car_length_;
     config_.d4_ = 3.0 / 8.0 * config_.car_length_;
     config_.max_steer_angle_ = 30 * M_PI / 180;
+
     config_.smoothing_method_ = FRENET;
     config_.modify_input_points_ = true;
+    config_.a_star_lateral_range_ = 10;
+    config_.a_star_longitudinal_interval_ = 1.5;
+    config_.a_star_lateral_interval_ = 0.6;
+
     //
     config_.frenet_curvature_rate_w_ = 30;
     config_.frenet_curvature_w_ = 20;
@@ -51,6 +56,7 @@ void PathOptimizer::setConfig() {
     config_.constraint_end_heading_ = true;
     // TODO: use this condition.
     config_.exact_end_position_ = false;
+
     //
     config_.raw_result_ = true;
     config_.output_interval_ = 0.3;

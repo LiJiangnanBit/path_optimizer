@@ -23,15 +23,21 @@ public:
     double rear_axle_to_center_distance_; // Distance from rear axle center to the center of the vehicle.
     double d1_, d2_, d3_, d4_; // Distance from vehicle center to the covering circles, from rear to front.
     double max_steer_angle_;
+
     // Smoothing phase related:
     SmoothingMethod smoothing_method_;
-    bool modify_input_points_;
+    bool modify_input_points_; // Use A* search to generate new input points. Turn this on if the input points are of low quality.
+    double a_star_lateral_range_;
+    double a_star_longitudinal_interval_,
+        a_star_lateral_interval_; // A* search interval. Affects quality and efficiency.
     double frenet_curvature_w_, frenet_curvature_rate_w_, frenet_deviation_w_; // Frenet method weights.
     double cartesian_curvature_w_, cartesian_deviation_w_; // Cartesian method weight.
+
     // Optimization phase related:
     double opt_curvature_w_, opt_curvature_rate_w_, opt_deviation_w_;
     bool constraint_end_heading_;
     bool exact_end_position_;
+
     // Output option
     bool raw_result_;
     double output_interval_;
