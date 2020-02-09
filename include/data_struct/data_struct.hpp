@@ -59,6 +59,7 @@ struct APoint {
     double h = 0;
     // Layer denotes the index of the longitudinal layer that the point lies on.
     int layer = -1;
+    double offset = 0;
     bool is_in_open_set = false;
     APoint *parent = nullptr;
     inline double f() {

@@ -17,9 +17,11 @@
 #include "tools/tools.hpp"
 
 namespace PathOptimizationNS {
-#define OBSTACLE_COST 0.5
+#define OBSTACLE_COST 0.4
+#define OFFSET_COST 0.2
+#define SMOOTHNESS_COST 3
 
-// This class use A* search to improve the quality of the input points(if needed), and
+// This class use A* search to improve the quality of the input points (if needed), and
 // then uses a smoother to obtain a smoothed reference path.
 template<typename Smoother>
 class ReferencePathSmoother {
@@ -43,7 +45,11 @@ private:
     bool checkExistenceInClosedSet(const APoint &point) const;
     double getG(const APoint &point, const APoint &parent) const;
     inline double getH(const APoint &p) {
-        return target_s_ - p.s;
+        // Note that this h is neither admissible nor consistent, so the result is not optimal.
+        // There is a smoothing stage after this, so time efficiency is much more
+        // important than optimality.
+        return (target_s_ - p.s) * 0.3;
+//        return 0;
     }
 
     const std::vector<hmpl::State> &input_points_;
@@ -63,7 +69,7 @@ private:
 template<typename Smoother>
 double ReferencePathSmoother<Smoother>::getG(const PathOptimizationNS::APoint &point,
                                            const PathOptimizationNS::APoint &parent) const {
-    double distance = sqrt(pow(point.x - parent.x, 2) + pow(point.y - parent.y, 2));
+    // Obstacle cost.
     grid_map::Position position(point.x, point.y);
     double obstacle_cost = 0;
     double distance_to_obs = grid_map_.getObstacleDistance(position);
@@ -71,7 +77,17 @@ double ReferencePathSmoother<Smoother>::getG(const PathOptimizationNS::APoint &p
     if (distance_to_obs < safety_distance) {
         obstacle_cost = (safety_distance - distance_to_obs) / safety_distance * OBSTACLE_COST;
     }
-    return parent.g + distance + obstacle_cost;
+    // Deviation cost.
+    double offset_cost = point.offset / config_.a_star_lateral_range_ * OFFSET_COST;
+    // Smoothness cost.
+    double smoothness_cost = 0;
+    if (parent.parent) {
+        Eigen::Vector2d v1(parent.x - parent.parent->x, parent.y - parent.parent->y);
+        Eigen::Vector2d v2(point.x - parent.x, point.y - parent.y);
+        smoothness_cost = fabs(v1(0) * v2(1) - v1(1) * v2(0)) * SMOOTHNESS_COST;
+    }
+    double offset_with_parent = point.offset - parent.offset;
+    return parent.g + offset_cost + smoothness_cost + obstacle_cost;
 }
 
 template<typename Smoother>
@@ -106,15 +122,25 @@ bool ReferencePathSmoother<Smoother>::modifyInputPoints() {
         double xr = x_s(sr);
         double yr = y_s(sr);
         double hr = getHeading(x_s, y_s, sr);
+        double rr = 1.0 / (getCurvature(x_s, y_s, sr) + 0.001);
+        double left_range = config_.a_star_lateral_range_, right_range = -config_.a_star_lateral_range_;
+        if (rr > 0) {
+            // Left turn
+            left_range = std::min(left_range, rr);
+        } else {
+            // right turn
+            right_range = std::max(right_range, rr);
+        }
         std::vector<APoint> point_set;
-        double offset = -config_.a_star_lateral_range_;
-        while (offset <= config_.a_star_lateral_range_ ) {
+        double offset = right_range;
+        while (offset <= left_range) {
             APoint point;
             point.s = sr;
             point.l = offset;
             point.x = xr + offset * cos(hr + M_PI_2);
             point.y = yr + offset * sin(hr + M_PI_2);
             point.layer = i;
+            point.offset = offset;
             grid_map::Position position(point.x, point.y);
             if (!grid_map_.maps.isInside(position)
                 || grid_map_.getObstacleDistance(position) < config_.circle_radius_) {
@@ -181,7 +207,7 @@ bool ReferencePathSmoother<Smoother>::modifyInputPoints() {
     std::reverse(a_y_list.begin(), a_y_list.end());
     
     // Modify.
-    tinyspline::BSpline b_spline(a_x_list.size(), 2, 3);
+    tinyspline::BSpline b_spline(a_x_list.size(), 2, 4);
     std::vector<tinyspline::real> ctrlp = b_spline.controlPoints();
     for (size_t i = 0; i != a_x_list.size(); ++i) {
         ctrlp[2 * (i)] = a_x_list[i];

@@ -39,4 +39,6 @@ bool isEqual(double a, double b);
 
 double getHeading(const tk::spline &xs, const tk::spline &ys, double s);
 
+double getCurvature(const tk::spline &xs, const tk::spline &ys, double tmp_s);
+
 #endif //PATH_OPTIMIZER_INCLUDE_TOOLS_TOOLS_HPP_
