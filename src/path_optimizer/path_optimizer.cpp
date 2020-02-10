@@ -227,6 +227,18 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
         reference_path_.seg_k_list_.emplace_back(tmp_k);
     }
     // Get clearance of covering circles.
+    double rear_circle_d = config_.rear_axle_to_center_distance_ + config_.d1_;
+    double front_circle_d = config_.rear_axle_to_center_distance_ + config_.d4_;
+    grid_map::Position
+        rear_circle_p(vehicle_state_.start_state_.x + rear_circle_d * cos(vehicle_state_.start_state_.z),
+                      vehicle_state_.start_state_.y + rear_circle_d * sin(vehicle_state_.start_state_.z));
+    grid_map::Position
+        front_circle_p(vehicle_state_.start_state_.x + front_circle_d * cos(vehicle_state_.start_state_.z),
+                       vehicle_state_.start_state_.y + front_circle_d * sin(vehicle_state_.start_state_.z));
+    auto rear_circle_clearance = grid_map_.getObstacleDistance(rear_circle_p);
+    auto front_circle_clearance = grid_map_.getObstacleDistance(front_circle_p);
+    bool start_state_with_large_clearance =
+        std::min(rear_circle_clearance, front_circle_clearance) >= config_.circle_radius_ + 0.5;
     for (size_t i = 0; i != N_; ++i) {
         hmpl::State center_state;
         center_state.x = reference_path_.seg_x_list_[i];
@@ -239,9 +251,9 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
             center_state.y += config_.rear_axle_to_center_distance_ * sin(center_state.z);
         }
         std::vector<double> clearance;
-        grid_map::Position vehicle_position(vehicle_state_.start_state_.x, vehicle_state_.start_state_.y);
-        auto start_clearance = grid_map_.getObstacleDistance(vehicle_position);
-        bool safety_margin_flag = set_safety_margin && (reference_path_.seg_s_list_[i] >= 10 || start_clearance >= config_.circle_radius_ + 0.5);
+        bool
+        safety_margin_flag = set_safety_margin
+            && (reference_path_.seg_s_list_[i] >= 10 || start_state_with_large_clearance);
         clearance = getClearanceFor4Circles(center_state, safety_margin_flag);
         // Terminate if collision is inevitable near the end.
         if ((clearance[0] == clearance[1] || clearance[2] == clearance[3] || clearance[4] == clearance[5]

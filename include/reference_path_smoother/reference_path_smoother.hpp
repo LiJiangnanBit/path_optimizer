@@ -49,7 +49,7 @@ private:
         // Note that this h is neither admissible nor consistent, so the result is not optimal.
         // There is a smoothing stage after this, so time efficiency is much more
         // important than optimality here.
-        return (target_s_ - p.s) * 0.3;
+        return (target_s_ - p.s) * 0.1;
 //        return 0;
     }
 
