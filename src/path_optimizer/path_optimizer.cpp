@@ -69,14 +69,19 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
         return false;
     }
     // Smooth reference path.
-    ReferencePathSmoother<FrenetReferencePathSmoother>
+    ReferencePathSmoother
         reference_path_smoother(points_list_, vehicle_state_.start_state_, grid_map_, config_);
-    if (!reference_path_smoother.solve(&reference_path_, &smoothed_path_)) {
-        printf("smoothing stage failed, quit path optimization.\n");
-        a_star_display_ = reference_path_smoother.display();
-        return false;
+    bool smoothing_ok = false;
+    if (config_.smoothing_method_ == FRENET) {
+        smoothing_ok = reference_path_smoother.solve<FrenetReferencePathSmoother>(&reference_path_, &smoothed_path_);
+    } else if (config_.smoothing_method_ == CARTESIAN) {
+        smoothing_ok = reference_path_smoother.solve<CartesianReferencePathSmoother>(&reference_path_, &smoothed_path_);
     }
     a_star_display_ = reference_path_smoother.display();
+    if (!smoothing_ok) {
+        printf("smoothing stage failed, quit path optimization.\n");
+        return false;
+    }
     auto t2 = std::clock();
     // Divide reference path into segments and store infomation into vectors.
     if (!divideSmoothedPath(true)) {
@@ -85,7 +90,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     };
     auto t3 = std::clock();
     // Optimize.
-    bool ok = optimizePath(final_path);
+    bool optimization_ok = optimizePath(final_path);
     auto t4 = std::clock();
     printf("############\n"
            "smooth phase t: %f\n"
@@ -97,7 +102,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
            time_s(t2, t3),
            time_s(t3, t4),
            time_s(t1, t4));
-    return ok;
+    return optimization_ok;
 }
 
 bool PathOptimizer::samplePaths(const std::vector<double> &lon_set,
@@ -108,9 +113,15 @@ bool PathOptimizer::samplePaths(const std::vector<double> &lon_set,
         return false;
     }
     // Smooth reference path.
-    ReferencePathSmoother<FrenetReferencePathSmoother>
+    ReferencePathSmoother
         reference_path_smoother(points_list_, vehicle_state_.start_state_, grid_map_, config_);
-    if (!reference_path_smoother.solve(&reference_path_, &smoothed_path_)) {
+    bool smoothing_ok = false;
+    if (config_.smoothing_method_ == FRENET) {
+        smoothing_ok = reference_path_smoother.solve<FrenetReferencePathSmoother>(&reference_path_, &smoothed_path_);
+    } else if (config_.smoothing_method_ == CARTESIAN) {
+        smoothing_ok = reference_path_smoother.solve<CartesianReferencePathSmoother>(&reference_path_, &smoothed_path_);
+    }
+    if (!smoothing_ok) {
         printf("smoothing stage failed, quit path optimization.\n");
         return false;
     }
@@ -228,7 +239,9 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
             center_state.y += config_.rear_axle_to_center_distance_ * sin(center_state.z);
         }
         std::vector<double> clearance;
-        bool safety_margin_flag = set_safety_margin && reference_path_.seg_s_list_[i] >= 10;
+        grid_map::Position vehicle_position(vehicle_state_.start_state_.x, vehicle_state_.start_state_.y);
+        auto start_clearance = grid_map_.getObstacleDistance(vehicle_position);
+        bool safety_margin_flag = set_safety_margin && (reference_path_.seg_s_list_[i] >= 10 || start_clearance >= config_.circle_radius_ + 0.5);
         clearance = getClearanceFor4Circles(center_state, safety_margin_flag);
         // Terminate if collision is inevitable near the end.
         if ((clearance[0] == clearance[1] || clearance[2] == clearance[3] || clearance[4] == clearance[5]
