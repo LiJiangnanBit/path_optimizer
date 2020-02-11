@@ -34,8 +34,7 @@ public:
     PathOptimizer(const std::vector<hmpl::State> &points_list,
                   const hmpl::State &start_state,
                   const hmpl::State &end_state,
-                  const hmpl::InternalGridMap &map,
-                  bool densify_path = true);
+                  const hmpl::InternalGridMap &map);
     
     // Call this to get the optimized path.
     bool solve(std::vector<hmpl::State> *final_path);

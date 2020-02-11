@@ -31,7 +31,7 @@ public:
     double a_star_longitudinal_interval_,
         a_star_lateral_interval_; // A* search interval. Affects quality and efficiency.
     double frenet_curvature_w_, frenet_curvature_rate_w_, frenet_deviation_w_; // Frenet method weights.
-    double cartesian_curvature_w_, cartesian_deviation_w_; // Cartesian method weight.
+    double cartesian_curvature_w_, cartesian_deviation_w_; // Cartesian method weights.
 
     // Optimization phase related:
     double opt_curvature_w_, opt_curvature_rate_w_, opt_deviation_w_;

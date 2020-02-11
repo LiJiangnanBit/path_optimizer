@@ -31,7 +31,6 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
                                                    tk::spline *y_s_out,
                                                    double *max_s_out,
                                                    std::vector<hmpl::State> *smoothed_path_display) const {
-    auto sm_start = std::clock();
     std::vector<double> x_list, y_list, s_list, angle_list;
     tk::spline x_spline, y_spline;
     x_spline.set_points(s_list_, x_list_);
@@ -63,7 +62,6 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
         y_list.push_back(y_spline(length_on_ref_path));
     }
 
-    auto sm_pre_solve = std::clock();
     typedef CPPAD_TESTVECTOR(double) Dvector;
     size_t n_vars = N;
     Dvector vars(n_vars);
@@ -119,7 +117,6 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
     // Check if it works
     bool ok = true;
     ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
-    auto sm_solved = std::clock();
     if (!ok) {
         LOG(WARNING) << "smoothing solver failed!";
         return false;
@@ -189,17 +186,6 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
     x_s_out->set_points(result_s_list, result_x_list);
     y_s_out->set_points(result_s_list, result_y_list);
     *max_s_out = result_s_list.back() + 3;
-    auto sm_end = std::clock();
-    printf("*********\n"
-           "sm_pre: %f\n"
-           "sm_solve: %f\n"
-           "sm_after: %f\n"
-           "sm_all: %f\n"
-           "**********\n",
-           (double) (sm_pre_solve - sm_start) / CLOCKS_PER_SEC,
-           (double) (sm_solved - sm_pre_solve) / CLOCKS_PER_SEC,
-           (double) (sm_end - sm_solved) / CLOCKS_PER_SEC,
-           (double) (sm_end - sm_start) / CLOCKS_PER_SEC);
     return true;
 }
 

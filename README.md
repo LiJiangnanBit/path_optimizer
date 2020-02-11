@@ -58,7 +58,8 @@ roslaunch state_sampling state_sampling.launch
 ```
 rosrun path_optimizer path_optimizer_benchmark
 ``` 
-
+## 问题
+1. 相比demo2和benchmark测试，demo1求解耗时增加，目前还没有找到原因。
 ## 原理
 输入（灰色）：
 ![in.png](https://i.loli.net/2019/10/31/v8rGYNW6RHxOcwy.png)  

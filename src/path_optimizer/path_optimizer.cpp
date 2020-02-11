@@ -8,8 +8,7 @@ namespace PathOptimizationNS {
 PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
                              const hmpl::State &start_state,
                              const hmpl::State &end_state,
-                             const hmpl::InternalGridMap &map,
-                             bool densify_path) :
+                             const hmpl::InternalGridMap &map) :
     grid_map_(map),
     collision_checker_(map),
     vehicle_state_(start_state, end_state, 0, 0),
@@ -17,7 +16,6 @@ PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
     point_num_(points_list.size()),
     solver_dynamic_initialized(false) {
     setConfig();
-    config_.raw_result_ = !densify_path;
 }
 
 void PathOptimizer::setConfig() {
@@ -59,7 +57,7 @@ void PathOptimizer::setConfig() {
 
     //
     config_.raw_result_ = true;
-    config_.output_interval_ = 0.3;
+    config_.output_interval_ = 0.5;
 }
 
 bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
@@ -97,7 +95,7 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
            "divide phase t: %f\n"
            "optimize phase t: %f\n"
            "all t: %f\n"
-           "*********\n",
+           "*********\n\n\n",
            time_s(t1, t2),
            time_s(t2, t3),
            time_s(t3, t4),
@@ -425,6 +423,7 @@ bool PathOptimizer::optimizePath(std::vector<hmpl::State> *final_path) {
     double last_x = 0, last_y = 0;
     std::vector<hmpl::State> tmp_raw_path;
     for (size_t i = 0; i != N_; ++i) {
+//        std::cout << "cuvature contuol: " << QPSolution(2 * N_ + i) << std::endl;
         double length_on_ref_path = reference_path_.seg_s_list_[i];
         double angle = reference_path_.seg_angle_list_[i];
         double new_angle = constraintAngle(angle + M_PI_2);

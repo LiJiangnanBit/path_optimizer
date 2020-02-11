@@ -206,7 +206,6 @@ void ReferencePathSmoother::bSpline() {
     if (average_length > 10) degree = 3;
     else if (average_length > 5) degree = 4;
     else degree = 5;
-    std::cout << "b spline degree: " << degree << std::endl;
     tinyspline::BSpline b_spline_raw(input_points_.size(), 2, degree);
     std::vector<tinyspline::real> ctrlp_raw = b_spline_raw.controlPoints();
     for (size_t i = 0; i != input_points_.size(); ++i) {
