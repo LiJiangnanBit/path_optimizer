@@ -19,8 +19,8 @@
 
 namespace PathOptimizationNS {
 #define OBSTACLE_COST 0.4
-#define OFFSET_COST 0.2
-#define SMOOTHNESS_COST 3
+#define OFFSET_COST 0.4
+#define SMOOTHNESS_COST 10
 
 // This class use A* search to improve the quality of the input points (if needed), and
 // then uses a smoother to obtain a smoothed reference path.

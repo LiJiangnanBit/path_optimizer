@@ -16,16 +16,19 @@ double ReferencePathSmoother::getG(const PathOptimizationNS::APoint &point,
         obstacle_cost = (safety_distance - distance_to_obs) / safety_distance * OBSTACLE_COST;
     }
     // Deviation cost.
-    double offset_cost = point.offset / config_.a_star_lateral_range_ * OFFSET_COST;
+    double offset_cost = fabs(point.offset) / config_.a_star_lateral_range_ * OFFSET_COST;
     // Smoothness cost.
-    double smoothness_cost = 0;
-    if (parent.parent) {
-        Eigen::Vector2d v1(parent.x - parent.parent->x, parent.y - parent.parent->y);
-        Eigen::Vector2d v2(point.x - parent.x, point.y - parent.y);
-        smoothness_cost = fabs(v1(0) * v2(1) - v1(1) * v2(0)) * SMOOTHNESS_COST;
-    }
-    double offset_with_parent = point.offset - parent.offset;
-    return parent.g + offset_cost + smoothness_cost + obstacle_cost;
+//    double smoothness_cost = 0;
+//    if (parent.parent) {
+//        Eigen::Vector2d v1(parent.x - parent.parent->x, parent.y - parent.parent->y);
+//        Eigen::Vector2d v2(point.x - parent.x, point.y - parent.y);
+//        smoothness_cost = fabs(v1(0) * v2(1) - v1(1) * v2(0)) * SMOOTHNESS_COST;
+//    }
+//    printExp(offset_cost);
+//    printExp(smoothness_cost);
+//    printExp(obstacle_cost);
+//    return parent.g + offset_cost + smoothness_cost + obstacle_cost;
+    return parent.g + offset_cost + obstacle_cost;
 }
 
 bool ReferencePathSmoother::modifyInputPoints() {
@@ -143,18 +146,26 @@ bool ReferencePathSmoother::modifyInputPoints() {
     std::reverse(a_x_list.begin(), a_x_list.end());
     std::reverse(a_y_list.begin(), a_y_list.end());
 
+    // Choose a control point every n points, interval being 4.5m.
+    auto n = std::max(static_cast<int>(4.5 / config_.a_star_longitudinal_interval_), 1);
+    int control_points_num = (a_x_list.size() - 1) / n + 1;
+    int degree = 3;
+    if (control_points_num <= degree) {
+        std::cout << "reference path is too short!" << std::endl;
+        return false;
+    }
     // Modify.
-    tinyspline::BSpline b_spline(a_x_list.size(), 2, 4);
+    tinyspline::BSpline b_spline(control_points_num, 2, degree);
     std::vector<tinyspline::real> ctrlp = b_spline.controlPoints();
-    for (size_t i = 0; i != a_x_list.size(); ++i) {
-        ctrlp[2 * (i)] = a_x_list[i];
-        ctrlp[2 * (i) + 1] = a_y_list[i];
+    for (size_t i = 0; i != control_points_num; ++i) {
+        ctrlp[2 * (i)] = a_x_list[i * n];
+        ctrlp[2 * (i) + 1] = a_y_list[i * n];
     }
     b_spline.setControlPoints(ctrlp);
     x_list_.clear();
     y_list_.clear();
     s_list_.clear();
-    double delta_t = 1.0 / a_x_list.size();
+    double delta_t = 1.0 / target_s_;
     double tmp_t = 0;
     while (tmp_t <= 1) {
         auto result = b_spline.eval(tmp_t).result();

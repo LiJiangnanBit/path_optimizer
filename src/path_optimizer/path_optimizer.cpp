@@ -12,7 +12,7 @@ PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
                              bool densify_path) :
     grid_map_(map),
     collision_checker_(map),
-    vehicle_state_({start_state, end_state, 0, 0}),
+    vehicle_state_(start_state, end_state, 0, 0),
     points_list_(points_list),
     point_num_(points_list.size()),
     solver_dynamic_initialized(false) {
@@ -43,16 +43,16 @@ void PathOptimizer::setConfig() {
     config_.a_star_lateral_interval_ = 0.6;
 
     //
-    config_.frenet_curvature_rate_w_ = 30;
-    config_.frenet_curvature_w_ = 20;
-    config_.frenet_deviation_w_ = 1;
+    config_.frenet_curvature_rate_w_ = 1500;
+    config_.frenet_curvature_w_ = 200;
+    config_.frenet_deviation_w_ = 4;
     //
     config_.cartesian_curvature_w_ = 10;
     config_.cartesian_deviation_w_ = 0.001;
     //
     config_.opt_curvature_w_ = 10;
-    config_.opt_curvature_rate_w_ = 100;
-    config_.opt_deviation_w_ = 0.05;
+    config_.opt_curvature_rate_w_ = 1000;
+    config_.opt_deviation_w_ = 0.0;
     config_.constraint_end_heading_ = true;
     // TODO: use this condition.
     config_.exact_end_position_ = false;
@@ -92,12 +92,12 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     // Optimize.
     bool optimization_ok = optimizePath(final_path);
     auto t4 = std::clock();
-    printf("############\n"
+    printf("*********\n"
            "smooth phase t: %f\n"
            "divide phase t: %f\n"
            "optimize phase t: %f\n"
            "all t: %f\n"
-           "############\n",
+           "*********\n",
            time_s(t1, t2),
            time_s(t2, t3),
            time_s(t3, t4),

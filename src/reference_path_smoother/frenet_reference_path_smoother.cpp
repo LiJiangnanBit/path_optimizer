@@ -101,10 +101,10 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
     // weights of the cost function
     // TODO: use a config file
     std::vector<double> weights;
-    weights.push_back(20); //curvature weight
-    weights.push_back(30); //curvature rate weight
+    weights.push_back(config_.frenet_curvature_w_); //curvature weight
+    weights.push_back(config_.frenet_curvature_rate_w_); //curvature rate weight
     weights.push_back(0.01); //distance to boundary weight
-    weights.push_back(1); //path length weight
+    weights.push_back(config_.frenet_deviation_w_); //path length weight
     FgEvalFrenetSmooth fg_eval_frenet(x_list,
                                       y_list,
                                       angle_list,
@@ -191,7 +191,10 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
     *max_s_out = result_s_list.back() + 3;
     auto sm_end = std::clock();
     printf("*********\n"
-           "sm_pre: %f\n sm_solve: %f\n sm_after: %f\n sm_all: %f\n"
+           "sm_pre: %f\n"
+           "sm_solve: %f\n"
+           "sm_after: %f\n"
+           "sm_all: %f\n"
            "**********\n",
            (double) (sm_pre_solve - sm_start) / CLOCKS_PER_SEC,
            (double) (sm_solved - sm_pre_solve) / CLOCKS_PER_SEC,

@@ -4,6 +4,8 @@
 
 #include "tools/tools.hpp"
 
+namespace PathOptimizationNS {
+
 double time_s(const clock_t &begin, const clock_t &end) {
     return static_cast<double>(end - begin) / CLOCKS_PER_SEC;
 }
@@ -28,4 +30,10 @@ double getCurvature(const tk::spline &xs, const tk::spline &ys, double tmp_s) {
     double x_d2 = xs.deriv(2, tmp_s);
     double y_d2 = ys.deriv(2, tmp_s);
     return (x_d1 * y_d2 - y_d1 * x_d2) / pow(pow(x_d1, 2) + pow(y_d1, 2), 1.5);
+}
+
+double distance(const State &p1, const State &p2) {
+    return sqrt(pow(p1.x - p2.x, 2) + pow(p1.y - p2.y, 2));
+}
+
 }
