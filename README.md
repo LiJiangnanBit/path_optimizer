@@ -1,6 +1,6 @@
 # path_optimization
 根据参考路径（点）生成可行路径。
-![image](https://github.com/bit-ivrc/path_optimizer/blob/visualization/picture/cover.gif)
+![cover.png](https://i.loli.net/2020/02/11/CiZXwjQeGNaqdsr.png)  
 
 ## 运行  
 ### 依赖
