@@ -175,7 +175,7 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
         }
         double tmp_s = reference_path_.max_s_ - search_delta_s;
         auto min_dis_to_goal = end_distance;
-        double min_dis_s = 0;
+        double min_dis_s = reference_path_.max_s_;
         while (tmp_s > 0) {
             double x = reference_path_.x_s_(tmp_s);
             double y = reference_path_.y_s_(tmp_s);
