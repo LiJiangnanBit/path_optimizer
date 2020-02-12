@@ -12,11 +12,17 @@
 #include <tf/transform_datatypes.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/tf.h>
-#include <internal_grid_map/internal_grid_map.hpp>
 #include <opt_utils/opt_utils.hpp>
-#include <grid_map_ros/grid_map_ros.hpp>
 #include <ros_viz_tools/ros_viz_tools.h>
+#include <grid_map_core/grid_map_core.hpp>
+#include <grid_map_cv/grid_map_cv.hpp>
+#include <grid_map_ros/grid_map_ros.hpp>
+#include "eigen3/Eigen/Dense"
+#include "opencv2/core/core.hpp"
+#include "opencv2/core/eigen.hpp"
+#include "opencv2/opencv.hpp"
 #include "path_optimizer/path_optimizer.hpp"
+#include "../tools/eigen2cv.hpp"
 
 hmpl::State start_state, end_state;
 std::vector<hmpl::State> reference_path;
@@ -59,21 +65,28 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "path_optimization");
     ros::NodeHandle nh("~");
 
-    // Get map image.
+    // Initialize grid map from image.
     std::string image_dir = ros::package::getPath("path_optimizer");
     std::string base_dir = image_dir;
     std::string image_file = "gridmap.png";
     image_dir.append("/" + image_file);
     cv::Mat img_src = cv::imread(image_dir, CV_8UC1);
     double resolution = 0.2;  // in meter
-    // Initialize map.
-    hmpl::InternalGridMap in_gm;
-    in_gm.initializeFromImage(img_src,
-                              resolution,
-                              grid_map::Position::Zero());
-    in_gm.addObstacleLayerFromImage(img_src, 0.5);
-    in_gm.updateDistanceLayer();
-    in_gm.maps.setFrameId("/map");
+    grid_map::GridMap grid_map(std::vector<std::string>{"obstacle", "distance"});
+    grid_map::GridMapCvConverter::initializeFromImage(
+        img_src, resolution, grid_map, grid_map::Position::Zero());
+    // Add obstacle layer.
+    unsigned char OCCUPY = 0;
+    unsigned char FREE = 255;
+    grid_map::GridMapCvConverter::addLayerFromImage<unsigned char, 1>(
+        img_src, "obstacle", grid_map, OCCUPY, FREE, 0.5);
+    // Update distance layer.
+    Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic> binary =
+        grid_map.get("obstacle").cast<unsigned char>();
+    cv::distanceTransform(eigen2cv(binary), eigen2cv(grid_map.get("distance")),
+                          CV_DIST_L2, CV_DIST_MASK_PRECISE);
+    grid_map.get("distance") *= resolution;
+    grid_map.setFrameId("/map");
 
     // Set publishers.
     ros::Publisher map_publisher =
@@ -91,7 +104,7 @@ int main(int argc, char **argv) {
     std::string marker_frame_id = "/map";
 
     // Loop.
-    ros::Rate rate(10.0);
+    ros::Rate rate(5.0);
     while (nh.ok()) {
         ros::Time time = ros::Time::now();
         markers.clear();
@@ -152,7 +165,7 @@ int main(int argc, char **argv) {
         std::vector<hmpl::State> result_path, smoothed_reference_path;
         std::vector<std::vector<double>> a_star_display(3);
         if (reference_rcv && start_state_rcv && end_state_rcv) {
-            PathOptimizationNS::PathOptimizer path_optimizer(reference_path, start_state, end_state, in_gm);
+            PathOptimizationNS::PathOptimizer path_optimizer(reference_path, start_state, end_state, grid_map);
             if (path_optimizer.solve(&result_path)) {
                 std::cout << "ok!" << std::endl;
             }
@@ -243,10 +256,10 @@ int main(int argc, char **argv) {
         markers.append(vehicle_geometry_marker);
 
         // Publish the grid_map.
-        in_gm.maps.setTimestamp(time.toNSec());
+        grid_map.setTimestamp(time.toNSec());
         nav_msgs::OccupancyGrid message;
         grid_map::GridMapRosConverter::toOccupancyGrid(
-            in_gm.maps, in_gm.obs, in_gm.FREE, in_gm.OCCUPY, message);
+            grid_map, "obstacle", FREE, OCCUPY, message);
         map_publisher.publish(message);
 
         // Publish markers.

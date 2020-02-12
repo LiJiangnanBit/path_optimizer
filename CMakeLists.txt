@@ -14,7 +14,6 @@ set(catkin_deps
         roscpp
         opt_utils
         grid_map_ros
-        internal_grid_map
         car_model
         tinyspline_ros
         ros_viz_tools
@@ -76,7 +75,7 @@ add_library(${PROJECT_NAME}
         src/tools/collision_checker.cpp
         src/path_optimizer/solver_interface.cpp
         src/reference_path_smoother/cartesian_reference_path_smoother.cpp
-        src/reference_path_smoother/reference_path_smoother.cpp)
+        src/reference_path_smoother/reference_path_smoother.cpp src/tools/Map.cpp include/tools/Map.hpp)
 target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} ${Clothoids_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
         )
 

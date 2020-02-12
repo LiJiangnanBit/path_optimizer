@@ -51,7 +51,6 @@
   <buildtool_depend>catkin</buildtool_depend>
   <depend>roscpp</depend>
   <depend>opt_utils</depend>
-  <depend>internal_grid_map</depend>
   <depend>grid_map_ros</depend>
   <depend>car_model</depend>
   <depend>tinyspline_ros</depend>

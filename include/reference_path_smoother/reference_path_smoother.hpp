@@ -9,13 +9,13 @@
 #include <string>
 #include <queue>
 #include <opt_utils/opt_utils.hpp>
-#include <internal_grid_map/internal_grid_map.hpp>
 #include <ctime>
 #include <tinyspline_ros/tinysplinecpp.h>
 #include "config/config.hpp"
 #include "data_struct/data_struct.hpp"
 #include "tools/spline.h"
 #include "tools/tools.hpp"
+#include "tools/Map.hpp"
 
 namespace PathOptimizationNS {
 #define OBSTACLE_COST 0.4
@@ -30,7 +30,7 @@ public:
     ReferencePathSmoother() = delete;
     ReferencePathSmoother(const std::vector<hmpl::State> &input_points,
                           const hmpl::State &start_state,
-                          const hmpl::InternalGridMap &grid_map,
+                          const Map &grid_map,
                           const Config &config);
 
     template<typename Smoother>
@@ -55,7 +55,7 @@ private:
 
     const std::vector<hmpl::State> &input_points_;
     const hmpl::State &start_state_;
-    const hmpl::InternalGridMap &grid_map_;
+    const Map &grid_map_;
     const Config &config_;
     // Data to be passed into solvers.
     std::vector<double> x_list_, y_list_, s_list_;

@@ -4,18 +4,44 @@
 
 #include <iostream>
 #include <benchmark/benchmark.h>
+#include <ros/package.h>
+#include <grid_map_core/grid_map_core.hpp>
+#include <grid_map_cv/grid_map_cv.hpp>
+#include <grid_map_ros/grid_map_ros.hpp>
+#include "eigen3/Eigen/Dense"
+#include "opencv2/core/core.hpp"
+#include "opencv2/core/eigen.hpp"
+#include "opencv2/opencv.hpp"
 #include <vector>
 #include <opencv/cv.hpp>
 #include <path_optimizer/path_optimizer.hpp>
+#include "../tools/eigen2cv.hpp"
 
 static void BM_optimizePath(benchmark::State &state) {
-    cv::Mat1b image = cv::imread(
-        "/home/ljn/voronoi_update/cw_project/ivrc_ws/src/planning/state_sampling/obstacles_for_benchmark.png",
-        cv::IMREAD_GRAYSCALE);
-    hmpl::InternalGridMap in_gm;
-    in_gm.initializeFromImage(image, 0.2, grid_map::Position::Zero());
-    in_gm.addObstacleLayerFromImage(image);
-    in_gm.updateDistanceLayerCV();
+    // Initialize grid map from image.
+    std::string image_dir = ros::package::getPath("path_optimizer");
+    std::string base_dir = image_dir;
+    std::string image_file = "obstacles_for_benchmark.png";
+    image_dir.append("/" + image_file);
+    cv::Mat img_src = cv::imread(image_dir, CV_8UC1);
+    double resolution = 0.2;  // in meter
+    grid_map::GridMap grid_map(std::vector<std::string>{"obstacle", "distance"});
+    grid_map::GridMapCvConverter::initializeFromImage(
+        img_src, resolution, grid_map, grid_map::Position::Zero());
+    // Add obstacle layer.
+    unsigned char OCCUPY = 0;
+    unsigned char FREE = 255;
+    grid_map::GridMapCvConverter::addLayerFromImage<unsigned char, 1>(
+        img_src, "obstacle", grid_map, OCCUPY, FREE, 0.5);
+    // Update distance layer.
+    Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic> binary =
+        grid_map.get("obstacle").cast<unsigned char>();
+    cv::distanceTransform(eigen2cv(binary), eigen2cv(grid_map.get("distance")),
+                          CV_DIST_L2, CV_DIST_MASK_PRECISE);
+    grid_map.get("distance") *= resolution;
+    grid_map.setFrameId("/map");
+
+    // Input reference path.
     std::vector<double> x_list_ =
         {36.933, 35.664, 34.5232, 33.5006, 32.5863, 31.7711, 31.0461, 30.4029, 29.8334, 29.33, 28.8857, 28.4938,
          28.1478, 27.8421, 27.5711, 27.3299, 27.1139, 26.919, 26.7415, 26.5781, 26.4261, 26.283, 26.1468, 26.016,
@@ -53,8 +79,8 @@ static void BM_optimizePath(benchmark::State &state) {
     goal_state.z = -1.30825;
     goal_state.k = 0;
     for (auto _:state) {
-        PathOptimizationNS::PathOptimizer mpc_path_optimizer(points, start_state, goal_state, in_gm);
-        bool ok = mpc_path_optimizer.solve(&final_path);
+        PathOptimizationNS::PathOptimizer path_optimizer(points, start_state, goal_state, grid_map);
+        path_optimizer.solve(&final_path);
     }
 }
 BENCHMARK(BM_optimizePath)->Unit(benchmark::kMillisecond);

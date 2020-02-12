@@ -8,7 +8,7 @@ namespace PathOptimizationNS {
 PathOptimizer::PathOptimizer(const std::vector<hmpl::State> &points_list,
                              const hmpl::State &start_state,
                              const hmpl::State &end_state,
-                             const hmpl::InternalGridMap &map) :
+                             const grid_map::GridMap &map) :
     grid_map_(map),
     collision_checker_(map),
     vehicle_state_(start_state, end_state, 0, 0),
@@ -103,6 +103,9 @@ bool PathOptimizer::solve(std::vector<hmpl::State> *final_path) {
     return optimization_ok;
 }
 
+// Incomplete:
+// Sample a set of candidate paths of various longitudinal distance and lateral offset.
+// Note that it might be very slow if "densify_path" is set to false.
 bool PathOptimizer::samplePaths(const std::vector<double> &lon_set,
                                 const std::vector<double> &lat_set,
                                 std::vector<std::vector<hmpl::State>> *final_path_set) {

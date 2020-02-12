@@ -5,14 +5,14 @@
 #ifndef MPC_STATE_SAMPLING_COLLOSION_CHECKER_HPP
 #define MPC_STATE_SAMPLING_COLLOSION_CHECKER_HPP
 
-#include <internal_grid_map/internal_grid_map.hpp>
 #include <car_model/car_geometry.hpp>
+#include "tools/Map.hpp"
 
 namespace PathOptimizationNS {
 
 class CollisionChecker {
  public:
-    CollisionChecker(const hmpl::InternalGridMap &in_gm);
+    CollisionChecker(const grid_map::GridMap &in_gm);
     /**
      * Path in global frame.  Collsion checking using footprint of the car.
      * Fill the collision flag to v field of State.  0 : collision,  1:
@@ -57,7 +57,7 @@ class CollisionChecker {
     void collisionCheckingHelper(std::vector<hmpl::State> *curve);
 
  private:
-    const hmpl::InternalGridMap &in_gm_;
+    const Map in_gm_;
     hmpl::CarGeometry car_;
 };
 

@@ -10,12 +10,12 @@
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
 #include <tinyspline_ros/tinysplinecpp.h>
-#include <internal_grid_map/internal_grid_map.hpp>
 #include <path_optimizer/path_optimizer.hpp>
 #include "data_struct/data_struct.hpp"
 #include "config/config.hpp"
 #include "tools/spline.h"
 #include "tools/tools.hpp"
+#include "tools/Map.hpp"
 
 namespace PathOptimizationNS {
 
@@ -80,7 +80,7 @@ public:
                                    const std::vector<double> &y_list,
                                    const std::vector<double> &s_list,
                                    const hmpl::State &start_state,
-                                   const hmpl::InternalGridMap &grid_map,
+                                   const Map &grid_map,
                                    const Config &config);
 
     // Core function.
@@ -96,7 +96,7 @@ private:
 
     const std::vector<double> &x_list_, &y_list_, &s_list_;
     const hmpl::State &start_state_;
-    const hmpl::InternalGridMap &grid_map_;
+    const Map &grid_map_;
     const Config &config_;
 };
 }

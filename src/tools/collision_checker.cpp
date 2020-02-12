@@ -5,7 +5,7 @@
 
 namespace PathOptimizationNS {
 
-CollisionChecker::CollisionChecker(const hmpl::InternalGridMap &in_gm)
+CollisionChecker::CollisionChecker(const grid_map::GridMap &in_gm)
     : in_gm_(in_gm),
       car_() {
 }

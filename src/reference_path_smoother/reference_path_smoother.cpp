@@ -233,7 +233,7 @@ void ReferencePathSmoother::bSpline() {
 
 ReferencePathSmoother::ReferencePathSmoother(const std::vector<hmpl::State> &input_points,
                                                        const hmpl::State &start_state,
-                                                       const hmpl::InternalGridMap &grid_map,
+                                                       const Map &grid_map,
                                                        const Config &config) :
     input_points_(input_points),
     start_state_(start_state),

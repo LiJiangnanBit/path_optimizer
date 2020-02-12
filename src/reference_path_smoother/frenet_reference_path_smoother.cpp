@@ -10,7 +10,7 @@ FrenetReferencePathSmoother::FrenetReferencePathSmoother(const std::vector<doubl
                                                          const std::vector<double> &y_list,
                                                          const std::vector<double> &s_list,
                                                          const hmpl::State &start_state,
-                                                         const hmpl::InternalGridMap &grid_map,
+                                                         const Map &grid_map,
                                                          const Config &config) :
     x_list_(x_list),
     y_list_(y_list),

@@ -14,7 +14,6 @@
 #include <Eigen/Dense>
 #include <memory>
 #include <opt_utils/utils.hpp>
-#include <internal_grid_map/internal_grid_map.hpp>
 #include <tinyspline_ros/tinysplinecpp.h>
 #include "data_struct/data_struct.hpp"
 #include "reference_path_smoother/reference_path_smoother.hpp"
@@ -25,6 +24,7 @@
 #include "tools/collosion_checker.hpp"
 #include "config/config.hpp"
 #include "solver_interface.hpp"
+#include "tools/Map.hpp"
 
 namespace PathOptimizationNS {
 
@@ -34,18 +34,19 @@ public:
     PathOptimizer(const std::vector<hmpl::State> &points_list,
                   const hmpl::State &start_state,
                   const hmpl::State &end_state,
-                  const hmpl::InternalGridMap &map);
+                  const grid_map::GridMap &map);
     
     // Call this to get the optimized path.
     bool solve(std::vector<hmpl::State> *final_path);
 
-    // Only for test:
+    // Incomplete:
     // Sample a set of candidate paths of various longitudinal distance and lateral offset.
     // Note that it might be very slow if "densify_path" is set to false.
     bool samplePaths(const std::vector<double> &lon_set,
                      const std::vector<double> &lat_set,
                      std::vector<std::vector<hmpl::State>> *final_path_set);
 
+    // Incomplete:
     // For dynamic obstacle avoidance. Please Ignore this.
     bool optimizeDynamic(const std::vector<double> &sr_list,
                          const std::vector<std::vector<double>> &clearance_list,
@@ -86,7 +87,7 @@ private:
     // Divide smoothed path into segments.
     bool divideSmoothedPath(bool safety_margin_flag);
 
-    hmpl::InternalGridMap grid_map_;
+    const Map grid_map_;
     CollisionChecker collision_checker_;
     Config config_;
     ReferencePath reference_path_;
