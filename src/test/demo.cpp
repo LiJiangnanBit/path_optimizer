@@ -22,7 +22,7 @@
 #include "opencv2/core/eigen.hpp"
 #include "opencv2/opencv.hpp"
 #include "path_optimizer/path_optimizer.hpp"
-#include "../tools/eigen2cv.hpp"
+#include "tools/eigen2cv.hpp"
 
 hmpl::State start_state, end_state;
 std::vector<hmpl::State> reference_path;
@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
         nh.advertise<nav_msgs::OccupancyGrid>("grid_map", 1, true);
     // Set subscribers.
     ros::Subscriber reference_sub =
-        nh.subscribe("/clicked_point", 0, referenceCb);
+        nh.subscribe("/clicked_point", 1, referenceCb);
     ros::Subscriber start_sub =
         nh.subscribe("/initialpose", 1, startCb);
     ros::Subscriber end_sub =
@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
     std::string marker_frame_id = "/map";
 
     // Loop.
-    ros::Rate rate(5.0);
+    ros::Rate rate(20.0);
     while (nh.ok()) {
         ros::Time time = ros::Time::now();
         markers.clear();
