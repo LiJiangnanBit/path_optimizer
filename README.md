@@ -21,14 +21,14 @@ catkin build path_optimizer
 roslaunch path_optimizer demo.launch
 ~~~
 #### (1) Pick reference points using "Publish Point" tool in RViz.  
-- Choose at least six points.  
+- Pick at least six points.  
 - There are no hard and fast rules about the spacing of the points.  
 - If you want to abandon the chosen points, just double click anywhere when using the "Publish Point" tool.  
 - In application, the reference path is given by a global path or by a search algorithm like A*.  
 ![ref.gif](https://i.loli.net/2020/02/13/EXB8Qh9MdUOlm1R.gif)  
-#### (2) Pick start state using "2D Pose Estimate" tool and Pick goal state using "2D Nav Goal" tool.  
+#### (2) Pick start state using "2D Pose Estimate" tool and pick goal state using "2D Nav Goal" tool.  
 Currently, it's not strictly required to reach the goal state. But this can be changed.    
-![image](https://github.com/bit-ivrc/path_optimizer/blob/visualization/picture/calsulate.gif)
+![calsulate.gif](https://i.loli.net/2020/02/13/mLxIkj4Kvirg7eO.gif)
 
 ### 2. Benchmark test  
 
