@@ -4,9 +4,9 @@
 
 #ifndef PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_SOLVER_INTERFACE_HPP_
 #define PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_SOLVER_INTERFACE_HPP_
-#include <opt_utils/opt_utils.hpp>
 #include <Eigen/Dense>
 #include <OsqpEigen/OsqpEigen.h>
+#include <cassert>
 #include "data_struct/data_struct.hpp"
 #include "config/config.hpp"
 

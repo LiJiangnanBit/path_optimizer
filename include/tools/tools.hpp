@@ -49,6 +49,10 @@ double getCurvature(const tk::spline &xs, const tk::spline &ys, double tmp_s);
 
 // Calculate distance between two points.
 double distance(const State &p1, const State &p2);
+
+// Coordinate transform.
+State local2Global(const State &reference, const State &target);
+State global2Local(const State &reference, const State &target);
 }
 
 #endif //PATH_OPTIMIZER_INCLUDE_TOOLS_TOOLS_HPP_

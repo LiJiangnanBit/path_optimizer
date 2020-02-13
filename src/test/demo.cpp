@@ -12,7 +12,6 @@
 #include <tf/transform_datatypes.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/tf.h>
-#include <opt_utils/opt_utils.hpp>
 #include <ros_viz_tools/ros_viz_tools.h>
 #include <grid_map_core/grid_map_core.hpp>
 #include <grid_map_cv/grid_map_cv.hpp>
@@ -23,16 +22,17 @@
 #include "opencv2/opencv.hpp"
 #include "path_optimizer/path_optimizer.hpp"
 #include "tools/eigen2cv.hpp"
+#include "data_struct/data_struct.hpp"
 
-hmpl::State start_state, end_state;
-std::vector<hmpl::State> reference_path;
+PathOptimizationNS::State start_state, end_state;
+std::vector<PathOptimizationNS::State> reference_path;
 bool start_state_rcv = false, end_state_rcv = false, reference_rcv = false;
 
 void referenceCb(const geometry_msgs::PointStampedConstPtr &p) {
     if (start_state_rcv && end_state_rcv) {
         reference_path.clear();
     }
-    hmpl::State reference_point;
+    PathOptimizationNS::State reference_point;
     reference_point.x = p->point.x;
     reference_point.y = p->point.y;
     reference_path.emplace_back(reference_point);
@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
         if (reference_path.size() >= 2) {
             const auto &p1 = reference_path[reference_path.size() - 2];
             const auto &p2 = reference_path.back();
-            if (hmpl::distance(p1, p2) <= 0.001) {
+            if (distance(p1, p2) <= 0.001) {
                 reference_path.clear();
                 reference_rcv = false;
             }
@@ -162,7 +162,7 @@ int main(int argc, char **argv) {
         markers.append(end_marker);
 
         // Calculate.
-        std::vector<hmpl::State> result_path, smoothed_reference_path;
+        std::vector<PathOptimizationNS::State> result_path, smoothed_reference_path;
         std::vector<std::vector<double>> a_star_display(3);
         if (reference_rcv && start_state_rcv && end_state_rcv) {
             PathOptimizationNS::PathOptimizer path_optimizer(reference_path, start_state, end_state, grid_map);
@@ -216,7 +216,7 @@ int main(int argc, char **argv) {
         // Visualize vehicle geometry.
         for (size_t i = 0; i != result_path.size(); ++i) {
             double heading = result_path[i].z;
-            hmpl::State p1, p2, p3, p4;
+            PathOptimizationNS::State p1, p2, p3, p4;
             p1.x = 3.9;
             p1.y = 1;
             p2.x = 3.9;
@@ -227,10 +227,10 @@ int main(int argc, char **argv) {
             p4.y = 1;
             auto tmp_relto = result_path[i];
             tmp_relto.z = heading;
-            p1 = hmpl::localToGlobal(tmp_relto, p1);
-            p2 = hmpl::localToGlobal(tmp_relto, p2);
-            p3 = hmpl::localToGlobal(tmp_relto, p3);
-            p4 = hmpl::localToGlobal(tmp_relto, p4);
+            p1 = PathOptimizationNS::local2Global(tmp_relto, p1);
+            p2 = PathOptimizationNS::local2Global(tmp_relto, p2);
+            p3 = PathOptimizationNS::local2Global(tmp_relto, p3);
+            p4 = PathOptimizationNS::local2Global(tmp_relto, p4);
             geometry_msgs::Point pp1, pp2, pp3, pp4;
             pp1.x = p1.x;
             pp1.y = p1.y;

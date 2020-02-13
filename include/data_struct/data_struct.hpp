@@ -6,7 +6,6 @@
 #define PATH_OPTIMIZER_INCLUDE_DATA_STRUCT_DATA_STRUCT_HPP_
 #include <vector>
 #include <tools/spline.h>
-#include <opt_utils/opt_utils.hpp>
 
 namespace PathOptimizationNS {
 
@@ -32,18 +31,44 @@ struct ReferencePath {
     tk::spline y_s_;
     double max_s_ = 0;
     // Divided smoothed path info.
-    std::vector<double> seg_s_list_;
-    std::vector<double> seg_k_list_;
-    std::vector<double> seg_x_list_;
-    std::vector<double> seg_y_list_;
-    std::vector<double> seg_angle_list_;
-    std::vector<std::vector<double> > seg_clearance_list_;
+    std::vector<double> seg_s_list_{};
+    std::vector<double> seg_k_list_{};
+    std::vector<double> seg_x_list_{};
+    std::vector<double> seg_y_list_{};
+    std::vector<double> seg_angle_list_{};
+    std::vector<std::vector<double> > seg_clearance_list_{};
+};
+
+// Standard point struct.
+struct State {
+    State() = default;
+    State(double x, double y, double z = 0, double k = 0, double s = 0, double v = 0) :
+        x(x),
+        y(y),
+        z(z),
+        k(k),
+        s(s),
+        v(v){}
+    double x{};
+    double y{};
+    double z{}; // Heading.
+    double k{}; // Curvature.
+    double s{};
+    double v{};
+};
+
+struct Circle {
+    Circle() = default;
+    Circle(double x, double y, double r) : x(x), y(y), r(r) {}
+    double x{};
+    double y{};
+    double r{};
 };
 
 struct VehicleState {
     VehicleState() = default;
-    VehicleState(const hmpl::State &start_state,
-                 const hmpl::State &end_state,
+    VehicleState(const State &start_state,
+                 const State &end_state,
                  double offset = 0,
                  double heading_error = 0) :
         start_state_(start_state),
@@ -51,41 +76,26 @@ struct VehicleState {
         initial_offset_(offset),
         initial_heading_error_(heading_error) {}
     // Initial state.
-    hmpl::State start_state_;
+    State start_state_{};
     // Target state.
-    hmpl::State end_state_;
+    State end_state_{};
     // Initial error with reference line.
-    double initial_offset_ = 0;
-    double initial_heading_error_ = 0;
+    double initial_offset_{};
+    double initial_heading_error_{};
 };
-
-// Standard point struct.
-struct State {
-    State() = default;
-    State(double x, double y, double z = 0, double k = 0) :
-        x(x),
-        y(y),
-        z(z),
-        k(k) {}
-    double x = 0;
-    double y = 0;
-    double z = 0; // Heading.
-    double k = 0; // Curvature.
-};
-
 // Point for A* search.
 struct APoint {
-    double x = 0;
-    double y = 0;
-    double s = 0;
-    double l = 0;
-    double g = 0;
-    double h = 0;
+    double x{};
+    double y{};
+    double s{};
+    double l{};
+    double g{};
+    double h{};
     // Layer denotes the index of the longitudinal layer that the point lies on.
-    int layer = -1;
-    double offset = 0;
-    bool is_in_open_set = false;
-    APoint *parent = nullptr;
+    int layer{-1};
+    double offset{};
+    bool is_in_open_set{false};
+    APoint *parent{nullptr};
     inline double f() {
         return g + h;
     }

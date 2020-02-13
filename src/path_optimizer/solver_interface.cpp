@@ -290,7 +290,7 @@ void SolverInterface::setConstraintMatrixWithOffset(double offset,
                                                     Eigen::SparseMatrix<double> *matrix_constraints,
                                                     Eigen::VectorXd *lower_bound,
                                                     Eigen::VectorXd *upper_bound) const {
-    CHECK(angle_error_allowed >= 0 && offset_error_allowed >= 0);
+    assert(angle_error_allowed >= 0 && offset_error_allowed >= 0);
     const auto &seg_s_list = reference_path_.seg_s_list_;
     const auto &seg_k_list = reference_path_.seg_k_list_;
     const auto &seg_angle_list = reference_path_.seg_angle_list_;

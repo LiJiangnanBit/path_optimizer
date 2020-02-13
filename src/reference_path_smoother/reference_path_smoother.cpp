@@ -199,7 +199,7 @@ void ReferencePathSmoother::bSpline() {
     // B spline smoothing.
     double length = 0;
     for (size_t i = 0; i != input_points_.size() - 1; ++i) {
-        length += hmpl::distance(input_points_[i], input_points_[i + 1]);
+        length += distance(input_points_[i], input_points_[i + 1]);
     }
     int degree = 3;
     double average_length = length / input_points_.size();
@@ -231,10 +231,10 @@ void ReferencePathSmoother::bSpline() {
     }
 }
 
-ReferencePathSmoother::ReferencePathSmoother(const std::vector<hmpl::State> &input_points,
-                                                       const hmpl::State &start_state,
-                                                       const Map &grid_map,
-                                                       const Config &config) :
+ReferencePathSmoother::ReferencePathSmoother(const std::vector<State> &input_points,
+                                             const State &start_state,
+                                             const Map &grid_map,
+                                             const Config &config) :
     input_points_(input_points),
     start_state_(start_state),
     grid_map_(grid_map),

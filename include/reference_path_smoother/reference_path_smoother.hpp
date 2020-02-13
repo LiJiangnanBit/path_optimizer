@@ -8,7 +8,6 @@
 #include <vector>
 #include <string>
 #include <queue>
-#include <opt_utils/opt_utils.hpp>
 #include <ctime>
 #include <tinyspline_ros/tinysplinecpp.h>
 #include "config/config.hpp"
@@ -28,13 +27,13 @@ class ReferencePathSmoother {
 
 public:
     ReferencePathSmoother() = delete;
-    ReferencePathSmoother(const std::vector<hmpl::State> &input_points,
-                          const hmpl::State &start_state,
+    ReferencePathSmoother(const std::vector<State> &input_points,
+                          const State &start_state,
                           const Map &grid_map,
                           const Config &config);
 
     template<typename Smoother>
-    bool solve(ReferencePath *reference_path, std::vector<hmpl::State> *smoothed_path_display = nullptr);
+    bool solve(ReferencePath *reference_path, std::vector<State> *smoothed_path_display = nullptr);
     std::vector<std::vector<double>> display() const {
         return std::vector<std::vector<double>>{x_list_, y_list_, s_list_};
     }
@@ -53,8 +52,8 @@ private:
 //        return 0;
     }
 
-    const std::vector<hmpl::State> &input_points_;
-    const hmpl::State &start_state_;
+    const std::vector<State> &input_points_;
+    const State &start_state_;
     const Map &grid_map_;
     const Config &config_;
     // Data to be passed into solvers.
@@ -69,7 +68,7 @@ private:
 
 template<typename Smoother>
 bool ReferencePathSmoother::solve(PathOptimizationNS::ReferencePath *reference_path,
-                                            std::vector<hmpl::State> *smoothed_path_display) {
+                                  std::vector<State> *smoothed_path_display) {
     bSpline();
     if (config_.modify_input_points_) {
         modifyInputPoints();

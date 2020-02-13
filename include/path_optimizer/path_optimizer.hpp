@@ -13,7 +13,6 @@
 #include <ctime>
 #include <Eigen/Dense>
 #include <memory>
-#include <opt_utils/utils.hpp>
 #include <tinyspline_ros/tinysplinecpp.h>
 #include "data_struct/data_struct.hpp"
 #include "reference_path_smoother/reference_path_smoother.hpp"
@@ -31,20 +30,20 @@ namespace PathOptimizationNS {
 class PathOptimizer {
 public:
     PathOptimizer() = delete;
-    PathOptimizer(const std::vector<hmpl::State> &points_list,
-                  const hmpl::State &start_state,
-                  const hmpl::State &end_state,
+    PathOptimizer(const std::vector<State> &points_list,
+                  const State &start_state,
+                  const State &end_state,
                   const grid_map::GridMap &map);
     
     // Call this to get the optimized path.
-    bool solve(std::vector<hmpl::State> *final_path);
+    bool solve(std::vector<State> *final_path);
 
     // Incomplete:
     // Sample a set of candidate paths of various longitudinal distance and lateral offset.
     // Note that it might be very slow if "densify_path" is set to false.
     bool samplePaths(const std::vector<double> &lon_set,
                      const std::vector<double> &lat_set,
-                     std::vector<std::vector<hmpl::State>> *final_path_set);
+                     std::vector<std::vector<State>> *final_path_set);
 
     // Incomplete:
     // For dynamic obstacle avoidance. Please Ignore this.
@@ -56,13 +55,13 @@ public:
 
     // Only for visualization purpose.
     // TODO: some of these functions are no longer used.
-    const std::vector<hmpl::State> &getLeftBound() const;
-    const std::vector<hmpl::State> &getRightBound() const;
-    const std::vector<hmpl::State> &getSecondThirdPoint() const;
-    const std::vector<hmpl::State> &getRearBounds() const;
-    const std::vector<hmpl::State> &getCenterBounds() const;
-    const std::vector<hmpl::State> &getFrontBounds() const;
-    const std::vector<hmpl::State> &getSmoothedPath() const;
+    const std::vector<State> &getLeftBound() const;
+    const std::vector<State> &getRightBound() const;
+    const std::vector<State> &getSecondThirdPoint() const;
+    const std::vector<State> &getRearBounds() const;
+    const std::vector<State> &getCenterBounds() const;
+    const std::vector<State> &getFrontBounds() const;
+    const std::vector<State> &getSmoothedPath() const;
     std::vector<std::vector<double>> a_star_display_;
 
 private:
@@ -70,19 +69,19 @@ private:
     void setConfig();
     
     // Core function.
-    bool optimizePath(std::vector<hmpl::State> *final_path);
+    bool optimizePath(std::vector<State> *final_path);
     
     // Generate a set of paths with the same longitudinal length on reference line.
     bool sampleSingleLongitudinalPaths(double lon,
                                        const std::vector<double> &lat_set,
-                                       std::vector<std::vector<hmpl::State>> *final_path_set,
+                                       std::vector<std::vector<State>> *final_path_set,
                                        bool max_lon_flag);
     
     // Get bounds for each circle at each sampling point.
-    std::vector<double> getClearanceWithDirectionStrict(hmpl::State state,
+    std::vector<double> getClearanceWithDirectionStrict(State state,
                                                         double radius,
                                                         bool safety_margin_flag) const;
-    std::vector<double> getClearanceFor4Circles(const hmpl::State &state, bool safety_margin_flag);
+    std::vector<double> getClearanceFor4Circles(const State &state, bool safety_margin_flag);
     
     // Divide smoothed path into segments.
     bool divideSmoothedPath(bool safety_margin_flag);
@@ -94,21 +93,21 @@ private:
     VehicleState vehicle_state_;
     size_t N_;
     // Input path
-    std::vector<hmpl::State> points_list_;
+    std::vector<State> points_list_;
     size_t point_num_;
     // For dynamic obstacle avoidace. Please Ignore this.
     std::shared_ptr<SolverInterface> dynamic_solver_ptr;
     bool solver_dynamic_initialized;
     tk::spline xsr_, ysr_;
     // For visualization purpose.
-    std::vector<hmpl::State> left_bound_;
-    std::vector<hmpl::State> right_bound_;
-    std::vector<hmpl::State> second_third_point_;
-    std::vector<hmpl::State> empty_;
-    std::vector<hmpl::State> rear_bounds_;
-    std::vector<hmpl::State> center_bounds_;
-    std::vector<hmpl::State> front_bounds_;
-    std::vector<hmpl::State> smoothed_path_;
+    std::vector<State> left_bound_;
+    std::vector<State> right_bound_;
+    std::vector<State> second_third_point_;
+    std::vector<State> empty_;
+    std::vector<State> rear_bounds_;
+    std::vector<State> center_bounds_;
+    std::vector<State> front_bounds_;
+    std::vector<State> smoothed_path_;
 };
 
 }

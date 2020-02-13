@@ -6,7 +6,6 @@
 #define PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_REFERENCE_PATH_SMOOTHER_REFERENCE_PATH_SMOOTHER_HPP_
 
 #include <vector>
-#include <opt_utils/opt_utils.hpp>
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
 #include <tinyspline_ros/tinysplinecpp.h>
@@ -122,12 +121,12 @@ public:
     FrenetReferencePathSmoother(const std::vector<double> &x_list,
                                 const std::vector<double> &y_list,
                                 const std::vector<double> &s_list,
-                                const hmpl::State &start_state,
+                                const State &start_state,
                                 const Map &grid_map,
                                 const Config &config);
 
     // Core function.
-    bool smooth(ReferencePath *reference_path, std::vector<hmpl::State> *smoothed_path_display = nullptr) const;
+    bool smooth(ReferencePath *reference_path, std::vector<State> *smoothed_path_display = nullptr) const;
 
 private:
 
@@ -135,10 +134,10 @@ private:
     bool smoothPathFrenet(tk::spline *x_s_out,
                           tk::spline *y_s_out,
                           double *max_s_out,
-                          std::vector<hmpl::State> *smoothed_path_display) const;
+                          std::vector<State> *smoothed_path_display) const;
 
     const std::vector<double> &x_list_, &y_list_, &s_list_;
-    const hmpl::State &start_state_;
+    const State &start_state_;
     const Map &grid_map_;
     const Config &config_;
 };

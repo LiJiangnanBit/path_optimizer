@@ -7,10 +7,24 @@ namespace PathOptimizationNS {
 
 CollisionChecker::CollisionChecker(const grid_map::GridMap &in_gm)
     : in_gm_(in_gm),
-      car_() {
+      car_()
+{}
+
+CollisionChecker::CollisionChecker(const grid_map::GridMap &in_gm,
+                                   const Config &config)
+    : in_gm_(in_gm),
+      car_(config.car_width_,
+           config.car_length_ / 2.0 - config.rear_axle_to_center_distance_,
+           config.car_width_ / 2.0 + config.rear_axle_to_center_distance_) {
 }
 
-bool CollisionChecker::isSinglePathCollisionFree(std::vector<hmpl::State> *curve) {
+void CollisionChecker::init(const Config &config) {
+    car_.init(config.car_width_,
+              config.car_length_ / 2.0 - config.rear_axle_to_center_distance_,
+              config.car_width_ / 2.0 + config.rear_axle_to_center_distance_);
+}
+
+bool CollisionChecker::isSinglePathCollisionFree(std::vector<State> *curve) {
     for (auto &state_itr : *curve) {
         if (!this->isSingleStateCollisionFree(state_itr)) {
             state_itr.v = 0;  // collision
@@ -26,14 +40,14 @@ bool CollisionChecker::isSinglePathCollisionFree(std::vector<hmpl::State> *curve
     return true;
 }
 
-bool CollisionChecker::isSingleStateCollisionFree(const hmpl::State &current) {
+bool CollisionChecker::isSingleStateCollisionFree(const State &current) {
     // get the footprint circles based on current vehicle state in global frame
-    std::vector<hmpl::Circle> footprint =
-        this->car_.getCurrentCenters(current);
+    std::vector<Circle> footprint =
+        this->car_.getCircles(current);
     // footprint checking
     for (auto &circle_itr : footprint) {
-        grid_map::Position pos(circle_itr.position.x,
-                               circle_itr.position.y);
+        grid_map::Position pos(circle_itr.x,
+                               circle_itr.y);
         // complete collision checking
         if (this->in_gm_.maps.isInside(pos)) {
             double clearance = this->in_gm_.getObstacleDistance(pos);
@@ -50,7 +64,7 @@ bool CollisionChecker::isSingleStateCollisionFree(const hmpl::State &current) {
     return true;
 }
 
-bool CollisionChecker::isSinglePathCollisionFreeImproved(std::vector<hmpl::State> *curve) {
+bool CollisionChecker::isSinglePathCollisionFreeImproved(std::vector<State> *curve) {
     for (auto &state_itr : *curve) {
         if (!this->isSingleStateCollisionFreeImproved(state_itr)) {
             // collision
@@ -64,12 +78,12 @@ bool CollisionChecker::isSinglePathCollisionFreeImproved(std::vector<hmpl::State
     return true;
 }
 
-bool CollisionChecker::isSingleStateCollisionFreeImproved(const hmpl::State &current) {
+bool CollisionChecker::isSingleStateCollisionFreeImproved(const State &current) {
     // get the bounding circle position in global frame
-    hmpl::Circle bounding_circle = this->car_.getBoundingCircle(current);
+    Circle bounding_circle = this->car_.getBoundingCircle(current);
 
-    grid_map::Position pos(bounding_circle.position.x,
-                           bounding_circle.position.y);
+    grid_map::Position pos(bounding_circle.x,
+                           bounding_circle.y);
     if (this->in_gm_.maps.isInside(pos)) {
         double clearance = this->in_gm_.getObstacleDistance(pos);
         if (clearance < bounding_circle.r) {
@@ -84,16 +98,16 @@ bool CollisionChecker::isSingleStateCollisionFreeImproved(const hmpl::State &cur
     }
 }
 
-void CollisionChecker::collisionCheckingHelper(std::vector<hmpl::State> *curve) {
+void CollisionChecker::collisionCheckingHelper(std::vector<State> *curve) {
     for (auto &state_itr : *curve) {
         // path collision checking in global frame
         // get the car footprint , prepare for the collision checking
-        std::vector<hmpl::Circle> footprint =
-            this->car_.getCurrentCenters(state_itr);
+        std::vector<Circle> footprint =
+            this->car_.getCircles(state_itr);
         // footprint checking
         for (auto &circle_itr : footprint) {
-            grid_map::Position pos(circle_itr.position.x,
-                                   circle_itr.position.y);
+            grid_map::Position pos(circle_itr.x,
+                                   circle_itr.y);
             if (this->in_gm_.maps.isInside(pos)) {
                 double clearance = this->in_gm_.getObstacleDistance(pos);
                 if (clearance < circle_itr.r) {  // collision

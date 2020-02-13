@@ -9,7 +9,7 @@ namespace PathOptimizationNS {
 CartesianReferencePathSmoother::CartesianReferencePathSmoother(const std::vector<double> &x_list,
                                                                const std::vector<double> &y_list,
                                                                const std::vector<double> &s_list,
-                                                               const hmpl::State &start_state,
+                                                               const State &start_state,
                                                                const Map &grid_map,
                                                                const Config &config) :
     x_list_(x_list),
@@ -20,7 +20,7 @@ CartesianReferencePathSmoother::CartesianReferencePathSmoother(const std::vector
     config_(config) {}
 
 bool CartesianReferencePathSmoother::smooth(ReferencePath *reference_path,
-                                            std::vector<hmpl::State> *smoothed_path_display) const {
+                                            std::vector<State> *smoothed_path_display) const {
     return smoothPathCartesian(&reference_path->x_s_,
                                &reference_path->y_s_,
                                &reference_path->max_s_,
@@ -30,7 +30,7 @@ bool CartesianReferencePathSmoother::smooth(ReferencePath *reference_path,
 bool CartesianReferencePathSmoother::smoothPathCartesian(tk::spline *x_s_out,
                                                          tk::spline *y_s_out,
                                                          double *max_s_out,
-                                                         std::vector<hmpl::State> *smoothed_path_display) const {
+                                                         std::vector<State> *smoothed_path_display) const {
     std::vector<double> x_list, y_list, s_list, angle_list;
     tk::spline x_spline, y_spline;
     double max_s = s_list_.back();
@@ -176,7 +176,7 @@ bool CartesianReferencePathSmoother::smoothPathCartesian(tk::spline *x_s_out,
     x_set.emplace_back(result[0]);
     y_set.emplace_back(result[1]);
     s_set.emplace_back(0);
-    hmpl::State state;
+    State state;
     for (size_t i = min_index_to_vehicle + 1; i <= 3 * N; ++i) {
         double t = i * step_t;
         result = b_spline.eval(t).result();
@@ -220,7 +220,7 @@ bool CartesianReferencePathSmoother::smoothPathCartesian(tk::spline *x_s_out,
         result_y_list.emplace_back(y);
         result_s_list.emplace_back(tmp_s_2 - min_dis_s);
         if (smoothed_path_display) {
-            hmpl::State state;
+            State state;
             state.x = x;
             state.y = y;
             smoothed_path_display->push_back(state);

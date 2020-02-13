@@ -16,6 +16,7 @@
 #include <opencv/cv.hpp>
 #include <path_optimizer/path_optimizer.hpp>
 #include "tools/eigen2cv.hpp"
+#include "data_struct/data_struct.hpp"
 
 static void BM_optimizePath(benchmark::State &state) {
     // Initialize grid map from image.
@@ -62,14 +63,14 @@ static void BM_optimizePath(benchmark::State &state) {
          0.845838, 0.684314, 0.522481, 0.360532, 0.198675, 0.0371402, -0.123809, -0.283872, -0.442713, -0.599958,
          -0.755201, -0.907996, -1.05786, -1.20428, -1.3467, -1.48454, -1.61716, -1.7439, -1.86408, -1.97694,
          -2.08173, -2.17764, -2.26383, -2.33941, -2.40347, -2.45507, -2.49321, -2.51688, -2.52501};
-    std::vector<hmpl::State> points, final_path;
+    std::vector<PathOptimizationNS::State> points, final_path;
     for (size_t i = 0; i != x_list_.size(); ++i) {
-        hmpl::State state;
+        PathOptimizationNS::State state;
         state.x = x_list_[i];
         state.y = y_list_[i];
         points.push_back(state);
     }
-    hmpl::State start_state, goal_state;
+    PathOptimizationNS::State start_state, goal_state;
     start_state.x = 36.933;
     start_state.y = 33.6609;
     start_state.z = -1.36375;
