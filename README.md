@@ -14,6 +14,7 @@
 ##### Other ROS packages  
 - [grid_map](https://github.com/ANYbotics/grid_map)
 - [ros_viz_tools](https://github.com/Magic-wei/ros_viz_tools)
+- [tinyspline_ros](https://github.com/qutas/tinyspline_ros)  
   
 ### 1. Pick reference points manually
 ~~~
