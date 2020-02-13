@@ -83,6 +83,7 @@ struct VehicleState {
     double initial_offset_{};
     double initial_heading_error_{};
 };
+
 // Point for A* search.
 struct APoint {
     double x{};
