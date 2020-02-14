@@ -35,7 +35,10 @@ Currently, it's not strictly required to reach the goal state. But this can be c
 
 ```
 rosrun path_optimizer path_optimizer_benchmark
-``` 
+```   
+### 3. Simulation video
+[![simulation](https://i.loli.net/2020/02/14/cIdRVs7GUhuTayv.png)](https://vimeo.com/391392050)
+
 ## How it works
 1. Take inputs (red dots):
 ![2020-02-13 16-27-46屏幕截图.png](https://i.loli.net/2020/02/13/rRdA7ZGmjfObzNV.png)  
