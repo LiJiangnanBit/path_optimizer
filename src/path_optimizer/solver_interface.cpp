@@ -169,10 +169,10 @@ void SolverInterface::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) co
     const size_t control_size = horizon_ - 1;
     const size_t slack_size = horizon_;
     const size_t matrix_size = state_size + control_size + slack_size;
-    double w_c = 10;
-    double w_cr = 100;
-    double w_pq = 0.05;
-    double w_e = 1;
+    double w_c = config_.opt_curvature_w_;
+    double w_cr = config_.opt_curvature_rate_w_;
+    double w_pq = config_.opt_deviation_w_;
+    double w_e = config_.opt_slack_w_;
     Eigen::MatrixXd hessian = Eigen::MatrixXd::Constant(matrix_size, matrix_size, 0);
     // Populate hessian matrix
     // Matrix Q is for state variables, only related to e_y.

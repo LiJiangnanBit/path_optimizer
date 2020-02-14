@@ -34,7 +34,7 @@ public:
     double cartesian_curvature_w_, cartesian_deviation_w_; // Cartesian method weights.
 
     // Optimization phase related:
-    double opt_curvature_w_, opt_curvature_rate_w_, opt_deviation_w_;
+    double opt_curvature_w_, opt_curvature_rate_w_, opt_deviation_w_, opt_slack_w_;
     bool constraint_end_heading_;
     bool exact_end_position_;
     double expected_safety_margin_;

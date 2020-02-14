@@ -25,7 +25,7 @@ void PathOptimizer::setConfig() {
     config_.car_width_ = 2.0;
     config_.car_length_ = 4.9;
     config_.circle_radius_ = sqrt(pow(config_.car_length_ / 8, 2) + pow(config_.car_width_ / 2, 2));
-    double safety_margin = 0.1;
+    double safety_margin = 0.0;
     config_.circle_radius_ += safety_margin;
     config_.wheel_base_ = 2.85;
     config_.rear_axle_to_center_distance_ = 1.45;
@@ -50,8 +50,9 @@ void PathOptimizer::setConfig() {
     config_.cartesian_deviation_w_ = 0.001;
     //
     config_.opt_curvature_w_ = 10;
-    config_.opt_curvature_rate_w_ = 1000;
-    config_.opt_deviation_w_ = 0.0;
+    config_.opt_curvature_rate_w_ = 100;
+    config_.opt_deviation_w_ = 0.05;
+    config_.opt_slack_w_ = 3;
     config_.constraint_end_heading_ = true;
     // TODO: use this condition.
     config_.exact_end_position_ = false;
@@ -254,8 +255,7 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
             center_state.y += config_.rear_axle_to_center_distance_ * sin(center_state.z);
         }
         std::vector<double> clearance;
-        bool
-            safety_margin_flag = set_safety_margin
+        bool safety_margin_flag = set_safety_margin
             && (reference_path_.seg_s_list_[i] >= 10 || start_state_with_large_clearance);
         clearance = getClearanceFor4Circles(center_state, safety_margin_flag);
         // Terminate if collision is inevitable near the end.
