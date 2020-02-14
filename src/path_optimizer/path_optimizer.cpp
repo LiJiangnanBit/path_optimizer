@@ -55,6 +55,7 @@ void PathOptimizer::setConfig() {
     config_.constraint_end_heading_ = true;
     // TODO: use this condition.
     config_.exact_end_position_ = false;
+    config_.expected_safety_margin_ = 1;
 
     //
     config_.raw_result_ = true;
@@ -83,7 +84,7 @@ bool PathOptimizer::solve(std::vector<State> *final_path) {
     }
     auto t2 = std::clock();
     // Divide reference path into segments and store infomation into vectors.
-    if (!divideSmoothedPath(true)) {
+    if (!divideSmoothedPath(false)) {
         printf("divide stage failed, quit path optimization.\n");
         return false;
     };

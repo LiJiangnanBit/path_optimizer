@@ -37,6 +37,7 @@ public:
     double opt_curvature_w_, opt_curvature_rate_w_, opt_deviation_w_;
     bool constraint_end_heading_;
     bool exact_end_position_;
+    double expected_safety_margin_;
 
     // Output option
     bool raw_result_;
