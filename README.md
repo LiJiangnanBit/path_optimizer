@@ -5,7 +5,7 @@
 ## Run demos 
 ### dependencies 
 - ROS kinetic on Ubuntu 16.04 
-- IPOPT (version >=3.12.4)  
+- IPOPT (version >=3.12.4) [Run this script](https://coding.net/u/aRagdoll/p/Ipopt-3.12.4/git/blob/master/install_ipopt.bash)   
 - OpenCV  
 - [google benckmark](https://github.com/google/benchmark)
 - [osqp-eigen](https://github.com/robotology/osqp-eigen)  
