@@ -32,11 +32,11 @@ public:
         curvature_weight_(10.0),
         deviation_weight_(0.001) {}
 public:
-    size_t N;
+    size_t N{};
     const std::vector<double> &seg_s_list_;
     const std::vector<double> &seg_x_list_;
     const std::vector<double> &seg_y_list_;
-    const double curvature_weight_, deviation_weight_;
+    const double curvature_weight_{}, deviation_weight_{};
 
     typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
     typedef AD<double> ad;

@@ -42,14 +42,12 @@ public:
     const std::vector<double> &seg_x_list_;
     const std::vector<double> &seg_y_list_;
     const std::vector<double> &seg_angle_list_;
-    double cost_func_curvature_weight_;
-    double cost_func_curvature_rate_weight_;
-    double cost_func_bound_weight_;
-    double cost_func_s_weight_;
+    double cost_func_curvature_weight_{};
+    double cost_func_curvature_rate_weight_{};
+    double cost_func_bound_weight_{};
+    double cost_func_s_weight_{};
 
-    typedef CPPAD_TESTVECTOR(AD
-                                 <double>)
-        ADvector;
+    typedef CPPAD_TESTVECTOR(AD <double>) ADvector;
 
     void operator()(ADvector &fg, const ADvector &vars) {
         // The rest of the constraints

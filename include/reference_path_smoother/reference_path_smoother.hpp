@@ -60,7 +60,7 @@ private:
     std::vector<double> x_list_, y_list_, s_list_;
     // Sampled points.
     std::vector<std::vector<APoint>> sampled_points_;
-    double target_s_ = 0;
+    double target_s_{};
     std::priority_queue<APoint*, std::vector<APoint*>, PointComparator> open_set_;
     std::vector<APoint*> closed_set_;
 

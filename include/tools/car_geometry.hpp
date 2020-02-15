@@ -24,7 +24,7 @@ public:
 
 private:
     void setCircles();
-    double width_, length_, front_length_, back_length_;
+    double width_{}, length_{}, front_length_{}, back_length_{};
     // Four corners:
     // f: front, r: rear
     // l: left, r: right

@@ -12,6 +12,7 @@ PathOptimizer::PathOptimizer(const std::vector<State> &points_list,
     grid_map_(map),
     collision_checker_(map),
     vehicle_state_(start_state, end_state, 0, 0),
+    N_(0),
     points_list_(points_list),
     point_num_(points_list.size()),
     solver_dynamic_initialized(false) {

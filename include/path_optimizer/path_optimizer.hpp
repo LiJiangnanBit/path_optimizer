@@ -89,13 +89,13 @@ private:
     Config config_;
     ReferencePath reference_path_;
     VehicleState vehicle_state_;
-    size_t N_;
+    size_t N_{};
     // Input path
     std::vector<State> points_list_;
-    size_t point_num_;
+    size_t point_num_{};
     // For dynamic obstacle avoidace. Please Ignore this.
     std::shared_ptr<SolverInterface> dynamic_solver_ptr;
-    bool solver_dynamic_initialized;
+    bool solver_dynamic_initialized{false};
     tk::spline xsr_, ysr_;
     // For visualization purpose.
     std::vector<State> rear_bounds_;

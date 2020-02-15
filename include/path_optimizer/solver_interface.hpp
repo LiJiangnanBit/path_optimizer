@@ -56,7 +56,7 @@ private:
                                        Eigen::VectorXd *upper_bound) const;
 
     const Config &config_;
-    const size_t horizon_;
+    const size_t horizon_{};
     const ReferencePath &reference_path_;
     const VehicleState &vehicle_state_;
     // Solvers
@@ -64,11 +64,11 @@ private:
     OsqpEigen::Solver solver_;
     OsqpEigen::Solver solver_for_sampling_;
     OsqpEigen::Solver solver_for_dynamic_env_;
-    bool solver_for_sampling_initialized_flag_;
-    bool solver_for_dynamic_initialized_flag_;
+    bool solver_for_sampling_initialized_flag_{false};
+    bool solver_for_dynamic_initialized_flag_{false};
     Eigen::VectorXd lowerBound_;
     Eigen::VectorXd upperBound_;
-    double offset_error_allowed_;
+    double offset_error_allowed_{};
 };
 } // namespace
 #endif //PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_SOLVER_INTERFACE_HPP_

@@ -29,14 +29,14 @@ struct ReferencePath {
     // Reference path representation.
     tk::spline x_s_;
     tk::spline y_s_;
-    double max_s_ = 0;
+    double max_s_{};
     // Divided smoothed path info.
-    std::vector<double> seg_s_list_{};
-    std::vector<double> seg_k_list_{};
-    std::vector<double> seg_x_list_{};
-    std::vector<double> seg_y_list_{};
-    std::vector<double> seg_angle_list_{};
-    std::vector<std::vector<double> > seg_clearance_list_{};
+    std::vector<double> seg_s_list_;
+    std::vector<double> seg_k_list_;
+    std::vector<double> seg_x_list_;
+    std::vector<double> seg_y_list_;
+    std::vector<double> seg_angle_list_;
+    std::vector<std::vector<double> > seg_clearance_list_;
 };
 
 // Standard point struct.
@@ -48,7 +48,7 @@ struct State {
         z(z),
         k(k),
         s(s),
-        v(v){}
+        v(v) {}
     double x{};
     double y{};
     double z{}; // Heading.
@@ -76,9 +76,9 @@ struct VehicleState {
         initial_offset_(offset),
         initial_heading_error_(heading_error) {}
     // Initial state.
-    State start_state_{};
+    State start_state_;
     // Target state.
-    State end_state_{};
+    State end_state_;
     // Initial error with reference line.
     double initial_offset_{};
     double initial_heading_error_{};
