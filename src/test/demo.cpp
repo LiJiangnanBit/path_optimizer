@@ -166,6 +166,7 @@ int main(int argc, char **argv) {
         std::vector<std::vector<double>> a_star_display(3);
         if (reference_rcv && start_state_rcv && end_state_rcv) {
             PathOptimizationNS::PathOptimizer path_optimizer(reference_path, start_state, end_state, grid_map);
+//            path_optimizer.setConfig("raw_result_", false);
             if (path_optimizer.solve(&result_path)) {
                 std::cout << "ok!" << std::endl;
             }

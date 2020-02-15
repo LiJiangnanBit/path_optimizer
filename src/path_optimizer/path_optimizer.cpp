@@ -25,8 +25,6 @@ void PathOptimizer::setConfig() {
     config_.car_width_ = 2.0;
     config_.car_length_ = 4.9;
     config_.circle_radius_ = sqrt(pow(config_.car_length_ / 8, 2) + pow(config_.car_width_ / 2, 2));
-    double safety_margin = 0.0;
-    config_.circle_radius_ += safety_margin;
     config_.wheel_base_ = 2.85;
     config_.rear_axle_to_center_distance_ = 1.45;
     config_.d1_ = -3.0 / 8.0 * config_.car_length_;
@@ -56,7 +54,7 @@ void PathOptimizer::setConfig() {
     config_.constraint_end_heading_ = true;
     // TODO: use this condition.
     config_.exact_end_position_ = false;
-    config_.expected_safety_margin_ = 1;
+    config_.expected_safety_margin_ = 1.0;
 
     //
     config_.raw_result_ = true;
@@ -85,7 +83,7 @@ bool PathOptimizer::solve(std::vector<State> *final_path) {
     }
     auto t2 = std::clock();
     // Divide reference path into segments and store infomation into vectors.
-    if (!divideSmoothedPath(false)) {
+    if (!divideSmoothedPath()) {
         printf("divide stage failed, quit path optimization.\n");
         return false;
     };
@@ -130,7 +128,7 @@ bool PathOptimizer::samplePaths(const std::vector<double> &lon_set,
         return false;
     }
     // Divide reference path into segments and store infomation into vectors.
-    if (!divideSmoothedPath(false)) {
+    if (!divideSmoothedPath()) {
         printf("divide path failed!\n");
         return false;
     }
@@ -143,7 +141,7 @@ bool PathOptimizer::samplePaths(const std::vector<double> &lon_set,
     return !final_path_set->empty();
 }
 
-bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
+bool PathOptimizer::divideSmoothedPath() {
     if (reference_path_.max_s_ == 0) {
         LOG(INFO) << "Smoothed path is empty!";
         return false;
@@ -231,18 +229,6 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
         reference_path_.seg_k_list_.emplace_back(tmp_k);
     }
     // Get clearance of covering circles.
-    double rear_circle_d = config_.rear_axle_to_center_distance_ + config_.d1_;
-    double front_circle_d = config_.rear_axle_to_center_distance_ + config_.d4_;
-    grid_map::Position
-        rear_circle_p(vehicle_state_.start_state_.x + rear_circle_d * cos(vehicle_state_.start_state_.z),
-                      vehicle_state_.start_state_.y + rear_circle_d * sin(vehicle_state_.start_state_.z));
-    grid_map::Position
-        front_circle_p(vehicle_state_.start_state_.x + front_circle_d * cos(vehicle_state_.start_state_.z),
-                       vehicle_state_.start_state_.y + front_circle_d * sin(vehicle_state_.start_state_.z));
-    auto rear_circle_clearance = grid_map_.getObstacleDistance(rear_circle_p);
-    auto front_circle_clearance = grid_map_.getObstacleDistance(front_circle_p);
-    bool start_state_with_large_clearance =
-        std::min(rear_circle_clearance, front_circle_clearance) >= config_.circle_radius_ + 0.5;
     for (size_t i = 0; i != N_; ++i) {
         State center_state(reference_path_.seg_x_list_[i],
                            reference_path_.seg_y_list_[i],
@@ -255,9 +241,7 @@ bool PathOptimizer::divideSmoothedPath(bool set_safety_margin) {
             center_state.y += config_.rear_axle_to_center_distance_ * sin(center_state.z);
         }
         std::vector<double> clearance;
-        bool safety_margin_flag = set_safety_margin
-            && (reference_path_.seg_s_list_[i] >= 10 || start_state_with_large_clearance);
-        clearance = getClearanceFor4Circles(center_state, safety_margin_flag);
+        clearance = getClearanceFor4Circles(center_state);
         // Terminate if collision is inevitable near the end.
         if ((clearance[0] == clearance[1] || clearance[2] == clearance[3] || clearance[4] == clearance[5]
             || clearance[6] == clearance[7])
@@ -558,9 +542,7 @@ bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
     }
 }
 
-std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(State state,
-                                                                   double radius,
-                                                                   bool safety_margin_flag) const {
+std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(State state, double radius) const {
     double left_bound = 0;
     double right_bound = 0;
     double delta_s = 0.2;
@@ -651,17 +633,10 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(State state,
             right_bound = -(right_s - delta_s);
         }
     }
-    double base = std::max(left_bound - right_bound - 0.6, 0.0);
-    if (safety_margin_flag) {
-        double safety_margin = std::min(base * 0.2, 0.5);
-        left_bound -= safety_margin;
-        right_bound += safety_margin;
-    }
-    std::vector<double> result{left_bound, right_bound};
-    return result;
+    return {left_bound, right_bound};
 }
 
-std::vector<double> PathOptimizer::getClearanceFor4Circles(const State &state, bool safety_margin_flag) {
+std::vector<double> PathOptimizer::getClearanceFor4Circles(const State &state) {
     double circle_r = config_.circle_radius_;
     double center_x = state.x;
     double center_y = state.y;
@@ -675,10 +650,10 @@ std::vector<double> PathOptimizer::getClearanceFor4Circles(const State &state, b
     double c3_y = center_y + config_.d4_ * sin(state.z);
     State c0(c0_x, c0_y, state.z), c1(c1_x, c1_y, state.z), c2(c2_x, c2_y, state.z), c3(c3_x, c3_y, state.z);
     std::vector<double> result;
-    std::vector<double> c0_bounds = getClearanceWithDirectionStrict(c0, circle_r, safety_margin_flag);
-    std::vector<double> c1_bounds = getClearanceWithDirectionStrict(c1, circle_r, safety_margin_flag);
-    std::vector<double> c2_bounds = getClearanceWithDirectionStrict(c2, circle_r, safety_margin_flag);
-    std::vector<double> c3_bounds = getClearanceWithDirectionStrict(c3, circle_r, safety_margin_flag);
+    std::vector<double> c0_bounds = getClearanceWithDirectionStrict(c0, circle_r);
+    std::vector<double> c1_bounds = getClearanceWithDirectionStrict(c1, circle_r);
+    std::vector<double> c2_bounds = getClearanceWithDirectionStrict(c2, circle_r);
+    std::vector<double> c3_bounds = getClearanceWithDirectionStrict(c3, circle_r);
     result.emplace_back(c0_bounds[0]);
     result.emplace_back(c0_bounds[1]);
     result.emplace_back(c1_bounds[0]);
@@ -709,18 +684,6 @@ std::vector<double> PathOptimizer::getClearanceFor4Circles(const State &state, b
     front_bounds_.emplace_back(front_bound_r);
     return result;
 
-}
-
-const std::vector<State> &PathOptimizer::getLeftBound() const {
-    return this->left_bound_;
-}
-
-const std::vector<State> &PathOptimizer::getRightBound() const {
-    return this->right_bound_;
-}
-
-const std::vector<State> &PathOptimizer::getSecondThirdPoint() const {
-    return this->second_third_point_;
 }
 
 const std::vector<State> &PathOptimizer::getRearBounds() const {

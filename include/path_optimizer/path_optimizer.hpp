@@ -34,7 +34,11 @@ public:
                   const State &start_state,
                   const State &end_state,
                   const grid_map::GridMap &map);
-    
+
+    // Change config.
+    template<typename T>
+    bool setConfig(const std::string &config_name, const T &value);
+
     // Call this to get the optimized path.
     bool solve(std::vector<State> *final_path);
 
@@ -54,10 +58,6 @@ public:
                          std::vector<double> *s_list);
 
     // Only for visualization purpose.
-    // TODO: some of these functions are no longer used.
-    const std::vector<State> &getLeftBound() const;
-    const std::vector<State> &getRightBound() const;
-    const std::vector<State> &getSecondThirdPoint() const;
     const std::vector<State> &getRearBounds() const;
     const std::vector<State> &getCenterBounds() const;
     const std::vector<State> &getFrontBounds() const;
@@ -67,24 +67,22 @@ public:
 private:
     // TODO: abandon this function, use the config class instead.
     void setConfig();
-    
+
     // Core function.
     bool optimizePath(std::vector<State> *final_path);
-    
+
     // Generate a set of paths with the same longitudinal length on reference line.
     bool sampleSingleLongitudinalPaths(double lon,
                                        const std::vector<double> &lat_set,
                                        std::vector<std::vector<State>> *final_path_set,
                                        bool max_lon_flag);
-    
+
     // Get bounds for each circle at each sampling point.
-    std::vector<double> getClearanceWithDirectionStrict(State state,
-                                                        double radius,
-                                                        bool safety_margin_flag) const;
-    std::vector<double> getClearanceFor4Circles(const State &state, bool safety_margin_flag);
-    
+    std::vector<double> getClearanceWithDirectionStrict(State state, double radius) const;
+    std::vector<double> getClearanceFor4Circles(const State &state);
+
     // Divide smoothed path into segments.
-    bool divideSmoothedPath(bool safety_margin_flag);
+    bool divideSmoothedPath();
 
     const Map grid_map_;
     CollisionChecker collision_checker_;
@@ -100,15 +98,49 @@ private:
     bool solver_dynamic_initialized;
     tk::spline xsr_, ysr_;
     // For visualization purpose.
-    std::vector<State> left_bound_;
-    std::vector<State> right_bound_;
-    std::vector<State> second_third_point_;
-    std::vector<State> empty_;
     std::vector<State> rear_bounds_;
     std::vector<State> center_bounds_;
     std::vector<State> front_bounds_;
     std::vector<State> smoothed_path_;
 };
+
+template<typename T>
+bool PathOptimizer::setConfig(const std::string &config_name, const T &value) {
+    if (config_name == "car_width_") {
+        config_.car_width_ = static_cast<double>(value);
+        config_.circle_radius_ = sqrt(pow(config_.car_length_ / 8, 2) + pow(config_.car_width_ / 2, 2));
+    } else if (config_name == "car_length_") {
+        config_.car_length_ = static_cast<double>(value);
+        config_.circle_radius_ = sqrt(pow(config_.car_length_ / 8, 2) + pow(config_.car_width_ / 2, 2));
+        config_.d1_ = -3.0 / 8.0 * config_.car_length_;
+        config_.d2_ = -1.0 / 8.0 * config_.car_length_;
+        config_.d3_ = 1.0 / 8.0 * config_.car_length_;
+        config_.d4_ = 3.0 / 8.0 * config_.car_length_;
+    } else if (config_name == "wheel_base_") {
+        config_.wheel_base_ = static_cast<double>(value);
+    } else if (config_name == "rear_axle_to_center_distance_") {
+        config_.rear_axle_to_center_distance_ = static_cast<double>(value);
+    } else if (config_name == "max_steer_angle_") {
+        config_.max_steer_angle_ = static_cast<double>(value);
+    } else if (config_name == "modify_input_points_") {
+        config_.modify_input_points_ = static_cast<bool>(value);
+    } else if (config_name == "constraint_end_heading_") {
+        config_.constraint_end_heading_ = static_cast<bool>(value);
+    } else if (config_name == "exact_end_position_") {
+        config_.exact_end_position_ = static_cast<bool>(value);
+    } else if (config_name == "expected_safety_margin_") {
+        config_.expected_safety_margin_ = static_cast<double>(value);
+    } else if (config_name == "raw_result_") {
+        config_.raw_result_ = static_cast<bool>(value);
+    } else if (config_name == "output_interval_") {
+        config_.output_interval_ = static_cast<double>(value);
+    } else {
+        ROS_WARN("No config named %s, or this config can only be changed in config file.", config_name);
+        return false;
+    }
+    ROS_INFO("Config %s is successfully changed!", config_name);
+    return true;
+}
 
 }
 
