@@ -17,6 +17,7 @@ These dependencies include ipopt, google benchmark, [osqp-eigen](https://github.
 ### 1. Pick reference points manually
 ~~~
 cd workspace
+source devel/setup.bash
 roslaunch path_optimizer demo.launch
 ~~~
 #### (1) Pick reference points using "Publish Point" tool in RViz.  
