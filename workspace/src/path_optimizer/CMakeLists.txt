@@ -4,6 +4,7 @@ project(path_optimizer)
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_definitions(-std=c++11 -w)
 set(CMAKE_CXX_FLAGS " -Wall -Wextra ${CMAKE_CXX_FLAGS}")
+set(CMAKE_BUILD_TYPE "Release")
 
 set(catkin_deps
         roscpp
@@ -26,8 +27,6 @@ find_package(OsqpEigen REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
 
-set(Clothoids_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/libClothoids/include")
-set(Clothoids_LIBRARIES "${CMAKE_SOURCE_DIR}/libClothoids/lib/libClothoids_linux.so")
 catkin_package(
         INCLUDE_DIRS include
         LIBRARIES ${PROJECT_NAME}
@@ -39,7 +38,6 @@ include_directories(
         include
         ${OpenCV_INCLUDE_DIRS}
         ${catkin_INCLUDE_DIRS}
-        ${Clothoids_INCLUDE_DIRS}
         ${EIGEN3_INCLUDE_DIR}
 )
 
@@ -52,7 +50,7 @@ add_library(${PROJECT_NAME}
         src/path_optimizer/solver_interface.cpp
         src/reference_path_smoother/cartesian_reference_path_smoother.cpp
         src/reference_path_smoother/reference_path_smoother.cpp src/tools/Map.cpp include/tools/Map.hpp src/tools/car_geometry.cpp)
-target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} ${Clothoids_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
+target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
         )
 
 add_executable(${PROJECT_NAME}_benchmark
