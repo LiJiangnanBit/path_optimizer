@@ -6,39 +6,28 @@ add_definitions(-std=c++11 -w)
 set(CMAKE_CXX_FLAGS " -Wall -Wextra ${CMAKE_CXX_FLAGS}")
 set(CMAKE_BUILD_TYPE "Release")
 
-set(catkin_deps
-        roscpp
-        grid_map_ros
-        tinyspline_ros
-        ros_viz_tools
-        )
-
-find_package(catkin REQUIRED COMPONENTS
-        ${catkin_deps}
-        )
-
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
-
-message(STATUS "CMAKE SOURCE DIR:" ${CMAKE_MODULE_PATH})
+#set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "${CMAKE_SOURCE_DIR}/external")
+set(EXTERNAL_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/external/include")
+set(EXTERNAL_LIB_DIRS "${CMAKE_SOURCE_DIR}/external/lib")
 
 find_package(IPOPT REQUIRED)
 find_package(benchmark REQUIRED)
 find_package(OsqpEigen REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
-
-catkin_package(
-        INCLUDE_DIRS include
-        LIBRARIES ${PROJECT_NAME}
-        CATKIN_DEPENDS ${catkin_deps}
-        DEPENDS OpenCV
-)
+find_package(grid_map_core REQUIRED)
+find_package(grid_map_cv REQUIRED)
 
 include_directories(
         include
+        ${EXTERNAL_INCLUDE_DIRS}
         ${OpenCV_INCLUDE_DIRS}
         ${catkin_INCLUDE_DIRS}
         ${EIGEN3_INCLUDE_DIR}
+        ${grid_map_core_INCLUDE_DIRS}
+        ${grid_map_cv_INCLUDE_DIRS}
+
 )
 
 add_library(${PROJECT_NAME}
@@ -51,6 +40,8 @@ add_library(${PROJECT_NAME}
         src/reference_path_smoother/cartesian_reference_path_smoother.cpp
         src/reference_path_smoother/reference_path_smoother.cpp src/tools/Map.cpp include/tools/Map.hpp src/tools/car_geometry.cpp)
 target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
+        ${EXTERNAL_LIB_DIRS}/libtinyspline.so ${EXTERNAL_LIB_DIRS}/libtinysplinecpp.so ${grid_map_core_LIBRARIES}
+        ${grid_map_cv_LIBRARIES}
         )
 
 add_executable(${PROJECT_NAME}_benchmark
@@ -60,8 +51,3 @@ target_link_libraries(${PROJECT_NAME}_benchmark
         ${PROJECT_NAME} benchmark::benchmark
         )
 
-add_executable(${PROJECT_NAME}_demo
-        src/test/demo.cpp)
-target_link_libraries(${PROJECT_NAME}_demo
-        ${PROJECT_NAME} ${OpenCV_LIBRARIES}
-        )

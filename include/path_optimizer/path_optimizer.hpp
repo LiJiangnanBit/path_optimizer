@@ -13,7 +13,7 @@
 #include <ctime>
 #include <Eigen/Dense>
 #include <memory>
-#include <tinyspline_ros/tinysplinecpp.h>
+#include <tinyspline/tinysplinecpp.h>
 #include "data_struct/data_struct.hpp"
 #include "reference_path_smoother/reference_path_smoother.hpp"
 #include "reference_path_smoother/frenet_reference_path_smoother.hpp"

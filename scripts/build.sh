@@ -116,7 +116,7 @@ install_osqp_eigen() {
         git clone https://github.com/robotology/osqp-eigen.git
         cd osqp-eigen
         mkdir build && cd build
-        cmake ../
+        cmake ..
         make -j$(nproc) 
         sudo make install
         echo "osqp-eigen installed successfully"
@@ -132,32 +132,32 @@ install_grid_map() {
     echo "grid_map is installed successfully!"
 }
 
-clone_other_ros_pkgs() {
-    cd $REPO_DIR/workspace/src
-    if (ls $REPO_DIR/workspace/src | grep ros_viz_tools); then
-        echo "ros_rviz_tools already exist!"
-    else 
-        git clone https://github.com/Magic-wei/ros_viz_tools
-    fi
-    if (ls $REPO_DIR/workspace/src | grep tinyspline_ros);then
-        echo "tinyspline_ros already exist!"
-    else
-        git clone https://github.com/qutas/tinyspline_ros
-    fi
-    cd ..
-    catkin clean -y
-    catkin build path_optimizer
-    source devel/setup.bash
+install_tinyspline() {
+    echo "Prepare to install tinyspline"
+    TEMP_DIR=$(mktemp -d)
+    cd $TEMP_DIR
+    git clone https://github.com/msteinbeck/tinyspline.git
+    cd tinyspline
+    mkdir build && cd build
+    cmake ..
+    cmake --build .
+    sudo cp lib/{libtinyspline.so,libtinysplinecpp.so} $REPO_DIR/external/lib/
+    sudo cp ../src/{tinyspline.h,tinysplinecpp.h} $REPO_DIR/external/include/tinyspline/
+    echo "tinyspline installed successfully"
+    cd $TMP_DIR
+    rm -rf $TEMP_DIR
+    cd $REPO_DIR  
 }
 
 main() {
-    sudo apt-get update
+    # sudo apt-get update
     install_ipopt
     install_cppad
     install_benchmark
     install_grid_map
     install_osqp_eigen
-    clone_other_ros_pkgs
+    install_tinyspline
+    echo "All denpendencies are installed!"
 }
 
 main

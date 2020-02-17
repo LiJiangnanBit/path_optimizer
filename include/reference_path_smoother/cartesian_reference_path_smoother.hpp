@@ -8,7 +8,7 @@
 #include <vector>
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
-#include <tinyspline_ros/tinysplinecpp.h>
+#include <tinyspline/tinysplinecpp.h>
 #include <path_optimizer/path_optimizer.hpp>
 #include "data_struct/data_struct.hpp"
 #include "config/config.hpp"
