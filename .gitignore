@@ -37,7 +37,7 @@ install_manifest.txt
 
 ## Folders and custom rules
 build
-lib
+#lib
 bin
 devel
 logs
