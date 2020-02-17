@@ -1,5 +1,6 @@
 # path_optimizer
-**This ROS package generates feasible paths for non-holonomic vehicles according to reference paths (discrete points).**
+**This ROS package generates feasible paths for non-holonomic vehicles according to reference paths (discrete points).**  
+No ROS: [ros_free branch](https://github.com/LiJiangnanBit/path_optimizer/tree/ros_free)
 ![cover.png](https://i.loli.net/2020/02/11/CiZXwjQeGNaqdsr.png)  
 
 ## Run demos 
