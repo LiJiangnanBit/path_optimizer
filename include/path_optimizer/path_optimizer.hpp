@@ -13,20 +13,15 @@
 #include <ctime>
 #include <Eigen/Dense>
 #include <memory>
-#include <tinyspline/tinysplinecpp.h>
+#include "tinyspline/tinysplinecpp.h"
 #include "data_struct/data_struct.hpp"
-#include "reference_path_smoother/reference_path_smoother.hpp"
-#include "reference_path_smoother/frenet_reference_path_smoother.hpp"
-#include "reference_path_smoother/cartesian_reference_path_smoother.hpp"
-#include "tools/spline.h"
-#include "tools/tools.hpp"
 #include "tools/collosion_checker.hpp"
 #include "config/config.hpp"
-#include "solver_interface.hpp"
 #include "tools/Map.hpp"
 
 namespace PathOptimizationNS {
 
+class SolverInterface;
 class PathOptimizer {
 public:
     PathOptimizer() = delete;

@@ -8,15 +8,13 @@
 #include <vector>
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
-#include <tinyspline/tinysplinecpp.h>
-#include "path_optimizer/path_optimizer.hpp"
+#include "tinyspline/tinysplinecpp.h"
 #include "data_struct/data_struct.hpp"
-#include "config/config.hpp"
-#include "tools/spline.h"
-#include "tools/tools.hpp"
-#include "tools/Map.hpp"
 
 namespace PathOptimizationNS {
+
+class Config;
+class Map;
 
 using CppAD::AD;
 class FgEvalFrenetSmooth {

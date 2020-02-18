@@ -2,6 +2,9 @@
 // Created by ljn on 20-2-9.
 //
 #include "reference_path_smoother/reference_path_smoother.hpp"
+#include "tools/spline.h"
+#include "tools/tools.hpp"
+#include "tools/Map.hpp"
 
 namespace PathOptimizationNS {
 
@@ -240,4 +243,13 @@ ReferencePathSmoother::ReferencePathSmoother(const std::vector<State> &input_poi
     grid_map_(grid_map),
     config_(config) {}
 
+
+inline double ReferencePathSmoother::getH(const APoint &p) const {
+    // Note that this h is neither admissible nor consistent, so the result is not optimal.
+    // There is a smoothing stage after this, so time efficiency is much more
+    // important than optimality here.
+    return (target_s_ - p.s) * 0.1;
+//        return 0;
 }
+}
+

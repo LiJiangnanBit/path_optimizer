@@ -4,10 +4,9 @@
 
 #include <iostream>
 #include <benchmark/benchmark.h>
-#include <ros/package.h>
+#include <unistd.h>
 #include <grid_map_core/grid_map_core.hpp>
 #include <grid_map_cv/grid_map_cv.hpp>
-//#include <grid_map_ros/grid_map_ros.hpp>
 #include "eigen3/Eigen/Dense"
 #include "opencv2/core/core.hpp"
 #include "opencv2/core/eigen.hpp"
@@ -20,10 +19,13 @@
 
 static void BM_optimizePath(benchmark::State &state) {
     // Initialize grid map from image.
-    std::string image_dir = ros::package::getPath("path_optimizer");
+//    std::string image_dir = ros::package::getPath("path_optimizer");
+//    char *path;
+    std::string image_dir = get_current_dir_name();
+    std::cout << image_dir << std::endl;
     std::string base_dir = image_dir;
     std::string image_file = "obstacles_for_benchmark.png";
-    image_dir.append("/" + image_file);
+    image_dir.append("/../" + image_file);
     cv::Mat img_src = cv::imread(image_dir, CV_8UC1);
     double resolution = 0.2;  // in meter
     grid_map::GridMap grid_map(std::vector<std::string>{"obstacle", "distance"});

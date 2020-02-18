@@ -8,9 +8,10 @@
 #include "tools/Map.hpp"
 #include "tools/car_geometry.hpp"
 #include "data_struct/data_struct.hpp"
-#include "config/config.hpp"
 
 namespace PathOptimizationNS {
+
+class Config;
 
 class CollisionChecker {
  public:

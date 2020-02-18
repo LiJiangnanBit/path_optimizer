@@ -23,7 +23,6 @@ include_directories(
         include
         ${EXTERNAL_INCLUDE_DIRS}
         ${OpenCV_INCLUDE_DIRS}
-        ${catkin_INCLUDE_DIRS}
         ${EIGEN3_INCLUDE_DIR}
         ${grid_map_core_INCLUDE_DIRS}
         ${grid_map_cv_INCLUDE_DIRS}
@@ -39,7 +38,7 @@ add_library(${PROJECT_NAME}
         src/path_optimizer/solver_interface.cpp
         src/reference_path_smoother/cartesian_reference_path_smoother.cpp
         src/reference_path_smoother/reference_path_smoother.cpp src/tools/Map.cpp include/tools/Map.hpp src/tools/car_geometry.cpp)
-target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
+target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
         ${EXTERNAL_LIB_DIRS}/libtinyspline.so ${EXTERNAL_LIB_DIRS}/libtinysplinecpp.so ${grid_map_core_LIBRARIES}
         ${grid_map_cv_LIBRARIES}
         )
