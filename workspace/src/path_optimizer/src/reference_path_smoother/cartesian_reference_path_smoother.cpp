@@ -2,7 +2,11 @@
 // Created by ljn on 20-1-31.
 //
 
+#include <glog/logging.h>
 #include "reference_path_smoother/cartesian_reference_path_smoother.hpp"
+#include "config/config.hpp"
+#include "tools/tools.hpp"
+#include "tools/Map.hpp"
 
 namespace PathOptimizationNS {
 

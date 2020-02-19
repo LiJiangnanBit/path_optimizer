@@ -10,16 +10,15 @@
 #include <queue>
 #include <ctime>
 #include <tinyspline_ros/tinysplinecpp.h>
-#include "config/config.hpp"
-#include "data_struct/data_struct.hpp"
-#include "tools/spline.h"
-#include "tools/tools.hpp"
-#include "tools/Map.hpp"
+#include "../config/config.hpp"
+#include "../data_struct/data_struct.hpp"
 
 namespace PathOptimizationNS {
 #define OBSTACLE_COST 0.4
 #define OFFSET_COST 0.4
 #define SMOOTHNESS_COST 10
+
+class Map;
 
 // This class use A* search to improve the quality of the input points (if needed), and
 // then uses a smoother to obtain a smoothed reference path.
@@ -44,13 +43,7 @@ private:
     bool modifyInputPoints();
     bool checkExistenceInClosedSet(const APoint &point) const;
     double getG(const APoint &point, const APoint &parent) const;
-    inline double getH(const APoint &p) {
-        // Note that this h is neither admissible nor consistent, so the result is not optimal.
-        // There is a smoothing stage after this, so time efficiency is much more
-        // important than optimality here.
-        return (target_s_ - p.s) * 0.1;
-//        return 0;
-    }
+    inline double getH(const APoint &p) const;
 
     const std::vector<State> &input_points_;
     const State &start_state_;

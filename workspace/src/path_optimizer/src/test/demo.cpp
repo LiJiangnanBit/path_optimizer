@@ -23,6 +23,7 @@
 #include "path_optimizer/path_optimizer.hpp"
 #include "tools/eigen2cv.hpp"
 #include "data_struct/data_struct.hpp"
+#include "tools/tools.hpp"
 
 PathOptimizationNS::State start_state, end_state;
 std::vector<PathOptimizationNS::State> reference_path;

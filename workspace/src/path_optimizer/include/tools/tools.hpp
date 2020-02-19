@@ -9,10 +9,13 @@
 #include <vector>
 #include <cassert>
 #include <ctime>
-#include "tools/spline.h"
-#include "data_struct/data_struct.hpp"
+namespace tk {
+class spline;
+}
 
 namespace PathOptimizationNS {
+
+class State;
 
 // Output value.
 #define  varName(x) #x

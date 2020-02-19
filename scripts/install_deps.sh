@@ -144,14 +144,10 @@ clone_other_ros_pkgs() {
     else
         git clone https://github.com/qutas/tinyspline_ros
     fi
-    cd ..
-    catkin clean -y
-    catkin build path_optimizer
-    source devel/setup.bash
 }
 
 main() {
-    sudo apt-get update
+    #sudo apt-get update
     install_ipopt
     install_cppad
     install_benchmark

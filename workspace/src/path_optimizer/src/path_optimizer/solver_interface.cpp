@@ -3,6 +3,8 @@
 //
 
 #include "path_optimizer/solver_interface.hpp"
+#include "data_struct/data_struct.hpp"
+#include "config/config.hpp"
 #include "tools/tools.hpp"
 
 namespace PathOptimizationNS {
