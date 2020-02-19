@@ -13,14 +13,12 @@
 #include "opencv2/opencv.hpp"
 #include <vector>
 #include <opencv/cv.hpp>
-#include <path_optimizer/path_optimizer.hpp>
+#include "path_optimizer.hpp"
 #include "tools/eigen2cv.hpp"
 #include "data_struct/data_struct.hpp"
 
 static void BM_optimizePath(benchmark::State &state) {
     // Initialize grid map from image.
-//    std::string image_dir = ros::package::getPath("path_optimizer");
-//    char *path;
     std::string image_dir = get_current_dir_name();
     std::cout << image_dir << std::endl;
     std::string base_dir = image_dir;

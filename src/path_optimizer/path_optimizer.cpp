@@ -2,7 +2,7 @@
 // Created by ljn on 19-8-16.
 //
 
-#include "path_optimizer/path_optimizer.hpp"
+#include "path_optimizer.hpp"
 #include "reference_path_smoother/reference_path_smoother.hpp"
 #include "reference_path_smoother/frenet_reference_path_smoother.hpp"
 #include "reference_path_smoother/cartesian_reference_path_smoother.hpp"

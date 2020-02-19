@@ -13,7 +13,7 @@
 #include <ctime>
 #include <Eigen/Dense>
 #include <memory>
-#include "tinyspline/tinysplinecpp.h"
+#include "tools/tinysplinecpp.h"
 #include "data_struct/data_struct.hpp"
 #include "tools/collosion_checker.hpp"
 #include "config/config.hpp"

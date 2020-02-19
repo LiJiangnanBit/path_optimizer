@@ -141,7 +141,7 @@ install_tinyspline() {
     mkdir build && cd build
     cmake ..
     cmake --build .
-    sudo cp lib/{libtinyspline.so,libtinysplinecpp.so} $REPO_DIR/external/lib/
+    sudo cp lib/{libtinyspline.so,libtinysplinecpp.so} $REPO_DIR/include/tools/
     sudo cp ../src/{tinyspline.h,tinysplinecpp.h} $REPO_DIR/external/include/tinyspline/
     echo "tinyspline installed successfully"
     cd $TMP_DIR

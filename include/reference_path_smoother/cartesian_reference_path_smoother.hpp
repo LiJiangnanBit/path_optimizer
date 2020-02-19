@@ -8,7 +8,7 @@
 #include <vector>
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
-#include "tinyspline/tinysplinecpp.h"
+#include "tools/tinysplinecpp.h"
 #include "data_struct/data_struct.hpp"
 
 namespace PathOptimizationNS {

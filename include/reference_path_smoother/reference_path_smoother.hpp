@@ -9,7 +9,7 @@
 #include <string>
 #include <queue>
 #include <ctime>
-#include "tinyspline/tinysplinecpp.h"
+#include "tools/tinysplinecpp.h"
 #include "config/config.hpp"
 #include "data_struct/data_struct.hpp"
 

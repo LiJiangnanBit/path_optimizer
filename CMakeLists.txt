@@ -4,7 +4,6 @@ project(path_optimizer)
 set(CMAKE_BUILD_TYPE "Release")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
-set(EXTERNAL_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/external/include")
 set(EXTERNAL_LIB_DIRS "${CMAKE_SOURCE_DIR}/external/lib")
 
 find_package(IPOPT REQUIRED)
@@ -19,7 +18,7 @@ add_library(${PROJECT_NAME})
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_11)
 target_sources(${PROJECT_NAME}
         PUBLIC
-        src/path_optimizer/path_optimizer.cpp
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/path_optimizer/path_optimizer.cpp>
         PRIVATE
         src/path_optimizer/solver_interface.cpp
         src/reference_path_smoother/cartesian_reference_path_smoother.cpp
@@ -34,7 +33,6 @@ target_include_directories(${PROJECT_NAME}
         PUBLIC
         $<INSTALL_INTERFACE:include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        ${EXTERNAL_INCLUDE_DIRS}
         ${grid_map_core_INCLUDE_DIRS}
         PRIVATE
         ${EIGEN3_INCLUDE_DIR}
@@ -51,36 +49,46 @@ target_link_libraries(${PROJECT_NAME}
         ${EXTERNAL_LIB_DIRS}/libtinysplinecpp.so
         )
 
-add_executable(${PROJECT_NAME}_benchmark)
-target_include_directories(${PROJECT_NAME}_benchmark
-        PRIVATE
-        ${grid_map_cv_INCLUDE_DIRS}
-        ${OpenCV_INCLUDE_DIRS}
-        )
-target_compile_features(${PROJECT_NAME}_benchmark PUBLIC cxx_std_11)
-target_sources(${PROJECT_NAME}
-        PRIVATE
-        src/test/path_optimizer_benchmark.cpp)
-target_link_libraries(${PROJECT_NAME}_benchmark
-        PRIVATE
-        ${PROJECT_NAME}
-        benchmark::benchmark
-        ${grid_map_cv_LIBRARIES}
-        ${OpenCV_LIBRARIES}
-        )
-
+#add_executable(${PROJECT_NAME}_benchmark)
+#target_include_directories(${PROJECT_NAME}_benchmark
+#        PRIVATE
+#        ${grid_map_cv_INCLUDE_DIRS}
+#        ${OpenCV_INCLUDE_DIRS}
+#        )
+#target_compile_features(${PROJECT_NAME}_benchmark PRIVATE cxx_std_11)
+#target_sources(${PROJECT_NAME}
+#        PRIVATE
+#        src/test/path_optimizer_benchmark.cpp)
+#target_link_libraries(${PROJECT_NAME}_benchmark
+#        PRIVATE
+#        ${PROJECT_NAME}
+#        benchmark::benchmark
+#        ${grid_map_cv_LIBRARIES}
+#        ${OpenCV_LIBRARIES}
+#        )
 #install
-#install(TARGETS ${PROJECT_NAME}
-#        EXPORT ${PROJECT_NAME}Targets
-#        LIBRARY DESTINATION lib)
+install(TARGETS ${PROJECT_NAME}
+        EXPORT ${PROJECT_NAME}Config
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 #install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/path_optimizer/* ${CMAKE_CURRENT_SOURCE_DIR}/include/config/*
 #        ${CMAKE_CURRENT_SOURCE_DIR}/include/data_struct/* ${CMAKE_CURRENT_SOURCE_DIR}/include/reference_path_smoother/*
 #        ${CMAKE_CURRENT_SOURCE_DIR}/include/tools/* ${CMAKE_CURRENT_SOURCE_DIR}/external/include/tinyspline/*
-#        DESTINATION include)
+#        DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
+install(DIRECTORY include/
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/include/path_optimizer)
 #install(EXPORT ${PROJECT_NAME}Targets
 #        NAMESPACE path_optimizer::
-#        DESTINATION cmake/path_optimizer)
-#install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/path_optimizerConfig.cmake
 #        DESTINATION ${CMAKE_INSTALL_PREFIX}/cmake/path_optimizer)
-
+#install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/path_optimizerConfig.cmake ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindIPOPT.cmake
+#        DESTINATION ${CMAKE_INSTALL_PREFIX}/share/path_optimizer)
+export(TARGETS
+        ${PROJECT_NAME}
+        NAMESPACE path_optimizer::
+        FILE "${CMAKE_CURRENT_BINARY_DIR}/path_optimizerConfig.cmake"
+        )
+install(EXPORT
+        path_optimizerConfig
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/path_optimizer/cmake"
+        NAMESPACE path_optimizer::
+        )
 
