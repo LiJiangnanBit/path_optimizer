@@ -6,7 +6,6 @@
 #define PATH_OPTIMIZER_INCLUDE_TOOLS_MAP_HPP_
 
 #include <iostream>
-#include <ros/ros.h>
 #include <cassert>
 #include <stdexcept>
 #include <grid_map_core/grid_map_core.hpp>
