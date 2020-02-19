@@ -7,8 +7,8 @@
 - ROS kinetic on Ubuntu 16.04 
 - OpenCV 3    
 ~~~
-git clone git@github.com:LiJiangnanBit/path_optimizer.git
-cd path_optimizer
+git clone git@github.com:LiJiangnanBit/path-optimizer.git
+cd path-optimizer
 sudo bash scripts/install_deps.sh
 cd workspace
 catkin build path_optimizer
