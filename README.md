@@ -1,24 +1,24 @@
 # path_optimizer
 **This ROS package generates feasible paths for non-holonomic vehicles according to reference paths (discrete points).**  
-No ROS: [ros_free branch](https://github.com/LiJiangnanBit/path_optimizer/tree/ros_free)
-![cover.png](https://i.loli.net/2020/02/11/CiZXwjQeGNaqdsr.png)  
+![2020-02-19 19-37-46屏幕截图.png](https://i.loli.net/2020/02/19/WHomBSMfyZ4jR62.png)    
 
 ## Run demos 
 ### Install dependencies 
 - ROS kinetic on Ubuntu 16.04 
-- OpenCV  
+- OpenCV 3    
 ~~~
 git clone git@github.com:LiJiangnanBit/path_optimizer.git
 cd path_optimizer
-bash scripts/build.sh
+sudo bash scripts/install_deps.sh
+cd workspace
+catkin build path_optimizer
+source devel/setup.bash
 ~~~
-This will install other dependencies (Those already installed will be skipped) and catkin build the package.  
+*install_deps.sh* will install other dependencies (Those already installed will be skipped) and catkin build the package.  
 These dependencies include ipopt, google benchmark, [osqp-eigen](https://github.com/robotology/osqp-eigen), [grid_map](https://github.com/ANYbotics/grid_map), [ros_viz_tools](https://github.com/Magic-wei/ros_viz_tools) and [tinyspline_ros](https://github.com/qutas/tinyspline_ros)).  
 
 ### 1. Pick reference points manually
 ~~~
-cd workspace
-source devel/setup.bash
 roslaunch path_optimizer demo.launch
 ~~~
 #### (1) Pick reference points using "Publish Point" tool in RViz.  
