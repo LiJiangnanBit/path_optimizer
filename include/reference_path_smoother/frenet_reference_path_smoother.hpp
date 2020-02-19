@@ -8,6 +8,7 @@
 #include <vector>
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
+#include <cfloat>
 #include "../tools/tinysplinecpp.h"
 #include "../data_struct/data_struct.hpp"
 

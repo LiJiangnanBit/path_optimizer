@@ -130,10 +130,10 @@ bool PathOptimizer::setConfig(const std::string &config_name, const T &value) {
     } else if (config_name == "output_interval_") {
         config_.output_interval_ = static_cast<double>(value);
     } else {
-        ROS_WARN("No config named %s, or this config can only be changed in config file.", config_name);
+        std::cout << "No such config or it can't be changed here" << std::endl;
         return false;
     }
-    ROS_INFO("Config %s is successfully changed!", config_name);
+    std::cout << "Config %s is successfully changed!" << std::endl;
     return true;
 }
 
