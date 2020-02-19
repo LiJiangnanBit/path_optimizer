@@ -9,9 +9,9 @@
 #include <string>
 #include <queue>
 #include <ctime>
-#include "tools/tinysplinecpp.h"
-#include "config/config.hpp"
-#include "data_struct/data_struct.hpp"
+#include "../tools/tinysplinecpp.h"
+#include "../config/config.hpp"
+#include "../data_struct/data_struct.hpp"
 
 namespace PathOptimizationNS {
 #define OBSTACLE_COST 0.4

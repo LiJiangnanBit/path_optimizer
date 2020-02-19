@@ -10,6 +10,7 @@
 #include <cassert>
 #include <stdexcept>
 #include <grid_map_core/grid_map_core.hpp>
+#include <glog/logging.h>
 
 namespace PathOptimizationNS {
 

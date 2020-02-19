@@ -9,8 +9,7 @@ namespace PathOptimizationNS {
 Map::Map(const grid_map::GridMap &grid_map) :
     maps(grid_map) {
     if (!grid_map.exists("distance")) {
-        ROS_WARN("grid map must contain 'distance' layer");
-        abort();
+        LOG(ERROR) << "grid map must contain 'distance' layer";
     }
 }
 

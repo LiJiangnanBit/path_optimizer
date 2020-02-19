@@ -49,38 +49,30 @@ target_link_libraries(${PROJECT_NAME}
         ${EXTERNAL_LIB_DIRS}/libtinysplinecpp.so
         )
 
-#add_executable(${PROJECT_NAME}_benchmark)
-#target_include_directories(${PROJECT_NAME}_benchmark
-#        PRIVATE
-#        ${grid_map_cv_INCLUDE_DIRS}
-#        ${OpenCV_INCLUDE_DIRS}
-#        )
-#target_compile_features(${PROJECT_NAME}_benchmark PRIVATE cxx_std_11)
-#target_sources(${PROJECT_NAME}
-#        PRIVATE
-#        src/test/path_optimizer_benchmark.cpp)
-#target_link_libraries(${PROJECT_NAME}_benchmark
-#        PRIVATE
-#        ${PROJECT_NAME}
-#        benchmark::benchmark
-#        ${grid_map_cv_LIBRARIES}
-#        ${OpenCV_LIBRARIES}
-#        )
+add_executable(${PROJECT_NAME}_benchmark)
+target_compile_features(${PROJECT_NAME}_benchmark PRIVATE cxx_std_11)
+target_include_directories(${PROJECT_NAME}_benchmark
+        PRIVATE
+        ${grid_map_cv_INCLUDE_DIRS}
+        ${OpenCV_INCLUDE_DIRS}
+        )
+target_sources(${PROJECT_NAME}
+        PRIVATE
+        src/test/path_optimizer_benchmark.cpp)
+target_link_libraries(${PROJECT_NAME}_benchmark
+        PRIVATE
+        ${PROJECT_NAME}
+        benchmark::benchmark
+        ${grid_map_cv_LIBRARIES}
+        ${OpenCV_LIBRARIES}
+        )
+
 #install
 install(TARGETS ${PROJECT_NAME}
         EXPORT ${PROJECT_NAME}Config
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
-#install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/path_optimizer/* ${CMAKE_CURRENT_SOURCE_DIR}/include/config/*
-#        ${CMAKE_CURRENT_SOURCE_DIR}/include/data_struct/* ${CMAKE_CURRENT_SOURCE_DIR}/include/reference_path_smoother/*
-#        ${CMAKE_CURRENT_SOURCE_DIR}/include/tools/* ${CMAKE_CURRENT_SOURCE_DIR}/external/include/tinyspline/*
-#        DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
 install(DIRECTORY include/
         DESTINATION ${CMAKE_INSTALL_PREFIX}/include/path_optimizer)
-#install(EXPORT ${PROJECT_NAME}Targets
-#        NAMESPACE path_optimizer::
-#        DESTINATION ${CMAKE_INSTALL_PREFIX}/cmake/path_optimizer)
-#install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/path_optimizerConfig.cmake ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindIPOPT.cmake
-#        DESTINATION ${CMAKE_INSTALL_PREFIX}/share/path_optimizer)
 export(TARGETS
         ${PROJECT_NAME}
         NAMESPACE path_optimizer::
