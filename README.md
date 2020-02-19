@@ -14,7 +14,7 @@ cd workspace
 catkin build path_optimizer
 source devel/setup.bash
 ~~~
-*install_deps.sh* will install other dependencies (Those already installed will be skipped) and catkin build the package.  
+*install_deps.sh* will install other dependencies (Those already installed will be skipped).
 These dependencies include ipopt, google benchmark, [osqp-eigen](https://github.com/robotology/osqp-eigen), [grid_map](https://github.com/ANYbotics/grid_map), [ros_viz_tools](https://github.com/Magic-wei/ros_viz_tools) and [tinyspline_ros](https://github.com/qutas/tinyspline_ros)).  
 
 ### 1. Pick reference points manually
