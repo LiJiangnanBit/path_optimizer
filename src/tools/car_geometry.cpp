@@ -3,6 +3,7 @@
 //
 
 #include "tools/car_geometry.hpp"
+#include "tools/tools.hpp"
 
 namespace PathOptimizationNS {
 

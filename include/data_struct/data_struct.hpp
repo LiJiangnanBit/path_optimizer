@@ -5,7 +5,7 @@
 #ifndef PATH_OPTIMIZER_INCLUDE_DATA_STRUCT_DATA_STRUCT_HPP_
 #define PATH_OPTIMIZER_INCLUDE_DATA_STRUCT_DATA_STRUCT_HPP_
 #include <vector>
-#include <tools/spline.h>
+#include "../tools/spline.h"
 
 namespace PathOptimizationNS {
 

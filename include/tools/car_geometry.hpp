@@ -9,8 +9,7 @@
 
 #include <iostream>
 #include <vector>
-#include "data_struct/data_struct.hpp"
-#include "tools/tools.hpp"
+#include "../data_struct/data_struct.hpp"
 
 namespace PathOptimizationNS {
 

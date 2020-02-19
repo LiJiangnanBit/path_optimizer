@@ -3,6 +3,8 @@
 //
 
 #include "tools/tools.hpp"
+#include "tools/spline.h"
+#include "data_struct/data_struct.hpp"
 
 namespace PathOptimizationNS {
 

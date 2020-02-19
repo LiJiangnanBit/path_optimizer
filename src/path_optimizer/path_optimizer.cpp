@@ -3,6 +3,12 @@
 //
 
 #include "path_optimizer/path_optimizer.hpp"
+#include "reference_path_smoother/reference_path_smoother.hpp"
+#include "reference_path_smoother/frenet_reference_path_smoother.hpp"
+#include "reference_path_smoother/cartesian_reference_path_smoother.hpp"
+#include "path_optimizer/solver_interface.hpp"
+#include "tools/tools.hpp"
+
 namespace PathOptimizationNS {
 
 PathOptimizer::PathOptimizer(const std::vector<State> &points_list,

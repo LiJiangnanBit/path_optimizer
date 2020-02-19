@@ -1,7 +1,6 @@
 # path_optimizer
 **This is a ROS package for real-time path planning. It generates feasible paths for non-holonomic vehicles according to reference paths (discrete points).**
-![cover.png](https://i.loli.net/2020/02/11/CiZXwjQeGNaqdsr.png)  
-
+![2020-02-19 19-37-46屏幕截图.png](https://i.loli.net/2020/02/19/WHomBSMfyZ4jR62.png)  
 ## Run demos 
 ### dependencies 
 - ROS kinetic on Ubuntu 16.04 
