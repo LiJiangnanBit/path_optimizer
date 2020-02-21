@@ -31,7 +31,7 @@ catkin_package(
         INCLUDE_DIRS include
         LIBRARIES ${PROJECT_NAME}
         CATKIN_DEPENDS ${catkin_deps}
-        DEPENDS OpenCV
+        DEPENDS OpenCV OsqpEigen
 )
 
 include_directories(
@@ -49,7 +49,7 @@ add_library(${PROJECT_NAME}
         src/tools/collision_checker.cpp
         src/path_optimizer/solver_interface.cpp
         src/reference_path_smoother/cartesian_reference_path_smoother.cpp
-        src/reference_path_smoother/reference_path_smoother.cpp src/tools/Map.cpp include/tools/Map.hpp src/tools/car_geometry.cpp)
+        src/reference_path_smoother/reference_path_smoother.cpp src/tools/Map.cpp include/path_optimizer/tools/Map.hpp src/tools/car_geometry.cpp)
 target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
         )
 

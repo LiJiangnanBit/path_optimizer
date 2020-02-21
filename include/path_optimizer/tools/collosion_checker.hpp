@@ -5,8 +5,8 @@
 #ifndef MPC_STATE_SAMPLING_COLLOSION_CHECKER_HPP
 #define MPC_STATE_SAMPLING_COLLOSION_CHECKER_HPP
 
-#include "../tools/Map.hpp"
-#include "../tools/car_geometry.hpp"
+#include "Map.hpp"
+#include "car_geometry.hpp"
 #include "../data_struct/data_struct.hpp"
 
 namespace PathOptimizationNS {

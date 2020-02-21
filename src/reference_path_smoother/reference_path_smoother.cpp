@@ -1,10 +1,10 @@
 //
 // Created by ljn on 20-2-9.
 //
-#include "reference_path_smoother/reference_path_smoother.hpp"
-#include "tools/spline.h"
-#include "tools/tools.hpp"
-#include "tools/Map.hpp"
+#include "path_optimizer/reference_path_smoother/reference_path_smoother.hpp"
+#include "path_optimizer/tools/spline.h"
+#include "path_optimizer/tools/tools.hpp"
+#include "path_optimizer/tools/Map.hpp"
 
 namespace PathOptimizationNS {
 

@@ -9,8 +9,11 @@
 #include <vector>
 #include <cassert>
 #include <ctime>
+
+namespace PathOptimizationNS {
 namespace tk {
 class spline;
+}
 }
 
 namespace PathOptimizationNS {

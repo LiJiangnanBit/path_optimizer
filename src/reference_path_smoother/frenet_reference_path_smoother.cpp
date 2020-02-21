@@ -2,10 +2,10 @@
 // Created by ljn on 20-1-26.
 //
 #include <glog/logging.h>
-#include "reference_path_smoother/frenet_reference_path_smoother.hpp"
-#include "config/config.hpp"
-#include "tools/tools.hpp"
-#include "tools/Map.hpp"
+#include "path_optimizer/reference_path_smoother/frenet_reference_path_smoother.hpp"
+#include "path_optimizer/config/config.hpp"
+#include "path_optimizer/tools/tools.hpp"
+#include "path_optimizer/tools/Map.hpp"
 
 namespace PathOptimizationNS {
 

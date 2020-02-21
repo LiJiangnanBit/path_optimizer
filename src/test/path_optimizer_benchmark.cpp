@@ -15,8 +15,8 @@
 #include <vector>
 #include <opencv/cv.hpp>
 #include <path_optimizer/path_optimizer.hpp>
-#include "tools/eigen2cv.hpp"
-#include "data_struct/data_struct.hpp"
+#include "path_optimizer/tools/eigen2cv.hpp"
+#include "path_optimizer/data_struct/data_struct.hpp"
 
 static void BM_optimizePath(benchmark::State &state) {
     // Initialize grid map from image.

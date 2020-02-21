@@ -53,6 +53,11 @@ public:
                          std::vector<double> *y_list,
                          std::vector<double> *s_list);
 
+    // Get config:
+    const Config &getConfig() {
+        return config_;
+    }
+
     // Only for visualization purpose.
     const std::vector<State> &getRearBounds() const;
     const std::vector<State> &getCenterBounds() const;
@@ -74,8 +79,8 @@ private:
                                        bool max_lon_flag);
 
     // Get bounds for each circle at each sampling point.
-    std::vector<double> getClearanceWithDirectionStrict(State state, double radius) const;
-    std::vector<double> getClearanceFor4Circles(const State &state);
+    std::vector<double> getClearanceWithDirectionStrict(const State &state, double radius) const;
+    std::shared_ptr<std::vector<double>> getClearanceFor4Circles(const State &state);
 
     // Divide smoothed path into segments.
     bool divideSmoothedPath();
