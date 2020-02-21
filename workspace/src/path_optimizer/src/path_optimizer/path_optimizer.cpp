@@ -3,11 +3,11 @@
 //
 
 #include "path_optimizer/path_optimizer.hpp"
-#include "reference_path_smoother/reference_path_smoother.hpp"
-#include "reference_path_smoother/frenet_reference_path_smoother.hpp"
-#include "reference_path_smoother/cartesian_reference_path_smoother.hpp"
+#include "path_optimizer/reference_path_smoother/reference_path_smoother.hpp"
+#include "path_optimizer/reference_path_smoother/frenet_reference_path_smoother.hpp"
+#include "path_optimizer/reference_path_smoother/cartesian_reference_path_smoother.hpp"
 #include "path_optimizer/solver_interface.hpp"
-#include "tools/tools.hpp"
+#include "path_optimizer/tools/tools.hpp"
 
 namespace PathOptimizationNS {
 
@@ -65,7 +65,7 @@ void PathOptimizer::setConfig() {
 
     //
     config_.raw_result_ = true;
-    config_.output_interval_ = 0.5;
+    config_.output_interval_ = 0.3;
 }
 
 bool PathOptimizer::solve(std::vector<State> *final_path) {
@@ -203,8 +203,8 @@ bool PathOptimizer::divideSmoothedPath() {
     // Divide the reference path. Intervals are smaller at the beginning.
     double delta_s_smaller = 0.3;
     // If we want to make the result path dense later, the interval here is 1.0m. This makes computation faster;
-    // If we want to output the result directly, the interval is 3.0m.
-    double delta_s_larger = config_.raw_result_ ? 0.3 : 1.0;
+    // If we want to output the result directly, the interval is controlled by config_.output_interval..
+    double delta_s_larger = config_.raw_result_ ? config_.output_interval_ : 1.0;
     // If the initial heading error with the reference path is small, then set intervals equal.
     if (fabs(vehicle_state_.initial_heading_error_) < 20 * M_PI / 180) delta_s_smaller = delta_s_larger;
     double tmp_max_s = delta_s_smaller;
@@ -247,11 +247,12 @@ bool PathOptimizer::divideSmoothedPath() {
             center_state.x += config_.rear_axle_to_center_distance_ * cos(center_state.z);
             center_state.y += config_.rear_axle_to_center_distance_ * sin(center_state.z);
         }
-        std::vector<double> clearance;
-        clearance = getClearanceFor4Circles(center_state);
+        auto clearance = getClearanceFor4Circles(center_state);
         // Terminate if collision is inevitable near the end.
-        if ((clearance[0] == clearance[1] || clearance[2] == clearance[3] || clearance[4] == clearance[5]
-            || clearance[6] == clearance[7])
+        if ((clearance->at(0) == clearance->at(1)
+            || clearance->at(2) == clearance->at(3)
+            || clearance->at(4) == clearance->at(5)
+            || clearance->at(6) == clearance->at(7))
             && center_state.s > 0.75 * reference_path_.max_s_) {
             printf("some states near end are not satisfying\n");
             N_ = i;
@@ -268,7 +269,7 @@ bool PathOptimizer::divideSmoothedPath() {
                                                   reference_path_.seg_angle_list_.end());
             break;
         }
-        reference_path_.seg_clearance_list_.emplace_back(clearance);
+        reference_path_.seg_clearance_list_.emplace_back(*clearance);
     }
     return true;
 }
@@ -427,7 +428,13 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
         double tmp_y = reference_path_.y_s_(length_on_ref_path) + QPSolution(2 * i + 1) * sin(new_angle);
         if (config_.raw_result_) {
             // If output raw path:
-            State state(tmp_x, tmp_y, angle + QPSolution(2 * i));
+            double k = 0;
+            if (i != N_ - 1) {
+                k = QPSolution(2 * N_ + i);
+            } else {
+                k = QPSolution(3 * N_ - 2);
+            }
+            State state(tmp_x, tmp_y, angle + QPSolution(2 * i), k);
             if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
                 tmp_raw_path.emplace_back(state);
             } else {
@@ -456,7 +463,7 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
     x_s.set_points(result_s, result_x);
     y_s.set_points(result_s, result_y);
     std::vector<State> tmp_final_path;
-    double delta_s = 0.3;
+    double delta_s = config_.output_interval_;
     for (int i = 0; i * delta_s <= result_s.back(); ++i) {
         State tmp_state{x_s(i * delta_s),
                         y_s(i * delta_s),
@@ -549,7 +556,7 @@ bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
     }
 }
 
-std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(State state, double radius) const {
+std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(const State &state, double radius) const {
     double left_bound = 0;
     double right_bound = 0;
     double delta_s = 0.2;
@@ -643,7 +650,7 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(State state, 
     return {left_bound, right_bound};
 }
 
-std::vector<double> PathOptimizer::getClearanceFor4Circles(const State &state) {
+std::shared_ptr<std::vector<double>> PathOptimizer::getClearanceFor4Circles(const State &state) {
     double circle_r = config_.circle_radius_;
     double center_x = state.x;
     double center_y = state.y;
@@ -689,7 +696,7 @@ std::vector<double> PathOptimizer::getClearanceFor4Circles(const State &state) {
     center_bounds_.emplace_back(center_bound_r);
     front_bounds_.emplace_back(front_bound_l);
     front_bounds_.emplace_back(front_bound_r);
-    return result;
+    return std::make_shared<std::vector<double>>(result);
 
 }
 

@@ -9,7 +9,9 @@
 
 // band_matrix implementation
 // -------------------------
-#include "tools/spline.h"
+#include "path_optimizer/tools/spline.h"
+
+namespace PathOptimizationNS {
 namespace tk {
 
 band_matrix::band_matrix(int dim, int n_u, int n_l) {
@@ -313,5 +315,6 @@ double spline::deriv(int order, double x) const {
         }
     }
     return interpol;
+}
 }
 }

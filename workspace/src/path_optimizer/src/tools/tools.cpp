@@ -2,9 +2,9 @@
 // Created by ljn on 20-1-26.
 //
 
-#include "tools/tools.hpp"
-#include "tools/spline.h"
-#include "data_struct/data_struct.hpp"
+#include "path_optimizer/tools/tools.hpp"
+#include "path_optimizer/tools/spline.h"
+#include "path_optimizer/data_struct/data_struct.hpp"
 
 namespace PathOptimizationNS {
 

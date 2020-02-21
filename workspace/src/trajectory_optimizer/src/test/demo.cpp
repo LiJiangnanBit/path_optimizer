@@ -24,6 +24,7 @@
 #include "path_optimizer/tools/eigen2cv.hpp"
 #include "path_optimizer/data_struct/data_struct.hpp"
 #include "path_optimizer/tools/tools.hpp"
+#include "trajectory_optimizer/reference_provider/reference_provider.hpp"
 
 PathOptimizationNS::State start_state, end_state;
 std::vector<PathOptimizationNS::State> reference_path;
@@ -46,6 +47,7 @@ void startCb(const geometry_msgs::PoseWithCovarianceStampedConstPtr &start) {
     start_state.x = start->pose.pose.position.x;
     start_state.y = start->pose.pose.position.y;
     start_state.z = tf::getYaw(start->pose.pose.orientation);
+    start_state.v = 3;
     if (reference_rcv) {
         start_state_rcv = true;
     }
@@ -67,7 +69,7 @@ int main(int argc, char **argv) {
     ros::NodeHandle nh("~");
 
     // Initialize grid map from image.
-    std::string image_dir = ros::package::getPath("path_optimizer");
+    std::string image_dir = ros::package::getPath("trajectory_optimizer");
     std::string base_dir = image_dir;
     std::string image_file = "gridmap.png";
     image_dir.append("/" + image_file);
@@ -173,6 +175,13 @@ int main(int argc, char **argv) {
             }
             smoothed_reference_path = path_optimizer.getSmoothedPath();
             a_star_display = path_optimizer.a_star_display_;
+
+            TrajOptNS::Trajectory reference_test;
+            TrajOptNS::ReferenceProvider reference_provider(reference_path, start_state, end_state, grid_map);
+            reference_provider.getReferenceTrajectory(&reference_test);
+            for (int i{0}; i != reference_test.state_list.size(); ++i) {
+                std::cout << i * reference_test.time_interval << " s: " << reference_test.state_list[i].s << ", v: " << reference_test.state_list[i].v << std::endl;
+            }
         }
 
         // Visualize a-star.

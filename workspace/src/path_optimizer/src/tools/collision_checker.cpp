@@ -1,8 +1,8 @@
 //
 // Created by yangt on 19-5-8.
 //
-#include "tools/collosion_checker.hpp"
-#include "config/config.hpp"
+#include "path_optimizer/tools/collosion_checker.hpp"
+#include "path_optimizer/config/config.hpp"
 
 namespace PathOptimizationNS {
 

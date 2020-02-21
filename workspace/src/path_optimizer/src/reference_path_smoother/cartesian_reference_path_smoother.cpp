@@ -3,10 +3,10 @@
 //
 
 #include <glog/logging.h>
-#include "reference_path_smoother/cartesian_reference_path_smoother.hpp"
-#include "config/config.hpp"
-#include "tools/tools.hpp"
-#include "tools/Map.hpp"
+#include "path_optimizer/reference_path_smoother/cartesian_reference_path_smoother.hpp"
+#include "path_optimizer/config/config.hpp"
+#include "path_optimizer/tools/tools.hpp"
+#include "path_optimizer/tools/Map.hpp"
 
 namespace PathOptimizationNS {
 
