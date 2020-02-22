@@ -26,7 +26,6 @@ private:
     const State &start_state_, &end_state_;
     const Map grid_map_;
     Trajectory reference_trajectory_;
-    TrajOptConfig config_;
 };
 }
 

@@ -12,6 +12,9 @@ find_package(catkin REQUIRED COMPONENTS
         path_optimizer
         )
 
+find_package(OsqpEigen REQUIRED)
+find_package(Eigen3 REQUIRED)
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -117,6 +120,8 @@ catkin_package(
 include_directories(
         include
         ${catkin_INCLUDE_DIRS}
+        ${EIGEN3_INCLUDE_DIR}
+
 )
 
 ## Declare a C++ library
@@ -124,9 +129,11 @@ add_library(${PROJECT_NAME}
         src/${PROJECT_NAME}/trajectory_optimizer.cpp
         src/reference_provider/reference_provider.cpp
         src/data_struct/data_struct.cpp
-        src/solver/solver.cpp)
+        src/solver/solver.cpp src/solver/solver_vc.cpp)
 target_link_libraries(${PROJECT_NAME}
         ${catkin_LIBRARIES}
+        OsqpEigen::OsqpEigen
+        osqp::osqp
         )
 
 add_executable(${PROJECT_NAME}_demo

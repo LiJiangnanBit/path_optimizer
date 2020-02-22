@@ -6,6 +6,7 @@
 #include "trajectory_optimizer/data_struct/data_struct.hpp"
 
 using PathOptimizationNS::constraintAngle;
+using PathOptimizationNS::getHeading;
 
 namespace TrajOptNS {
 
@@ -24,24 +25,28 @@ double TrajOptConfig::max_lon_acc_ = 2.0;
 double TrajOptConfig::max_lon_dacc_ = -3.0;
 double TrajOptConfig::max_lat_acc_ = 0.4 * 9.8;
 double TrajOptConfig::max_v_ = 13.0;
-double TrajOptConfig::horizon_time_ = 6.0;
-double TrajOptConfig::time_interval_ = 0.1;
+double TrajOptConfig::horizon_time_ = 5.0;
+double TrajOptConfig::time_interval_ = 0.06;
+int TrajOptConfig::max_iteration_times_ = 5;
 
-void SolverInput::updateBounds(const Map &map) {
-    if (reference_trajectory.path_length_ == 0 || reference_trajectory.state_list.empty()) {
+void SolverInput::updateLateralBounds(const Map &map) {
+    if (reference_states.empty()) {
         LOG(WARNING) << "empty reference, updateBounds fail!";
         return;
     }
     bounds.clear();
     for (const auto &state : reference_trajectory.state_list) {
         double tmp_s = state.s;
-        double center_x = state.x + TrajOptConfig::rear_axle_to_center_distance_ * cos(state.z);
-        double center_y = state.y + TrajOptConfig::rear_axle_to_center_distance_ * sin(state.z);
+        double ref_x = reference_trajectory.x_s(tmp_s);
+        double ref_y = reference_trajectory.y_s(tmp_s);
+        double heading = getHeading(reference_trajectory.x_s, reference_trajectory.y_s, tmp_s);
+        double center_x = ref_x + TrajOptConfig::rear_axle_to_center_distance_ * heading;
+        double center_y = ref_y + TrajOptConfig::rear_axle_to_center_distance_ * heading;
         State
-            c0(center_x + TrajOptConfig::d1_ * cos(state.z), center_y + TrajOptConfig::d1_ * sin(state.z), state.z),
-            c1(center_x + TrajOptConfig::d2_ * cos(state.z), center_y + TrajOptConfig::d2_ * sin(state.z), state.z),
-            c2(center_x + TrajOptConfig::d3_ * cos(state.z), center_y + TrajOptConfig::d3_ * sin(state.z), state.z),
-            c3(center_x + TrajOptConfig::d4_ * cos(state.z), center_y + TrajOptConfig::d4_ * sin(state.z), state.z);
+            c0(center_x + TrajOptConfig::d1_ * cos(heading), center_y + TrajOptConfig::d1_ * sin(heading), heading),
+            c1(center_x + TrajOptConfig::d2_ * cos(heading), center_y + TrajOptConfig::d2_ * sin(heading), heading),
+            c2(center_x + TrajOptConfig::d3_ * cos(heading), center_y + TrajOptConfig::d3_ * sin(heading), heading),
+            c3(center_x + TrajOptConfig::d4_ * cos(heading), center_y + TrajOptConfig::d4_ * sin(heading), heading);
         auto clearance_0 = getClearanceWithDirectionStrict(c0, map);
         auto clearance_1 = getClearanceWithDirectionStrict(c1, map);
         auto clearance_2 = getClearanceWithDirectionStrict(c2, map);

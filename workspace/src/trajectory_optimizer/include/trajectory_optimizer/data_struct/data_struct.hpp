@@ -27,6 +27,16 @@ struct Trajectory {
     std::vector<State> state_list;
 };
 
+struct FrenetState {
+    double ey{};
+    double ephi{};
+    double s{};
+    double k{};
+    double v{};
+    FrenetState(double ey, double ephi, double s, double k, double v)
+    : ey(ey), ephi(ephi), s(s), k(k), v(v) {}
+};
+
 struct CoveringCircleBounds {
     struct SingleCircleBounds {
         SingleCircleBounds &operator=(std::vector<double> bounds) {
@@ -55,12 +65,20 @@ struct TrajOptConfig {
     //
     static double horizon_time_;
     static double time_interval_;
+    //
+    static int max_iteration_times_;
 };
 
 struct SolverInput {
-    void updateBounds(const Map &map);
+    explicit SolverInput(const Trajectory &reference) :
+        reference_trajectory(reference) {}
+    void updateLateralBounds(const Map &map);
     std::vector<double> getClearanceWithDirectionStrict(const State &state, const Map &map) const;
-    Trajectory reference_trajectory;
+    const Trajectory &reference_trajectory;
+    double max_time{};
+    double time_interval{};
+    size_t horizon{};
+    std::vector<FrenetState> reference_states;
     std::vector<CoveringCircleBounds> bounds;
 };
 }

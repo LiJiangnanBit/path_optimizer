@@ -24,7 +24,7 @@
 #include "path_optimizer/tools/eigen2cv.hpp"
 #include "path_optimizer/data_struct/data_struct.hpp"
 #include "path_optimizer/tools/tools.hpp"
-#include "trajectory_optimizer/reference_provider/reference_provider.hpp"
+#include "trajectory_optimizer/trajectory_optimizer.hpp"
 
 PathOptimizationNS::State start_state, end_state;
 std::vector<PathOptimizationNS::State> reference_path;
@@ -176,12 +176,15 @@ int main(int argc, char **argv) {
             smoothed_reference_path = path_optimizer.getSmoothedPath();
             a_star_display = path_optimizer.a_star_display_;
 
-            TrajOptNS::Trajectory reference_test;
-            TrajOptNS::ReferenceProvider reference_provider(reference_path, start_state, end_state, grid_map);
-            reference_provider.getReferenceTrajectory(&reference_test);
-            for (int i{0}; i != reference_test.state_list.size(); ++i) {
-                std::cout << i * reference_test.time_interval << " s: " << reference_test.state_list[i].s << ", v: " << reference_test.state_list[i].v << std::endl;
-            }
+//            TrajOptNS::Trajectory reference_test;
+//            TrajOptNS::ReferenceProvider reference_provider(reference_path, start_state, end_state, grid_map);
+//            reference_provider.getReferenceTrajectory(&reference_test);
+//            for (int i{0}; i != reference_test.state_list.size(); ++i) {
+//                std::cout << i * reference_test.time_interval << " s: " << reference_test.state_list[i].s << ", v: " << reference_test.state_list[i].v << std::endl;
+//            }
+
+            TrajOptNS::TrajectoryOptimizer trajectory_optimizer(reference_path, start_state, end_state, grid_map);
+            trajectory_optimizer.solve();
         }
 
         // Visualize a-star.

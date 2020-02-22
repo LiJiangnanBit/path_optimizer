@@ -6,6 +6,9 @@
 
 namespace TrajOptNS {
 
+Solver::Solver() :
+initialized_(false)
+{}
 
 }
 
