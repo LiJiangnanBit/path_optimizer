@@ -56,12 +56,12 @@ void PathOptimizer::setConfig() {
     //
     config_.opt_curvature_w_ = 10;
     config_.opt_curvature_rate_w_ = 100;
-    config_.opt_deviation_w_ = 0.05;
+    config_.opt_deviation_w_ = 0;
     config_.opt_slack_w_ = 3;
     config_.constraint_end_heading_ = true;
     // TODO: use this condition.
     config_.exact_end_position_ = false;
-    config_.expected_safety_margin_ = 1.0;
+    config_.expected_safety_margin_ = 1.3;
 
     //
     config_.raw_result_ = true;

@@ -1,5 +1,0 @@
-<launch>
-    <node pkg="trajectory_optimizer" type="trajectory_optimizer_demo" name="trajectory_optimizer_demo" args="" output="screen" />
-    
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find trajectory_optimizer)/config/rvizConfig.rviz" output="screen" />
-</launch>
