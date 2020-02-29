@@ -25,8 +25,9 @@ double TrajOptConfig::max_lon_acc_ = 2.0;
 double TrajOptConfig::max_lon_dacc_ = -3.0;
 double TrajOptConfig::max_lat_acc_ = 0.2 * 9.8;
 double TrajOptConfig::max_v_ = 13.0;
-double TrajOptConfig::spacing_ = 0.8;
+double TrajOptConfig::spacing_ = 0.5;
 double TrajOptConfig::max_length_ = 40;
+int TrajOptConfig::keep_control_steps_ = 4;
 
 
 void SolverInput::updateLateralBounds(const Map &map) {

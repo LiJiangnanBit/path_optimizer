@@ -15,14 +15,16 @@ namespace TrajOptNS {
 class Solver {
 public:
     Solver() :
-        horizon_(0),
+        state_horizon_(0),
+        control_horizon_{0},
         initialized_(false)
         {};
     virtual void init(const std::shared_ptr<SolverInput> &input) = 0;
     virtual bool solve(std::vector<State> *result_trajectory) = 0;
     virtual ~Solver() {};
 protected:
-    size_t horizon_{};
+    size_t state_horizon_{};
+    size_t control_horizon_{};
     bool initialized_{};
 };
 }

@@ -12,11 +12,12 @@ namespace TrajOptNS {
 class FgEvalKpvp {
 public:
     FgEvalKpvp() = default;
-    void init(size_t horizon, const std::shared_ptr<SolverInput> &input);
+    void init(const std::shared_ptr<SolverInput> &input);
     typedef AD<double> ADd;
     typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
     void operator()(ADvector &fg, const ADvector &vars);
-    size_t horizon_;
+    size_t state_horizon_{};
+    size_t control_horizon_{};
     std::shared_ptr<SolverInput> input_;
 };
 

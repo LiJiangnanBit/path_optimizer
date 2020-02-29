@@ -66,23 +66,27 @@ struct TrajOptConfig {
     static double max_lat_acc_;
     static double max_v_;
 
-    //
+    // Optimization param:
     static double spacing_;
     static double max_length_;
+    static int keep_control_steps_;
 };
 
 struct SolverInput {
     void init(const std::shared_ptr<FrenetTrajectory> &traj_ptr, State start, State end) {
         reference_trajectory = traj_ptr;
-        horizon = traj_ptr->state_list.size();
+        state_horizon = traj_ptr->state_list.size();
         start_state = start;
+        contorl_horizon = (state_horizon + TrajOptConfig::keep_control_steps_ - 2) / TrajOptConfig::keep_control_steps_;
+        std::cout << "state and control horizon: " << state_horizon << " " << contorl_horizon << std::endl;
         end_state = end;
     }
     void updateLateralBounds(const Map &map);
     std::vector<double> getClearanceWithDirectionStrict(const State &state, const Map &map) const;
 
     std::shared_ptr<FrenetTrajectory> reference_trajectory;
-    size_t horizon{};
+    size_t state_horizon{};
+    size_t contorl_horizon{};
     std::vector<CoveringCircleBounds> bounds;
     State start_state, end_state;
 };
