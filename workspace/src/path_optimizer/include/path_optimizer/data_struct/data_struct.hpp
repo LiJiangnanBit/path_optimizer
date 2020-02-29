@@ -42,19 +42,21 @@ struct ReferencePath {
 // Standard point struct.
 struct State {
     State() = default;
-    State(double x, double y, double z = 0, double k = 0, double s = 0, double v = 0) :
+    State(double x, double y, double z = 0, double k = 0, double s = 0, double v = 0, double a = 0) :
         x(x),
         y(y),
         z(z),
         k(k),
         s(s),
-        v(v) {}
+        v(v),
+        a(a) {}
     double x{};
     double y{};
     double z{}; // Heading.
     double k{}; // Curvature.
     double s{};
     double v{};
+    double a{};
 };
 
 struct Circle {
