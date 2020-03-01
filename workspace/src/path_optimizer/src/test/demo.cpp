@@ -28,6 +28,7 @@
 PathOptimizationNS::State start_state, end_state;
 std::vector<PathOptimizationNS::State> reference_path;
 bool start_state_rcv = false, end_state_rcv = false, reference_rcv = false;
+PathOptimizationNS::Config config;
 
 void referenceCb(const geometry_msgs::PointStampedConstPtr &p) {
     if (start_state_rcv && end_state_rcv) {
@@ -168,6 +169,7 @@ int main(int argc, char **argv) {
         if (reference_rcv && start_state_rcv && end_state_rcv) {
             PathOptimizationNS::PathOptimizer path_optimizer(reference_path, start_state, end_state, grid_map);
 //            path_optimizer.setConfig("raw_result_", false);
+            config = path_optimizer.getConfig();
             if (path_optimizer.solve(&result_path)) {
                 std::cout << "ok!" << std::endl;
             }
@@ -216,17 +218,22 @@ int main(int argc, char **argv) {
         visualization_msgs::Marker vehicle_geometry_marker =
             markers.newLineList(0.1, "vehicle", id++, ros_viz_tools::LIME_GREEN, marker_frame_id);
         // Visualize vehicle geometry.
+        double length{config.car_length_};
+        double width{config.car_width_};
+        double rtc{config.rear_axle_to_center_distance_};
+        double rear_d{length / 2 - rtc};
+        double front_d{length - rear_d};
         for (size_t i = 0; i != result_path.size(); ++i) {
             double heading = result_path[i].z;
             PathOptimizationNS::State p1, p2, p3, p4;
-            p1.x = 3.9;
-            p1.y = 1;
-            p2.x = 3.9;
-            p2.y = -1;
-            p3.x = -1.0;
-            p3.y = -1;
-            p4.x = -1.0;
-            p4.y = 1;
+            p1.x = front_d;
+            p1.y = width / 2;
+            p2.x = front_d;
+            p2.y = -width / 2;
+            p3.x = -rear_d;
+            p3.y = -width / 2;
+            p4.x = -rear_d;
+            p4.y = width / 2;
             auto tmp_relto = result_path[i];
             tmp_relto.z = heading;
             p1 = PathOptimizationNS::local2Global(tmp_relto, p1);
