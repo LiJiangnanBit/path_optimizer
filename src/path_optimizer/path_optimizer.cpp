@@ -29,11 +29,11 @@ PathOptimizer::PathOptimizer(const std::vector<State> &points_list,
 void PathOptimizer::setConfig() {
     // TODO: read from config file.
     config_.car_type_ = ACKERMANN_STEERING;
-    config_.car_width_ = 2.0;
-    config_.car_length_ = 4.9;
+    config_.car_width_ = 2.0; //1.6;//
+    config_.car_length_ = 4.9; //4.0;//
     config_.circle_radius_ = sqrt(pow(config_.car_length_ / 8, 2) + pow(config_.car_width_ / 2, 2));
-    config_.wheel_base_ = 2.85;
-    config_.rear_axle_to_center_distance_ = 1.45;
+    config_.wheel_base_ = 2.85; //2.35;
+    config_.rear_axle_to_center_distance_ = 1.45; //1.0;
     config_.d1_ = -3.0 / 8.0 * config_.car_length_;
     config_.d2_ = -1.0 / 8.0 * config_.car_length_;
     config_.d3_ = 1.0 / 8.0 * config_.car_length_;
