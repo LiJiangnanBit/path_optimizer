@@ -70,6 +70,12 @@ struct TrajOptConfig {
     static double spacing_;
     static double max_length_;
     static int keep_control_steps_;
+    static double weight_ey;
+    static double weight_v;
+    static double weight_k;
+    static double weight_kp;
+    static double weight_vp;
+    static double weight_vpp;
 };
 
 struct SolverInput {

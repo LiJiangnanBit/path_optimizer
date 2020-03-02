@@ -11,6 +11,10 @@ public:
     ~SolverOsqpKpvp() {};
     void init(const std::shared_ptr<SolverInput> &input) override;
     bool solve(std::vector<State> *result_trajectory) override;
+
+protected:
+    void setHessianAndGradient() override ;
+    void setConstraintMatrix() override ;
 };
 }
 #endif

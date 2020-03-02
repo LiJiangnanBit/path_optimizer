@@ -26,6 +26,7 @@ protected:
     size_t state_horizon_{};
     size_t control_horizon_{};
     bool initialized_{};
+    std::shared_ptr<SolverInput> solver_input_ptr_;
 };
 }
 #endif //TRAJECTORY_OPTIMIZER_INCLUDE_TRAJECTORY_OPTIMIZER_SLOVER_SOLVER_HPP_

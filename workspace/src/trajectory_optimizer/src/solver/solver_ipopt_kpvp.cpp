@@ -38,12 +38,12 @@ void FgEvalKpvp::operator()(TrajOptNS::FgEvalKpvp::ADvector &fg, const TrajOptNS
     const size_t cons_acc_lower_range_begin{cons_c3_range_begin + state_horizon_};
     const size_t cons_acc_upper_range_begin{cons_acc_lower_range_begin + control_horizon_};
     const ADd spacing{TrajOptConfig::spacing_};
-    const double weight_ey{5};
-    const double weight_v{1};
-    const double weight_k{10};
-    const double weight_kp{50};
-    const double weight_vp{10};
-    const double weight_vpp{10};
+    const double weight_ey{TrajOptConfig::weight_ey};
+    const double weight_v{TrajOptConfig::weight_v};
+    const double weight_k{TrajOptConfig::weight_k};
+    const double weight_kp{TrajOptConfig::weight_kp};
+    const double weight_vp{TrajOptConfig::weight_vp};
+    const double weight_vpp{TrajOptConfig::weight_vpp};
 
     fg[0] = 0;
     size_t control_variable_index{0};
@@ -116,6 +116,7 @@ void FgEvalKpvp::operator()(TrajOptNS::FgEvalKpvp::ADvector &fg, const TrajOptNS
         fg[cons_c1_range_begin + i] = ey + (TrajOptConfig::rear_axle_to_center_distance_ + TrajOptConfig::d2_) * ephi;
         fg[cons_c2_range_begin + i] = ey + (TrajOptConfig::rear_axle_to_center_distance_ + TrajOptConfig::d3_) * ephi;
         fg[cons_c3_range_begin + i] = ey + (TrajOptConfig::rear_axle_to_center_distance_ + TrajOptConfig::d4_) * ephi;
+        // Acceleration constraints.
         if (i % TrajOptConfig::keep_control_steps_ == 0 && i != state_horizon_ - 1) {
             ADd vp{vars[vp_range_begin + control_variable_index]};
             ADd adjusted_ref_v{std::max<ADd>(ref_v, 0.1)};
