@@ -82,8 +82,10 @@ void SolverOsqpKpvp::setHessianAndGradient() {
         hessian(5 * i + 4, 5 * i + 4) += weight_v;
     }
     // Control part.
-    Eigen::Matrix<double, 4, 1> vec{0, -1, 0, 1};
-    auto vpp_part{vec * vec.transpose() * weight_vpp};
+    Eigen::Matrix<double, 4, 1> vec;
+    vec << 0, -1, 0, 1;
+    Eigen::Matrix4d vpp_part{vec * vec.transpose() * weight_vpp};
+    std::cout << vec << std::endl;
     for (size_t i = 0; i != control_horizon_; ++i) {
         // * keep_control_steps: make it the same as the ipopt version.
         hessian(state_vars_num_ + 2 * i, state_vars_num_ + 2 * i) +=
@@ -99,7 +101,7 @@ void SolverOsqpKpvp::setHessianAndGradient() {
     // Gradient.
     gradient_ = Eigen::VectorXd::Constant(vars_num_, 0);
     for (size_t i = 0; i != state_horizon_; ++i) {
-        gradient_(5 * i + 4) = -weight_v * 2 * solver_input_ptr_->reference_trajectory->state_list[i].v;
+        gradient_(5 * i + 4) = -weight_v * solver_input_ptr_->reference_trajectory->state_list[i].v;
     }
 }
 
@@ -144,7 +146,7 @@ void SolverOsqpKpvp::setConstraintMatrix() {
         ref_state_vector << ref_state.ey, ref_state.ephi, ref_state.ay, ref_state.k, ref_state.v;
         Eigen::Matrix<double, 2, 1> ref_control_vector;
         ref_control_vector << ref_state.kp, ref_state.vp;
-        c_list.emplace_back(TrajOptConfig::spacing_ * c - a * ref_state_vector - b * ref_control_vector);
+        c_list.emplace_back(TrajOptConfig::spacing_ * (c - a * ref_state_vector - b * ref_control_vector));
     }
     cons_matrix.block(0, 0, 5, 5) += Eigen::MatrixXd::Identity(5, 5);
     // vars part.
