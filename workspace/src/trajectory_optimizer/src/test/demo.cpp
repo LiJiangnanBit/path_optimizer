@@ -200,9 +200,9 @@ int main(int argc, char **argv) {
         }
         markers.append(a_star_marker);
 
-        // Visualize result path.
+        // Visualize reference path.
         visualization_msgs::Marker result_marker =
-            markers.newLineStrip(0.15, "optimized path", id++, ros_viz_tools::GREEN, marker_frame_id);
+            markers.newLineStrip(0.15, "optimized path", id++, ros_viz_tools::CYAN, marker_frame_id);
         for (size_t i = 0; i != result_path.size(); ++i) {
             geometry_msgs::Point p;
             p.x = result_path[i].x;
@@ -211,6 +211,18 @@ int main(int argc, char **argv) {
             result_marker.points.push_back(p);
         }
         markers.append(result_marker);
+
+        // Visualize optimized trajectory.
+        visualization_msgs::Marker result_traj_marker =
+            markers.newLineStrip(0.15, "optimized trajectory", id++, ros_viz_tools::GREEN, marker_frame_id);
+        for (size_t i = 0; i != result_trajectory.size(); ++i) {
+            geometry_msgs::Point p;
+            p.x = result_trajectory[i].x;
+            p.y = result_trajectory[i].y;
+            p.z = 1.0;
+            result_traj_marker.points.push_back(p);
+        }
+        markers.append(result_traj_marker);
 
         // Visualize smoothed reference path.
         visualization_msgs::Marker smoothed_reference_marker =

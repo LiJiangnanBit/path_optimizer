@@ -21,6 +21,7 @@ protected:
     OsqpEigen::Solver solver_;
     size_t state_vars_num_{}, control_vars_num_{}, vars_num_{}, cons_num_{};
     size_t state_size_{}, control_size_{};
+    Eigen::VectorXd solution_;
 };
 
 }

@@ -25,13 +25,13 @@ double TrajOptConfig::max_lon_acc_ = 2.0;
 double TrajOptConfig::max_lon_dacc_ = -3.0;
 double TrajOptConfig::max_lat_acc_ = 0.2 * 9.8;
 double TrajOptConfig::max_v_ = 13.0;
-double TrajOptConfig::spacing_ = 0.5;
+double TrajOptConfig::spacing_ = 0.3;
 double TrajOptConfig::max_length_ = 40;
 int TrajOptConfig::keep_control_steps_ = 4;
 double TrajOptConfig::weight_ey = 5;
 double TrajOptConfig::weight_v = 5;
 double TrajOptConfig::weight_k = 10;
-double TrajOptConfig::weight_kp = 50;
+double TrajOptConfig::weight_kp = 200;
 double TrajOptConfig::weight_vp = 10;
 double TrajOptConfig::weight_vpp = 10;
 
