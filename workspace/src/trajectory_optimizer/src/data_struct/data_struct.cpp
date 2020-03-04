@@ -23,18 +23,20 @@ double TrajOptConfig::d4_ = 3.0 / 8.0 * TrajOptConfig::car_length_;
 double TrajOptConfig::max_steer_angle_ = 35 * M_PI / 180;
 double TrajOptConfig::max_lon_acc_ = 2.0;
 double TrajOptConfig::max_lon_dacc_ = -3.0;
-double TrajOptConfig::max_lat_acc_ = 0.2 * 9.8;
+double TrajOptConfig::max_lat_acc_ = 0.35 * 9.8;
+double TrajOptConfig::safe_lat_acc_ = 0.15 * 9.8;
 double TrajOptConfig::max_v_ = 13.0;
 double TrajOptConfig::spacing_ = 0.3;
-double TrajOptConfig::max_length_ = 40;
+double TrajOptConfig::max_length_ = 80;
 int TrajOptConfig::keep_control_steps_ = 4;
-double TrajOptConfig::weight_ey = 5;
-double TrajOptConfig::weight_v = 5;
+double TrajOptConfig::weight_ey = 1;
+double TrajOptConfig::weight_v = 1;
 double TrajOptConfig::weight_k = 10;
 double TrajOptConfig::weight_kp = 200;
-double TrajOptConfig::weight_vp = 10;
-double TrajOptConfig::weight_vpp = 10;
-
+double TrajOptConfig::weight_vp = 60;
+double TrajOptConfig::weight_vpp = 100;
+double TrajOptConfig::weight_lat_acc_slack_ = 50;
+TrajOptConfig::SolverType TrajOptConfig::solver_type_ = TrajOptConfig::OSQP_KPVP;
 
 void SolverInput::updateLateralBounds(const Map &map) {
     if (!reference_trajectory) {

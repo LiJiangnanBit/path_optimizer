@@ -202,7 +202,7 @@ int main(int argc, char **argv) {
 
         // Visualize reference path.
         visualization_msgs::Marker result_marker =
-            markers.newLineStrip(0.15, "optimized path", id++, ros_viz_tools::CYAN, marker_frame_id);
+            markers.newLineStrip(0.07, "optimized path", id++, ros_viz_tools::CYAN, marker_frame_id);
         for (size_t i = 0; i != result_path.size(); ++i) {
             geometry_msgs::Point p;
             p.x = result_path[i].x;

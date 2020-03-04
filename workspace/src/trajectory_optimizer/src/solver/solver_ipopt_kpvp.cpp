@@ -26,6 +26,7 @@ void FgEvalKpvp::operator()(TrajOptNS::FgEvalKpvp::ADvector &fg, const TrajOptNS
     const size_t v_range_begin{k_range_begin + state_horizon_};
     const size_t kp_range_begin{v_range_begin + state_horizon_};
     const size_t vp_range_begin{kp_range_begin + control_horizon_};
+    const size_t slack_lat_acc_range_begin{vp_range_begin + control_horizon_};
     const size_t cons_ey_range_begin{1};
     const size_t cons_ephi_range_begin{cons_ey_range_begin + state_horizon_};
     const size_t cons_ay_range_begin{cons_ephi_range_begin + state_horizon_};
@@ -37,6 +38,8 @@ void FgEvalKpvp::operator()(TrajOptNS::FgEvalKpvp::ADvector &fg, const TrajOptNS
     const size_t cons_c3_range_begin{cons_c2_range_begin + state_horizon_};
     const size_t cons_acc_lower_range_begin{cons_c3_range_begin + state_horizon_};
     const size_t cons_acc_upper_range_begin{cons_acc_lower_range_begin + control_horizon_};
+    const size_t cons_lat_acc_lower_range_begin{cons_acc_upper_range_begin + control_horizon_};
+    const size_t cons_lat_acc_upper_range_begin{cons_lat_acc_lower_range_begin + state_horizon_};
     const ADd spacing{TrajOptConfig::spacing_};
     const double weight_ey{TrajOptConfig::weight_ey};
     const double weight_v{TrajOptConfig::weight_v};
@@ -44,6 +47,7 @@ void FgEvalKpvp::operator()(TrajOptNS::FgEvalKpvp::ADvector &fg, const TrajOptNS
     const double weight_kp{TrajOptConfig::weight_kp};
     const double weight_vp{TrajOptConfig::weight_vp};
     const double weight_vpp{TrajOptConfig::weight_vpp};
+    const double weight_slack_lat_acc{TrajOptConfig::weight_lat_acc_slack_};
 
     fg[0] = 0;
     size_t control_variable_index{0};
@@ -53,12 +57,14 @@ void FgEvalKpvp::operator()(TrajOptNS::FgEvalKpvp::ADvector &fg, const TrajOptNS
         ADd ay{vars[ay_range_begin + i]};
         ADd k{vars[k_range_begin + i]};
         ADd v{vars[v_range_begin + i]};
+        ADd slack{vars[slack_lat_acc_range_begin + i]};
         ADd ref_v{input_->reference_trajectory->state_list[i].v};
         ADd ref_k{input_->reference_trajectory->state_list[i].k};
         // Cost function.
         fg[0] += weight_ey * pow(ey, 2);
         fg[0] += weight_v * pow(v - ref_v, 2);
         fg[0] += weight_k * pow(k, 2);
+        fg[0] += weight_slack_lat_acc * pow(slack, 2);
         if (i % TrajOptConfig::keep_control_steps_ == 0 && i != state_horizon_ - 1) {
             control_variable_index = i / TrajOptConfig::keep_control_steps_;
             if (control_variable_index != 0) {
@@ -124,23 +130,24 @@ void FgEvalKpvp::operator()(TrajOptNS::FgEvalKpvp::ADvector &fg, const TrajOptNS
             fg[cons_acc_lower_range_begin + control_variable_index] = vp - TrajOptConfig::max_lon_dacc_ * m;
             fg[cons_acc_upper_range_begin + control_variable_index] = vp - TrajOptConfig::max_lon_acc_ * m;
         }
+        // Lateral acc.
+        fg[cons_lat_acc_lower_range_begin + i] = ay + slack + TrajOptConfig::safe_lat_acc_;
+        fg[cons_lat_acc_upper_range_begin + i] = ay - slack - TrajOptConfig::safe_lat_acc_;
     }
 }
 
 void SolverIpoptKpvp::init(const std::shared_ptr<SolverInput> &input) {
-    state_horizon_ = input->state_horizon;
-    control_horizon_ = input->contorl_horizon;
-    LOG(INFO) << "[SolverIpoptKpvp] state_horizon: " << state_horizon_;
-    solver_input_ptr_ = input;
+    Solver::init(input);
     vars_.clear();
     vars_lowerbound_.clear();
     vars_upperbound_.clear();
     cons_lowerbound_.clear();
     cons_upperbound_.clear();
-    const size_t state_size{5}, control_size{2};
+    const size_t state_size{5}, control_size{2}, slack_size(1);
     const size_t state_vars_num{state_size * state_horizon_},
-        control_vars_num{control_size * (control_horizon_)};
-    const auto vars_num{state_vars_num + control_vars_num};
+        control_vars_num{control_size * (control_horizon_)},
+        slack_vars_num{slack_size * state_horizon_};
+    const auto vars_num{state_vars_num + control_vars_num + slack_vars_num};
     const size_t ey_range_begin{0};
     const size_t ephi_range_begin{ey_range_begin + state_horizon_};
     const size_t ay_range_begin{ephi_range_begin + state_horizon_};
@@ -148,6 +155,7 @@ void SolverIpoptKpvp::init(const std::shared_ptr<SolverInput> &input) {
     const size_t v_range_begin{k_range_begin + state_horizon_};
     const size_t kp_range_begin{v_range_begin + state_horizon_};
     const size_t vp_range_begin{kp_range_begin + control_horizon_};
+    const size_t slack_lat_acc_range_begin{vp_range_begin + control_horizon_};
     // Initial values of variables.
     vars_.resize(vars_num);
     for (size_t i = 0; i != state_horizon_; ++i) {
@@ -157,6 +165,7 @@ void SolverIpoptKpvp::init(const std::shared_ptr<SolverInput> &input) {
         vars_[ay_range_begin + i] = ref_state.ay;
         vars_[k_range_begin + i] = ref_state.k;
         vars_[v_range_begin + i] = ref_state.v;
+        vars_[slack_lat_acc_range_begin + i] = 0;
     }
     for (size_t i = 0; i != control_horizon_; ++i) {
         const auto &ref_state{input->reference_trajectory->state_list[i * TrajOptConfig::keep_control_steps_]};
@@ -182,16 +191,22 @@ void SolverIpoptKpvp::init(const std::shared_ptr<SolverInput> &input) {
         vars_lowerbound_[i] = 0;
         vars_upperbound_[i] = TrajOptConfig::max_v_;
     }
-    for (size_t i = kp_range_begin; i != vars_num; ++i) {
+    for (size_t i = kp_range_begin; i != slack_lat_acc_range_begin; ++i) {
         vars_lowerbound_[i] = -DBL_MAX;
         vars_upperbound_[i] = DBL_MAX;
+    }
+    for (size_t i = slack_lat_acc_range_begin; i != vars_num; ++i) {
+        vars_lowerbound_[i] = 0;
+        vars_upperbound_[i] = TrajOptConfig::max_lat_acc_ - TrajOptConfig::safe_lat_acc_;
     }
 
     // Constrants.
     const size_t transition_cons_num{state_size * state_horizon_};
     const size_t collision_cons_num{4 * state_horizon_};
-    const size_t acc_cons_num{2 * (control_horizon_)};
-    const size_t cons_size{transition_cons_num + collision_cons_num + acc_cons_num};
+    const size_t acc_cons_num{2 * control_horizon_};
+    const size_t lat_acc_cons_num{2 * state_horizon_};
+
+    const size_t cons_size{transition_cons_num + collision_cons_num + acc_cons_num + lat_acc_cons_num};
     cons_lowerbound_.resize(cons_size);
     cons_upperbound_.resize(cons_size);
     const size_t cons_ey_range_begin{0};
@@ -205,6 +220,8 @@ void SolverIpoptKpvp::init(const std::shared_ptr<SolverInput> &input) {
     const size_t cons_c3_range_begin{cons_c2_range_begin + state_horizon_};
     const size_t cons_acc_lower_range_begin{cons_c3_range_begin + state_horizon_};
     const size_t cons_acc_upper_range_begin{cons_acc_lower_range_begin + control_horizon_};
+    const size_t cons_lat_acc_lower_range_begin{cons_acc_upper_range_begin + control_horizon_};
+    const size_t cons_lat_acc_upper_range_begin{cons_lat_acc_lower_range_begin + state_horizon_};
     // State transition constraints.
     for (size_t i = cons_ey_range_begin; i != cons_c0_range_begin; ++i) {
         cons_lowerbound_[i] = cons_upperbound_[i] = 0;
@@ -237,6 +254,13 @@ void SolverIpoptKpvp::init(const std::shared_ptr<SolverInput> &input) {
         cons_upperbound_[cons_acc_lower_range_begin + i] = DBL_MAX;
         cons_lowerbound_[cons_acc_upper_range_begin + i] = -DBL_MAX;
         cons_upperbound_[cons_acc_upper_range_begin + i] = 0;
+    }
+    // Lateral acc.
+    for (size_t i = 0; i != state_horizon_; ++i) {
+        cons_lowerbound_[cons_lat_acc_lower_range_begin + i] = 0;
+        cons_upperbound_[cons_lat_acc_lower_range_begin + i] = DBL_MAX;
+        cons_lowerbound_[cons_lat_acc_upper_range_begin + i] = -DBL_MAX;
+        cons_upperbound_[cons_lat_acc_upper_range_begin + i] = 0;
     }
 
     fg_eval_kpvp_.init(input);
@@ -282,8 +306,8 @@ bool SolverIpoptKpvp::solve(std::vector<State> *result_trajectory) {
     result_trajectory->clear();
     double s{0};
     for (size_t i = 0; i != state_horizon_; ++i) {
-//        std::cout << "ay: " << solution_.x[ay_range_begin + i] << " actual ay: "
-//                  << pow(solution_.x[v_range_begin + i], 2) * solution_.x[k_range_begin + i] << std::endl;
+        std::cout << "ay: " << solution_.x[ay_range_begin + i] << " actual ay: "
+                  << pow(solution_.x[v_range_begin + i], 2) * solution_.x[k_range_begin + i] << std::endl;
         double tmp_s{i * TrajOptConfig::spacing_};
         State ref_state{ref_x_s(tmp_s),
                         ref_y_s(tmp_s),

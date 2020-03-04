@@ -9,15 +9,14 @@ using PathOptimizationNS::distance;
 namespace TrajOptNS {
 
 void SolverOsqpKpvp::init(const std::shared_ptr<SolverInput> &input) {
-    solver_input_ptr_ = input;
-    state_horizon_ = input->state_horizon;
-    control_horizon_ = input->contorl_horizon;
+    Solver::init(input);
     state_size_ = 5;
     control_size_ = 2;
     state_vars_num_ = 5 * state_horizon_;
     control_vars_num_ = 2 * control_horizon_;
-    vars_num_ = state_vars_num_ + control_vars_num_;
-    cons_num_ = 12 * state_horizon_ + 2 * control_horizon_;
+    slack_vars_num = state_horizon_;
+    vars_num_ = state_vars_num_ + control_vars_num_ + slack_vars_num;
+    cons_num_ = 14 * state_horizon_ + 2 * control_horizon_;
     setHessianAndGradient();
     setConstraintMatrix();
     solver_.settings()->setVerbosity(false);
@@ -59,6 +58,18 @@ bool SolverOsqpKpvp::solve(std::vector<State> *result_trajectory) {
                 s += sqrt(pow(x - result_trajectory->back().x, 2) + pow(y - result_trajectory->back().y, 2));
             }
             result_trajectory->emplace_back(x, y, z, solution_(5 * i + 3), s, solution_(5 * i + 4));
+            // Compare a approx.
+            if (i != state_horizon_ - 1) {
+                const auto &ref{solver_input_ptr_->reference_trajectory->state_list[i]};
+                double dt{TrajOptConfig::spacing_ / (solution_(5 * i + 4) + solution_(5 * i + 9)) * 2};
+                std::cout << solution_(5 * i + 4) << " " << solution_(5 * i + 9) << std::endl;
+                double actual_a{(-solution_(5 * i + 4) + solution_(5 * i + 9)) / dt};
+                size_t con_idx{i / TrajOptConfig::keep_control_steps_};
+                std::cout << "vp: " << solution_(state_vars_num_ + 2 * con_idx + 1) << ", refv: " << ref.v << std::endl;
+                double approx_a_1{solution_(state_vars_num_ + 2 * con_idx + 1) * ref.v / (2 - solution_(5 * i + 4) / ref.v - ref.k * solution_(5 * i))};
+                double approx_a_2{ref.vp * ref.v * ref.k * solution_(5 * i) + ref.vp * solution_(5 * i + 4) + ref.v * solution_(state_vars_num_ + 2 * con_idx + 1) - ref.v * ref.vp};
+                printf("a: %f, ap1: %f, ap2: %f\n", actual_a, approx_a_1, approx_a_2);
+            }
         }
         return true;
     } else {
@@ -73,19 +84,20 @@ void SolverOsqpKpvp::setHessianAndGradient() {
     const double weight_kp{TrajOptConfig::weight_kp};
     const double weight_vp{TrajOptConfig::weight_vp};
     const double weight_vpp{TrajOptConfig::weight_vpp};
+    const double weight_slack_lat_acc{TrajOptConfig::weight_lat_acc_slack_};
     Eigen::MatrixXd hessian{Eigen::MatrixXd::Constant(vars_num_, vars_num_, 0)};
     // Hessian.
-    // State part.
+    // State and slack part.
     for (size_t i = 0; i != state_horizon_; ++i) {
         hessian(5 * i, 5 * i) += weight_ey;
         hessian(5 * i + 3, 5 * i + 3) += weight_k;
         hessian(5 * i + 4, 5 * i + 4) += weight_v;
+        hessian(state_vars_num_ + control_vars_num_ + i, state_vars_num_ + control_vars_num_ + i) += weight_slack_lat_acc;
     }
     // Control part.
     Eigen::Matrix<double, 4, 1> vec;
     vec << 0, -1, 0, 1;
     Eigen::Matrix4d vpp_part{vec * vec.transpose() * weight_vpp};
-    std::cout << vec << std::endl;
     for (size_t i = 0; i != control_horizon_; ++i) {
         // * keep_control_steps: make it the same as the ipopt version.
         hessian(state_vars_num_ + 2 * i, state_vars_num_ + 2 * i) +=
@@ -102,6 +114,7 @@ void SolverOsqpKpvp::setHessianAndGradient() {
     gradient_ = Eigen::VectorXd::Constant(vars_num_, 0);
     for (size_t i = 0; i != state_horizon_; ++i) {
         gradient_(5 * i + 4) = -weight_v * solver_input_ptr_->reference_trajectory->state_list[i].v;
+//        gradient_(5 * i + 4) = -weight_v * TrajOptConfig::max_v_;
     }
 }
 
@@ -112,6 +125,8 @@ void SolverOsqpKpvp::setConstraintMatrix() {
     const size_t collision_range_begin{vars_range_begin + 3 * state_horizon_};
     const size_t acc_lower_range_begin{collision_range_begin + 4 * state_horizon_};
     const size_t acc_upper_range_begin{acc_lower_range_begin + control_horizon_};
+    const size_t lat_acc_lower_range_begin{acc_upper_range_begin + control_horizon_};
+    const size_t lat_acc_upper_range_begin{lat_acc_lower_range_begin + state_horizon_};
     Eigen::MatrixXd cons_matrix{Eigen::MatrixXd::Constant(cons_num_, vars_num_, 0)};
     // Transition part.
     std::vector<Eigen::VectorXd> c_list; // Needed in bounds.
@@ -130,7 +145,6 @@ void SolverOsqpKpvp::setConstraintMatrix() {
         b(2, 0) = pow(ref_state.v, 2);
         b(2, 1) = 2 * ref_state.v * ref_state.k;
         control_index = i / TrajOptConfig::keep_control_steps_;
-        std::cout << "control index: " << control_index << ", control horizon: " << control_horizon_ << std::endl;
         auto A{a * TrajOptConfig::spacing_ + Eigen::MatrixXd::Identity(5, 5)};
         auto B{b * TrajOptConfig::spacing_};
         cons_matrix.block(5 * (i + 1), 5 * i, 5, 5) += A;
@@ -150,10 +164,11 @@ void SolverOsqpKpvp::setConstraintMatrix() {
     }
     cons_matrix.block(0, 0, 5, 5) += Eigen::MatrixXd::Identity(5, 5);
     // vars part.
-    Eigen::MatrixXd vars_part{Eigen::MatrixXd::Constant(3, 5, 0)};
-    vars_part.block(0, 2, 3, 3) = Eigen::Matrix3d::Identity();
+    Eigen::MatrixXd vars_part{Eigen::MatrixXd::Constant(2, 5, 0)};
+    vars_part.block(0, 3, 2, 2) = Eigen::Matrix2d::Identity();
     for (size_t i = 0; i != state_horizon_; ++i) {
-        cons_matrix.block(vars_range_begin + 3 * i, 5 * i, 3, 5) += vars_part;
+        cons_matrix.block(vars_range_begin + 2 * i, 5 * i, 2, 5) += vars_part;
+        cons_matrix(vars_range_begin + 2 * state_horizon_ + i, state_vars_num_ + control_vars_num_ + i) = 1;
     }
     // Collision part.
     Eigen::Matrix<double, 4, 2> collision_part;
@@ -175,6 +190,13 @@ void SolverOsqpKpvp::setConstraintMatrix() {
         cons_matrix.block(acc_upper_range_begin + i, 5 * i * TrajOptConfig::keep_control_steps_, 1, 5) += acc_upper;
         cons_matrix(acc_lower_range_begin + i, state_vars_num_ + 2 * i + 1) += pow(ref_state.v, 2);
         cons_matrix(acc_upper_range_begin + i, state_vars_num_ + 2 * i + 1) += pow(ref_state.v, 2);
+    }
+    // Lat acc part.
+    for (size_t i = 0; i != state_horizon_; ++i) {
+        cons_matrix(lat_acc_lower_range_begin + i, 5 * i + 2) = 1;
+        cons_matrix(lat_acc_lower_range_begin + i, state_vars_num_ + control_vars_num_ + i) = 1;
+        cons_matrix(lat_acc_upper_range_begin + i, 5 * i + 2) = 1;
+        cons_matrix(lat_acc_upper_range_begin + i, state_vars_num_ + control_vars_num_ + i) = -1;
     }
     linear_matrix_ = cons_matrix.sparseView();
 
@@ -202,12 +224,12 @@ void SolverOsqpKpvp::setConstraintMatrix() {
     }
     // Vars part.
     for (size_t i = 0; i != state_horizon_; ++i) {
-        lower_bound_(vars_range_begin + 3 * i) = -TrajOptConfig::max_lat_acc_;
-        upper_bound_(vars_range_begin + 3 * i) = TrajOptConfig::max_lat_acc_;
-        lower_bound_(vars_range_begin + 3 * i + 1) = -tan(TrajOptConfig::max_steer_angle_) / TrajOptConfig::wheel_base_;
-        upper_bound_(vars_range_begin + 3 * i + 1) = tan(TrajOptConfig::max_steer_angle_) / TrajOptConfig::wheel_base_;
-        lower_bound_(vars_range_begin + 3 * i + 2) = 0;
-        upper_bound_(vars_range_begin + 3 * i + 2) = TrajOptConfig::max_v_;
+        lower_bound_(vars_range_begin + 2 * i) = -tan(TrajOptConfig::max_steer_angle_) / TrajOptConfig::wheel_base_;
+        upper_bound_(vars_range_begin + 2 * i) = tan(TrajOptConfig::max_steer_angle_) / TrajOptConfig::wheel_base_;
+        lower_bound_(vars_range_begin + 2 * i + 1) = 0;
+        upper_bound_(vars_range_begin + 2 * i + 1) = TrajOptConfig::max_v_;
+        lower_bound_(vars_range_begin + 2 * state_horizon_ + i) = 0;
+        upper_bound_(vars_range_begin + 2 * state_horizon_ + i) = TrajOptConfig::max_lat_acc_ - TrajOptConfig::safe_lat_acc_;
     }
     // Collision part.
     for (size_t i = 0; i != state_horizon_; ++i) {
@@ -226,6 +248,13 @@ void SolverOsqpKpvp::setConstraintMatrix() {
         lower_bound_(acc_upper_range_begin + i) = -OsqpEigen::INFTY;
         upper_bound_(acc_upper_range_begin + i) = 2 * TrajOptConfig::max_lat_acc_
             * solver_input_ptr_->reference_trajectory->state_list[i * TrajOptConfig::keep_control_steps_].v;
+    }
+    // Lat acc part.
+    for (size_t i = 0; i != state_horizon_; ++i) {
+        lower_bound_(lat_acc_lower_range_begin + i) = -TrajOptConfig::safe_lat_acc_;
+        upper_bound_(lat_acc_lower_range_begin + i) = OsqpEigen::INFTY;
+        lower_bound_(lat_acc_upper_range_begin + i) = -OsqpEigen::INFTY;
+        upper_bound_(lat_acc_upper_range_begin + i) = TrajOptConfig::safe_lat_acc_;
     }
 
 }

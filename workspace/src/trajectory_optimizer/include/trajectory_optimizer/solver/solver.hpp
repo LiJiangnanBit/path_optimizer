@@ -19,7 +19,11 @@ public:
         control_horizon_{0},
         initialized_(false)
         {};
-    virtual void init(const std::shared_ptr<SolverInput> &input) = 0;
+    virtual void init(const std::shared_ptr<SolverInput> &input) {
+        state_horizon_ = input->state_horizon;
+        control_horizon_ = input->contorl_horizon;
+        solver_input_ptr_ = input;
+    };
     virtual bool solve(std::vector<State> *result_trajectory) = 0;
     virtual ~Solver() {};
 protected:

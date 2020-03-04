@@ -64,9 +64,15 @@ struct TrajOptConfig {
     static double max_lon_acc_;
     static double max_lon_dacc_;
     static double max_lat_acc_;
+    static double safe_lat_acc_;
     static double max_v_;
 
     // Optimization param:
+    enum SolverType {
+        IPOPT_KPVP,
+        OSQP_KPVP
+    };
+    static SolverType solver_type_;
     static double spacing_;
     static double max_length_;
     static int keep_control_steps_;
@@ -76,6 +82,7 @@ struct TrajOptConfig {
     static double weight_kp;
     static double weight_vp;
     static double weight_vpp;
+    static double weight_lat_acc_slack_;
 };
 
 struct SolverInput {
