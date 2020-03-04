@@ -24,7 +24,7 @@ double TrajOptConfig::max_steer_angle_ = 35 * M_PI / 180;
 double TrajOptConfig::max_lon_acc_ = 2.0;
 double TrajOptConfig::max_lon_dacc_ = -3.0;
 double TrajOptConfig::max_lat_acc_ = 0.35 * 9.8;
-double TrajOptConfig::safe_lat_acc_ = 0.15 * 9.8;
+double TrajOptConfig::safe_lat_acc_ = 0.12 * 9.8;
 double TrajOptConfig::max_v_ = 13.0;
 double TrajOptConfig::spacing_ = 0.3;
 double TrajOptConfig::max_length_ = 80;
@@ -35,7 +35,7 @@ double TrajOptConfig::weight_k = 10;
 double TrajOptConfig::weight_kp = 200;
 double TrajOptConfig::weight_vp = 60;
 double TrajOptConfig::weight_vpp = 100;
-double TrajOptConfig::weight_lat_acc_slack_ = 50;
+double TrajOptConfig::weight_lat_acc_slack_ = 80;
 TrajOptConfig::SolverType TrajOptConfig::solver_type_ = TrajOptConfig::OSQP_KPVP;
 
 void SolverInput::updateLateralBounds(const Map &map) {

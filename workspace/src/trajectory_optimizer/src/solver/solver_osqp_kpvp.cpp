@@ -58,18 +58,20 @@ bool SolverOsqpKpvp::solve(std::vector<State> *result_trajectory) {
                 s += sqrt(pow(x - result_trajectory->back().x, 2) + pow(y - result_trajectory->back().y, 2));
             }
             result_trajectory->emplace_back(x, y, z, solution_(5 * i + 3), s, solution_(5 * i + 4));
-            // Compare a approx.
-            if (i != state_horizon_ - 1) {
-                const auto &ref{solver_input_ptr_->reference_trajectory->state_list[i]};
-                double dt{TrajOptConfig::spacing_ / (solution_(5 * i + 4) + solution_(5 * i + 9)) * 2};
-                std::cout << solution_(5 * i + 4) << " " << solution_(5 * i + 9) << std::endl;
-                double actual_a{(-solution_(5 * i + 4) + solution_(5 * i + 9)) / dt};
-                size_t con_idx{i / TrajOptConfig::keep_control_steps_};
-                std::cout << "vp: " << solution_(state_vars_num_ + 2 * con_idx + 1) << ", refv: " << ref.v << std::endl;
-                double approx_a_1{solution_(state_vars_num_ + 2 * con_idx + 1) * ref.v / (2 - solution_(5 * i + 4) / ref.v - ref.k * solution_(5 * i))};
-                double approx_a_2{ref.vp * ref.v * ref.k * solution_(5 * i) + ref.vp * solution_(5 * i + 4) + ref.v * solution_(state_vars_num_ + 2 * con_idx + 1) - ref.v * ref.vp};
-                printf("a: %f, ap1: %f, ap2: %f\n", actual_a, approx_a_1, approx_a_2);
-            }
+//            // Compare a approx.
+//            if (i != state_horizon_ - 1) {
+//                const auto &ref{solver_input_ptr_->reference_trajectory->state_list[i]};
+//                double dt{TrajOptConfig::spacing_ / (solution_(5 * i + 4) + solution_(5 * i + 9)) * 2};
+//                std::cout << solution_(5 * i + 4) << " " << solution_(5 * i + 9) << std::endl;
+//                double actual_a{(-solution_(5 * i + 4) + solution_(5 * i + 9)) / dt};
+//                size_t con_idx{i / TrajOptConfig::keep_control_steps_};
+//                std::cout << "vp: " << solution_(state_vars_num_ + 2 * con_idx + 1) << ", refv: " << ref.v << std::endl;
+//                double approx_a_1{solution_(state_vars_num_ + 2 * con_idx + 1) * ref.v / (2 - solution_(5 * i + 4) / ref.v - ref.k * solution_(5 * i))};
+//                double approx_a_2{ref.vp * ref.v * ref.k * solution_(5 * i) + ref.vp * solution_(5 * i + 4) + ref.v * solution_(state_vars_num_ + 2 * con_idx + 1) - ref.v * ref.vp};
+//                printf("a: %f, ap1: %f, ap2: %f\n", actual_a, approx_a_1, approx_a_2);
+//            }
+//             // Check lateral acc.
+//            std::cout << "lateral acc: " << pow(solution_(5 * i + 4), 2) * solution_(5 * i + 3) << std::endl;
         }
         return true;
     } else {
@@ -114,7 +116,6 @@ void SolverOsqpKpvp::setHessianAndGradient() {
     gradient_ = Eigen::VectorXd::Constant(vars_num_, 0);
     for (size_t i = 0; i != state_horizon_; ++i) {
         gradient_(5 * i + 4) = -weight_v * solver_input_ptr_->reference_trajectory->state_list[i].v;
-//        gradient_(5 * i + 4) = -weight_v * TrajOptConfig::max_v_;
     }
 }
 

@@ -47,7 +47,7 @@ void startCb(const geometry_msgs::PoseWithCovarianceStampedConstPtr &start) {
     start_state.x = start->pose.pose.position.x;
     start_state.y = start->pose.pose.position.y;
     start_state.z = tf::getYaw(start->pose.pose.orientation);
-    start_state.v = 4;
+    start_state.v = 0;
     start_state.k = 0;
     if (reference_rcv) {
         start_state_rcv = true;
