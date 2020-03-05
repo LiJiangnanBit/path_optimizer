@@ -14,9 +14,9 @@ void SolverOsqpKpvp::init(const std::shared_ptr<SolverInput> &input) {
     control_size_ = 2;
     state_vars_num_ = 5 * state_horizon_;
     control_vars_num_ = 2 * control_horizon_;
-    slack_vars_num = state_horizon_;
+    slack_vars_num = 2 * state_horizon_;
     vars_num_ = state_vars_num_ + control_vars_num_ + slack_vars_num;
-    cons_num_ = 14 * state_horizon_ + 2 * control_horizon_;
+    cons_num_ = 16 * state_horizon_ + 2 * control_horizon_;
     setHessianAndGradient();
     setConstraintMatrix();
     solver_.settings()->setVerbosity(false);
@@ -87,6 +87,7 @@ void SolverOsqpKpvp::setHessianAndGradient() {
     const double weight_vp{TrajOptConfig::weight_vp};
     const double weight_vpp{TrajOptConfig::weight_vpp};
     const double weight_slack_lat_acc{TrajOptConfig::weight_lat_acc_slack_};
+    const double weight_slack_collision{TrajOptConfig::weight_collision_slack_};
     Eigen::MatrixXd hessian{Eigen::MatrixXd::Constant(vars_num_, vars_num_, 0)};
     // Hessian.
     // State and slack part.
@@ -95,6 +96,7 @@ void SolverOsqpKpvp::setHessianAndGradient() {
         hessian(5 * i + 3, 5 * i + 3) += weight_k;
         hessian(5 * i + 4, 5 * i + 4) += weight_v;
         hessian(state_vars_num_ + control_vars_num_ + i, state_vars_num_ + control_vars_num_ + i) += weight_slack_lat_acc;
+        hessian(state_vars_num_ + control_vars_num_ + state_horizon_ + i, state_vars_num_ + control_vars_num_ + state_horizon_ + i) += weight_slack_collision;
     }
     // Control part.
     Eigen::Matrix<double, 4, 1> vec;
@@ -123,8 +125,8 @@ void SolverOsqpKpvp::setConstraintMatrix() {
     // Constraint matrix.
     const size_t trans_range_begin{0};
     const size_t vars_range_begin{trans_range_begin + 5 * state_horizon_};
-    const size_t collision_range_begin{vars_range_begin + 3 * state_horizon_};
-    const size_t acc_lower_range_begin{collision_range_begin + 4 * state_horizon_};
+    const size_t collision_range_begin{vars_range_begin + 4 * state_horizon_};
+    const size_t acc_lower_range_begin{collision_range_begin + 5 * state_horizon_};
     const size_t acc_upper_range_begin{acc_lower_range_begin + control_horizon_};
     const size_t lat_acc_lower_range_begin{acc_upper_range_begin + control_horizon_};
     const size_t lat_acc_upper_range_begin{lat_acc_lower_range_begin + state_horizon_};
@@ -170,16 +172,23 @@ void SolverOsqpKpvp::setConstraintMatrix() {
     for (size_t i = 0; i != state_horizon_; ++i) {
         cons_matrix.block(vars_range_begin + 2 * i, 5 * i, 2, 5) += vars_part;
         cons_matrix(vars_range_begin + 2 * state_horizon_ + i, state_vars_num_ + control_vars_num_ + i) = 1;
+        cons_matrix(vars_range_begin + 3 * state_horizon_ + i, state_vars_num_ + control_vars_num_ + state_horizon_ + i) = 1;
     }
     // Collision part.
-    Eigen::Matrix<double, 4, 2> collision_part;
+    Eigen::Matrix<double, 3, 2> collision_part;
     collision_part <<
         1, TrajOptConfig::rear_axle_to_center_distance_ + TrajOptConfig::d1_,
         1, TrajOptConfig::rear_axle_to_center_distance_ + TrajOptConfig::d2_,
-        1, TrajOptConfig::rear_axle_to_center_distance_ + TrajOptConfig::d3_,
         1, TrajOptConfig::rear_axle_to_center_distance_ + TrajOptConfig::d4_;
+//        1, TrajOptConfig::rear_axle_to_center_distance_ + TrajOptConfig::d4_;
+    Eigen::Matrix<double, 1, 2> collision_part_1;
+    collision_part_1 << 1, TrajOptConfig::rear_axle_to_center_distance_ + TrajOptConfig::d3_;
     for (size_t i = 0; i != state_horizon_; ++i) {
-        cons_matrix.block(collision_range_begin + 4 * i, 5 * i, 4, 2) += collision_part;
+        cons_matrix.block(collision_range_begin + 3 * i, 5 * i, 3, 2) += collision_part;
+        cons_matrix.block(collision_range_begin + 3 * state_horizon_ + i, 5 * i, 1, 2) += collision_part_1;
+        cons_matrix(collision_range_begin + 3 * state_horizon_ + i, state_vars_num_ + control_vars_num_ + state_horizon_ + i) = 1;
+        cons_matrix.block(collision_range_begin + 4 * state_horizon_ + i, 5 * i, 1, 2) += collision_part_1;
+        cons_matrix(collision_range_begin + 4 * state_horizon_ + i, state_vars_num_ + control_vars_num_ + state_horizon_ + i) = -1;
     }
     // Acc part.
     for (size_t i = 0; i != control_horizon_; ++i) {
@@ -231,15 +240,21 @@ void SolverOsqpKpvp::setConstraintMatrix() {
         upper_bound_(vars_range_begin + 2 * i + 1) = TrajOptConfig::max_v_;
         lower_bound_(vars_range_begin + 2 * state_horizon_ + i) = 0;
         upper_bound_(vars_range_begin + 2 * state_horizon_ + i) = TrajOptConfig::max_lat_acc_ - TrajOptConfig::safe_lat_acc_;
+        lower_bound_[vars_range_begin + 3 * state_horizon_ + i] = 0;
+        upper_bound_[vars_range_begin + 3 * state_horizon_ + i] = TrajOptConfig::safety_margin_;
     }
     // Collision part.
     for (size_t i = 0; i != state_horizon_; ++i) {
         const auto &bounds{solver_input_ptr_->bounds[i]};
-        Eigen::Vector4d collision_lower, collision_upper;
-        collision_lower << bounds.c0.lb, bounds.c1.lb, bounds.c2.lb, bounds.c3.lb;
-        collision_upper << bounds.c0.ub, bounds.c1.ub, bounds.c2.ub, bounds.c3.ub;
-        lower_bound_.block(collision_range_begin + 4 * i, 0, 4, 1) = collision_lower;
-        upper_bound_.block(collision_range_begin + 4 * i, 0, 4, 1) = collision_upper;
+        Eigen::Vector3d collision_lower, collision_upper;
+        collision_lower << bounds.c0.lb, bounds.c1.lb, bounds.c3.lb;// bounds.c3.lb;
+        collision_upper << bounds.c0.ub, bounds.c1.ub, bounds.c3.ub;// bounds.c3.ub;
+        lower_bound_.block(collision_range_begin + 3 * i, 0, 3, 1) = collision_lower;
+        upper_bound_.block(collision_range_begin + 3 * i, 0, 3, 1) = collision_upper;
+        lower_bound_(collision_range_begin + 3 * state_horizon_ + i) = bounds.c2.lb + TrajOptConfig::safety_margin_;
+        upper_bound_(collision_range_begin + 3 * state_horizon_ + i) = OsqpEigen::INFTY;
+        lower_bound_(collision_range_begin + 4 * state_horizon_ + i) = -OsqpEigen::INFTY;
+        upper_bound_(collision_range_begin + 4 * state_horizon_ + i) = bounds.c2.ub - TrajOptConfig::safety_margin_;
     }
     // Acc part.
     for (size_t i = 0; i != control_horizon_; ++i) {

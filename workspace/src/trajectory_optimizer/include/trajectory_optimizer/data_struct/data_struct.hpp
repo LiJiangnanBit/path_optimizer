@@ -83,6 +83,9 @@ struct TrajOptConfig {
     static double weight_vp;
     static double weight_vpp;
     static double weight_lat_acc_slack_;
+    static double weight_collision_slack_;
+    static double safety_margin_;
+
 };
 
 struct SolverInput {

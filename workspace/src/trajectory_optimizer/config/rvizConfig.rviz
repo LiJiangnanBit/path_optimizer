@@ -52,7 +52,7 @@ Visualization Manager:
       Namespaces:
         a_star point: false
         end point: true
-        optimized path: true
+        optimized path: false
         optimized trajectory: true
         reference point: true
         smoothed reference path: false
@@ -84,7 +84,7 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: -97.8699036
+      Angle: -127.375153
       Class: rviz/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
@@ -94,11 +94,11 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Scale: 24.9557323
+      Scale: 17.1648502
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz)
-      X: -0.429259241
-      Y: 18.3209152
+      X: -35.4511299
+      Y: -11.0613813
     Saved: ~
 Window Geometry:
   Displays:

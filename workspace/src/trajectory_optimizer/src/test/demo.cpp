@@ -26,6 +26,9 @@
 #include "path_optimizer/tools/tools.hpp"
 #include "trajectory_optimizer/trajectory_optimizer.hpp"
 
+static std::default_random_engine e;
+std::uniform_int_distribution<int> randRGB(0, 255);
+
 PathOptimizationNS::State start_state, end_state;
 std::vector<PathOptimizationNS::State> reference_path;
 bool start_state_rcv = false, end_state_rcv = false, reference_rcv = false;
@@ -214,13 +217,19 @@ int main(int argc, char **argv) {
 
         // Visualize optimized trajectory.
         visualization_msgs::Marker result_traj_marker =
-            markers.newLineStrip(0.15, "optimized trajectory", id++, ros_viz_tools::GREEN, marker_frame_id);
+            markers.newLineStrip(0.25, "optimized trajectory", id++, ros_viz_tools::GREEN, marker_frame_id);
         for (size_t i = 0; i != result_trajectory.size(); ++i) {
             geometry_msgs::Point p;
             p.x = result_trajectory[i].x;
             p.y = result_trajectory[i].y;
             p.z = 1.0;
             result_traj_marker.points.push_back(p);
+            double v = result_trajectory[i].v;
+            double share = v / TrajOptNS::TrajOptConfig::max_v_;
+            double red = std::min<double>(255, share / 0.5 * 255);
+            double green = std::max<double>(0, std::min<double>(255, (2 - share / 0.5) * 255));
+            std_msgs::ColorRGBA color = ros_viz_tools::newColorRGBA(red, green, 0);
+            result_traj_marker.colors.push_back(color);
         }
         markers.append(result_traj_marker);
 
@@ -241,7 +250,7 @@ int main(int argc, char **argv) {
         markers.append(smoothed_reference_marker);
 
         visualization_msgs::Marker vehicle_geometry_marker =
-            markers.newLineList(0.1, "vehicle", id++, ros_viz_tools::LIME_GREEN, marker_frame_id);
+                ros_viz_tools::RosVizTools::newLineList(0.05, "vehicle", id++, ros_viz_tools::GRAY, marker_frame_id);
         // Visualize vehicle geometry.
         for (size_t i = 0; i != result_trajectory.size(); ++i) {
             double heading = result_trajectory[i].z;
