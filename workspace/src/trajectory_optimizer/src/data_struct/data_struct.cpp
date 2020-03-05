@@ -36,7 +36,7 @@ double TrajOptConfig::weight_kp = 200;
 double TrajOptConfig::weight_vp = 60;
 double TrajOptConfig::weight_vpp = 100;
 double TrajOptConfig::weight_lat_acc_slack_ = 80;
-double TrajOptConfig::weight_collision_slack_ = 50;
+double TrajOptConfig::weight_collision_slack_ = 25;
 double TrajOptConfig::safety_margin_ = 1.2;
 TrajOptConfig::SolverType TrajOptConfig::solver_type_ = TrajOptConfig::OSQP_KPVP;
 
