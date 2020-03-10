@@ -535,7 +535,7 @@ bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
 std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(const State &state, double radius) const {
     double left_bound = 0;
     double right_bound = 0;
-    double delta_s = 0.2;
+    double delta_s = 0.5;
     double left_angle = constraintAngle(state.z + M_PI_2);
     double right_angle = constraintAngle(state.z - M_PI_2);
     auto n = static_cast<size_t >(5.0 / delta_s);
@@ -621,6 +621,32 @@ std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(const State &
                 }
             }
             right_bound = -(right_s - delta_s);
+        }
+    }
+    // Search again.
+    double smaller_ds = 0.1;
+//    double left_bound_1 = left_bound;
+//    double right_bound_1 = right_bound;
+    for (int i = 1; i != static_cast<int>(delta_s / smaller_ds); ++i) {
+        left_bound += smaller_ds;
+        grid_map::Position position(
+            state.x + left_bound * cos(left_angle),
+            state.y + left_bound * sin(left_angle)
+            );
+        if (grid_map_.getObstacleDistance(position) < radius) {
+            left_bound -= smaller_ds;
+            break;
+        }
+    }
+    for (int i = 1; i != static_cast<int>(delta_s / smaller_ds); ++i) {
+        right_bound -= smaller_ds;
+        grid_map::Position position(
+            state.x + right_bound * cos(right_angle),
+            state.y + right_bound * sin(right_angle)
+        );
+        if (grid_map_.getObstacleDistance(position) < radius) {
+            right_bound += smaller_ds;
+            break;
         }
     }
     return {left_bound, right_bound};

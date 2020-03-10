@@ -27,7 +27,9 @@ class OsqpSolver {
       config_(config),
       horizon_(horizon),
       reference_path_(reference_path),
-      vehicle_state_(vehicle_state) {};
+      vehicle_state_(vehicle_state) {}
+
+  ~OsqpSolver() {}
 
   virtual bool solve(std::vector<State> *optimized_path) = 0;
 

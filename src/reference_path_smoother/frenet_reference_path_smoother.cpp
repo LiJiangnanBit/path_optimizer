@@ -45,7 +45,7 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
     s_list.clear();
     // Divide the reference path.
     double delta_beginning_s = 4;
-    double delta_s = 2;
+    double delta_s = 3;
     s_list.push_back(0);
     s_list.push_back(delta_beginning_s);
     while (s_list.back() < max_s) {
