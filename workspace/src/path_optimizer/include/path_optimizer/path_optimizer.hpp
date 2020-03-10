@@ -22,7 +22,7 @@
 
 namespace PathOptimizationNS {
 
-class SolverInterface;
+class SolverKAsInput;
 class PathOptimizer {
 public:
     PathOptimizer() = delete;
@@ -95,7 +95,7 @@ private:
     std::vector<State> points_list_;
     size_t point_num_{};
     // For dynamic obstacle avoidace. Please Ignore this.
-    std::shared_ptr<SolverInterface> dynamic_solver_ptr;
+    std::shared_ptr<SolverKAsInput> dynamic_solver_ptr;
     bool solver_dynamic_initialized{false};
     tk::spline xsr_, ysr_;
     // For visualization purpose.

@@ -6,7 +6,8 @@
 #include "path_optimizer/reference_path_smoother/reference_path_smoother.hpp"
 #include "path_optimizer/reference_path_smoother/frenet_reference_path_smoother.hpp"
 #include "path_optimizer/reference_path_smoother/cartesian_reference_path_smoother.hpp"
-#include "path_optimizer/solver_interface.hpp"
+#include "path_optimizer/solver/solver_k_as_input.hpp"
+#include "path_optimizer/solver/solver_kp_as_input.hpp"
 #include "path_optimizer/tools/tools.hpp"
 
 namespace PathOptimizationNS {
@@ -288,7 +289,7 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
     auto N = divided_segments.seg_s_list_.size();
 
     auto t2 = std::clock();
-    SolverInterface solver_interface(config_, reference_path_, vehicle_state_, N);
+    SolverKAsInput solver_interface(config_, reference_path_, vehicle_state_, N);
     double target_angle = divided_segments.seg_angle_list_.back();
     solver_interface.initializeSampling(target_angle, 0, 0.1);
 
@@ -397,88 +398,63 @@ bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
 }
 
 bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
+    if (!final_path) {
+        LOG(WARNING) << "[PathOptimizer] null";
+        return false;
+    }
     if (reference_path_.max_s_ == 0) {
-        LOG(INFO) << "path optimization input is empty!";
+        LOG(WARNING) << "[PathOptimizer] path optimization input is empty!";
         return false;
     }
 
     // Solve problem.
-    Eigen::VectorXd QPSolution;
-    SolverInterface solver_interface(config_,
+    SolverKpAsInput solver_interface(config_,
                                      reference_path_,
                                      vehicle_state_,
                                      N_);
-    if (!solver_interface.solve(&QPSolution)) {
+    if (!solver_interface.solve(final_path)) {
         return false;
     }
 
     // Output. Choose from:
     // 1. set the interval smaller and output the result directly.
     // 2. set the interval larger and use interpolation to make the result dense.
-    std::vector<double> result_x, result_y, result_s;
-    double total_s = 0;
-    double last_x = 0, last_y = 0;
-    std::vector<State> tmp_raw_path;
-    for (size_t i = 0; i != N_; ++i) {
-//        std::cout << "cuvature contuol: " << QPSolution(2 * N_ + i) << std::endl;
-        double length_on_ref_path = reference_path_.seg_s_list_[i];
-        double angle = reference_path_.seg_angle_list_[i];
-        double new_angle = constraintAngle(angle + M_PI_2);
-        double tmp_x = reference_path_.x_s_(length_on_ref_path) + QPSolution(2 * i + 1) * cos(new_angle);
-        double tmp_y = reference_path_.y_s_(length_on_ref_path) + QPSolution(2 * i + 1) * sin(new_angle);
-        if (config_.raw_result_) {
-            // If output raw path:
-            double k = 0;
-            if (i != N_ - 1) {
-                k = QPSolution(2 * N_ + i);
-            } else {
-                k = QPSolution(3 * N_ - 2);
-            }
-            State state(tmp_x, tmp_y, angle + QPSolution(2 * i), k);
-            if (collision_checker_.isSingleStateCollisionFreeImproved(state)) {
-                tmp_raw_path.emplace_back(state);
-            } else {
-                tmp_raw_path.emplace_back(state);
-                std::cout << "path optimization collision check failed at " << i << std::endl;
-                break;
-            }
-        }
-        result_x.emplace_back(tmp_x);
-        result_y.emplace_back(tmp_y);
-        if (i != 0) {
-            total_s += sqrt(pow(tmp_x - last_x, 2) + pow(tmp_y - last_y, 2));
-        }
-        result_s.emplace_back(total_s);
-        last_x = tmp_x;
-        last_y = tmp_y;
-    }
-    std::vector<double> curvature_result;
     if (config_.raw_result_) {
-        std::copy(tmp_raw_path.begin(), tmp_raw_path.end(), std::back_inserter(*final_path));
-        LOG(INFO) << "output raw path!";
+        for (auto iter = final_path->begin(); iter != final_path->end(); ++iter) {
+            if (!collision_checker_.isSingleStateCollisionFreeImproved(*iter)) {
+                final_path->erase(iter, final_path->end());
+                LOG(INFO) << "[PathOptimizer] collision checker failed at " << final_path->back().s << "m.";
+                return final_path->back().s >= 20;
+            }
+        }
         return true;
-    }
-    // If output interpolated path:
-    tk::spline x_s, y_s;
-    x_s.set_points(result_s, result_x);
-    y_s.set_points(result_s, result_y);
-    std::vector<State> tmp_final_path;
-    double delta_s = config_.output_interval_;
-    for (int i = 0; i * delta_s <= result_s.back(); ++i) {
-        State tmp_state{x_s(i * delta_s),
-                        y_s(i * delta_s),
-                        atan2(y_s.deriv(1, i * delta_s), x_s.deriv(1, i * delta_s)),
-                        0,
-                        i * delta_s};
-        if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
-            tmp_final_path.emplace_back(tmp_state);
-        } else {
-            std::cout << "path optimization collision check failed at " << i << std::endl;
-            break;
+    } else {
+        std::vector<double> result_x, result_y, result_s;
+        for (auto iter = final_path->begin(); iter != final_path->end(); ++iter) {
+            result_x.emplace_back(iter->x);
+            result_y.emplace_back(iter->y);
+            result_s.emplace_back(iter->s);
+        }
+        tk::spline x_s, y_s;
+        x_s.set_points(result_s, result_x);
+        y_s.set_points(result_s, result_y);
+        final_path->clear();
+        double delta_s = config_.output_interval_;
+        for (int i = 0; i * delta_s <= result_s.back(); ++i) {
+            double tmp_s = i * delta_s;
+            State tmp_state{x_s(tmp_s),
+                            y_s(tmp_s),
+                            getHeading(x_s, y_s, tmp_s),
+                            getCurvature(x_s, y_s, tmp_s),
+                            tmp_s};
+            if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
+                final_path->emplace_back(tmp_state);
+            } else {
+                LOG(INFO) << "[PathOptimizer] collision checker failed at " << final_path->back().s << "m.";
+                return final_path->back().s >= 20;
+            }
         }
     }
-    final_path->clear();
-    std::copy(tmp_final_path.begin(), tmp_final_path.end(), std::back_inserter(*final_path));
     return true;
 }
 
@@ -514,7 +490,7 @@ bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
         reference_path_.seg_s_list_.assign(sr_list.cbegin(), sr_list.cend());
         reference_path_.seg_clearance_list_.assign(clearance_list.cbegin(), clearance_list.cend());
         // Initialize solver.
-        dynamic_solver_ptr = std::make_shared<SolverInterface>(config_, reference_path_, vehicle_state_, N);
+        dynamic_solver_ptr = std::make_shared<SolverKAsInput>(config_, reference_path_, vehicle_state_, N);
         Eigen::VectorXd QPSolution;
         dynamic_solver_ptr->solveDynamic(&QPSolution);
         double total_s = 0;

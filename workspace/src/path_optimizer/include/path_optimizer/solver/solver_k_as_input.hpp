@@ -2,29 +2,25 @@
 // Created by ljn on 20-1-27.
 //
 
-#ifndef PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_SOLVER_INTERFACE_HPP_
-#define PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_SOLVER_INTERFACE_HPP_
-#include <Eigen/Dense>
+#ifndef PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_SOLVER_K_AS_INPUT_HPP_
+#define PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_SOLVER_K_AS_INPUT_HPP_
+
 #include <cassert>
-#include <OsqpEigen/OsqpEigen.h>
+#include "solver.hpp"
 
 namespace PathOptimizationNS {
 
-class Config;
-class ReferencePath;
-class VehicleState;
-
-class SolverInterface {
+class SolverKAsInput : public OsqpSolver {
 public:
-    SolverInterface() = delete;
+    SolverKAsInput() = delete;
 
-    SolverInterface(const Config &config,
+    SolverKAsInput(const Config &config,
                     const ReferencePath &reference_path,
                     const VehicleState &vehicle_state,
                     const size_t &horizon);
 
     // Core function.
-    bool solve(Eigen::VectorXd *solution);
+    bool solve(std::vector<State> *optimized_path) override ;
 
     // Used to sample paths. Call initializeSampling first and then solveSampling.
     bool initializeSampling(double target_angle, double angle_error_allowed, double offset_error_allowed);
@@ -35,9 +31,9 @@ public:
     bool solveDynamic(Eigen::VectorXd *solution);
     bool solveDynamicUpdate(Eigen::VectorXd *solution,
                             const std::vector<std::vector<double>> &clearance);
-private:
+ protected:
     // Set Matrices for osqp solver.
-    void setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const;
+    void setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const override ;
 
     void setDynamicMatrix(size_t n,
                           const std::vector<double> &seg_s_list,
@@ -47,7 +43,7 @@ private:
 
     void setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_constraints,
                              Eigen::VectorXd *lower_bound,
-                             Eigen::VectorXd *upper_bound) const;
+                             Eigen::VectorXd *upper_bound) const override ;
 
     void setConstraintMatrixWithOffset(double offset,
                                        double target_angle,
@@ -57,13 +53,8 @@ private:
                                        Eigen::VectorXd *lower_bound,
                                        Eigen::VectorXd *upper_bound) const;
 
-    const Config &config_;
-    const size_t horizon_{};
-    const ReferencePath &reference_path_;
-    const VehicleState &vehicle_state_;
     // Solvers
     // TODO: use derived classes instead of putting all solvers in one class.
-    OsqpEigen::Solver solver_;
     OsqpEigen::Solver solver_for_sampling_;
     OsqpEigen::Solver solver_for_dynamic_env_;
     bool solver_for_sampling_initialized_flag_{false};
@@ -73,4 +64,4 @@ private:
     double offset_error_allowed_{};
 };
 } // namespace
-#endif //PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_SOLVER_INTERFACE_HPP_
+#endif //PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_SOLVER_K_AS_INPUT_HPP_
