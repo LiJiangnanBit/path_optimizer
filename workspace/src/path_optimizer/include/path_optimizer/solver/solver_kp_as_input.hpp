@@ -18,6 +18,8 @@ class SolverKpAsInput : public OsqpSolver{
                   const VehicleState &vehicle_state,
                   const size_t &horizon);
 
+  ~SolverKpAsInput() {}
+
   bool solve(std::vector<State> *optimized_path) override ;
 
  protected:

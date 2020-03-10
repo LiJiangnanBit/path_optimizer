@@ -111,7 +111,6 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
     cons(end_state_range_begin, state_size_ - 3) = 1; // end ey
     cons(end_state_range_begin + 1, state_size_ - 2) = 1; // end ephi
     *matrix_constraints = cons.sparseView();
-//    std::cout << cons << std::endl;
 
     // Set bounds.
     *lower_bound = Eigen::MatrixXd::Zero(10 * horizon_ + control_horizon_ + 2, 1);
@@ -167,8 +166,6 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
             (*upper_bound)(end_state_range_begin + 1) = end_psi + 5 * M_PI / 180;
         }
     }
-//    std::cout << *upper_bound << std::endl;
-//    std::cout << *lower_bound << std::endl;
 
 }
 

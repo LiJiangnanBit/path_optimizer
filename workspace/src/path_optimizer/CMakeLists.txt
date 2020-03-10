@@ -47,7 +47,7 @@ add_library(${PROJECT_NAME}
         src/path_optimizer/path_optimizer.cpp
         src/reference_path_smoother/frenet_reference_path_smoother.cpp
         src/tools/collision_checker.cpp
-        src/path_optimizer/solver_k_as_input.cpp
+        src/solver/solver_k_as_input.cpp
         src/reference_path_smoother/cartesian_reference_path_smoother.cpp
         src/reference_path_smoother/reference_path_smoother.cpp
         src/tools/Map.cpp include/path_optimizer/tools/Map.hpp
