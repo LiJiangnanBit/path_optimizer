@@ -2,28 +2,25 @@
 // Created by ljn on 20-1-27.
 //
 
-#include "path_optimizer/solver_interface.hpp"
+#include "path_optimizer/solver/solver_k_as_input.hpp"
 #include "path_optimizer/data_struct/data_struct.hpp"
 #include "path_optimizer/config/config.hpp"
 #include "path_optimizer/tools/tools.hpp"
 
 namespace PathOptimizationNS {
 
-SolverInterface::SolverInterface(const Config &config,
+SolverKAsInput::SolverKAsInput(const Config &config,
                                  const ReferencePath &reference_path,
                                  const VehicleState &vehicle_state,
                                  const size_t &horizon) :
-    config_(config),
-    horizon_(horizon),
-    reference_path_(reference_path),
-    vehicle_state_(vehicle_state),
+    OsqpSolver(config, reference_path, vehicle_state, horizon),
     solver_for_sampling_initialized_flag_(false),
     solver_for_dynamic_initialized_flag_(false),
     offset_error_allowed_(0) {
     std::cout << "optimization horizon: " << horizon_ << std::endl;
 }
 
-bool SolverInterface::solve(Eigen::VectorXd *solution) {
+bool SolverKAsInput::solve(std::vector<State> *optimized_path) {
     solver_.settings()->setVerbosity(false);
     solver_.settings()->setWarmStart(true);
     solver_.data()->setNumberOfVariables(4 * horizon_ - 1);
@@ -50,11 +47,30 @@ bool SolverInterface::solve(Eigen::VectorXd *solution) {
     // Solve.
     if (!solver_.initSolver()) return false;
     if (!solver_.solve()) return false;
-    *solution = solver_.getSolution();
+    const auto &QPSolution = solver_.getSolution();
+    optimized_path->clear();
+    double tmp_s = 0;
+    for (size_t i = 0; i != horizon_; ++i) {
+        double length_on_ref_path = reference_path_.seg_s_list_[i];
+        double angle = reference_path_.seg_angle_list_[i];
+        double new_angle = constraintAngle(angle + M_PI_2);
+        double tmp_x = reference_path_.x_s_(length_on_ref_path) + QPSolution(2 * i + 1) * cos(new_angle);
+        double tmp_y = reference_path_.y_s_(length_on_ref_path) + QPSolution(2 * i + 1) * sin(new_angle);
+        double k = 0;
+        if (i != horizon_ - 1) {
+            k = QPSolution(2 * horizon_ + i);
+        } else {
+            k = QPSolution(3 * horizon_ - 2);
+        }
+        if (i != 0) {
+            tmp_s += sqrt(pow(tmp_x - optimized_path->back().x, 2) + pow(tmp_y - optimized_path->back().y, 2));
+        }
+        optimized_path->emplace_back(tmp_x, tmp_y, angle + QPSolution(2 * i), k, tmp_s);
+    }
     return true;
 }
 
-bool SolverInterface::initializeSampling(double target_angle, double angle_error_allowed, double offset_error_allowed) {
+bool SolverKAsInput::initializeSampling(double target_angle, double angle_error_allowed, double offset_error_allowed) {
     offset_error_allowed_ = offset_error_allowed;
     solver_for_sampling_.settings()->setVerbosity(false);
     solver_for_sampling_.settings()->setWarmStart(true);
@@ -91,7 +107,7 @@ bool SolverInterface::initializeSampling(double target_angle, double angle_error
     }
 }
 
-bool SolverInterface::solveSampling(Eigen::VectorXd *solution,
+bool SolverKAsInput::solveSampling(Eigen::VectorXd *solution,
                                     double offset) {
     if (!solver_for_sampling_initialized_flag_) {
         std::cout << "sampling solver is uninitialized!" << std::endl;
@@ -111,7 +127,7 @@ bool SolverInterface::solveSampling(Eigen::VectorXd *solution,
     }
 }
 
-bool SolverInterface::solveDynamic(Eigen::VectorXd *solution) {
+bool SolverKAsInput::solveDynamic(Eigen::VectorXd *solution) {
     solver_for_dynamic_env_.settings()->setVerbosity(false);
     solver_for_dynamic_env_.settings()->setWarmStart(true);
 //        solver_dynamic.settings()->setMaxIteraction(250);
@@ -142,7 +158,7 @@ bool SolverInterface::solveDynamic(Eigen::VectorXd *solution) {
     return true;
 }
 
-bool SolverInterface::solveDynamicUpdate(Eigen::VectorXd *solution, const std::vector<std::vector<double>> &clearance) {
+bool SolverKAsInput::solveDynamicUpdate(Eigen::VectorXd *solution, const std::vector<std::vector<double>> &clearance) {
     if (!solver_for_dynamic_initialized_flag_) {
         std::cout << "solver for dynamic env is not initialized!" << std::endl;
     } else {
@@ -166,7 +182,7 @@ bool SolverInterface::solveDynamicUpdate(Eigen::VectorXd *solution, const std::v
     }
 }
 
-void SolverInterface::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const {
+void SolverKAsInput::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const {
     const size_t state_size = 2 * horizon_;
     const size_t control_size = horizon_ - 1;
     const size_t slack_size = horizon_;
@@ -209,7 +225,7 @@ void SolverInterface::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) co
     *matrix_h = hessian.sparseView();
 }
 
-void SolverInterface::setDynamicMatrix(size_t i,
+void SolverKAsInput::setDynamicMatrix(size_t i,
                                        const std::vector<double> &seg_s_list,
                                        const std::vector<double> &seg_k_list,
                                        Eigen::Matrix<double, 2, 2> *matrix_a,
@@ -226,7 +242,7 @@ void SolverInterface::setDynamicMatrix(size_t i,
     *matrix_b = b;
 }
 
-void SolverInterface::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_constraints,
+void SolverKAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_constraints,
                                           Eigen::VectorXd *lower_bound,
                                           Eigen::VectorXd *upper_bound) const {
     const auto &seg_s_list = reference_path_.seg_s_list_;
@@ -329,7 +345,7 @@ void SolverInterface::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
     }
 }
 
-void SolverInterface::setConstraintMatrixWithOffset(double offset,
+void SolverKAsInput::setConstraintMatrixWithOffset(double offset,
                                                     double target_angle,
                                                     double angle_error_allowed,
                                                     double offset_error_allowed,
