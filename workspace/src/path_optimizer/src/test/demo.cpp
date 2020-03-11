@@ -216,7 +216,7 @@ int main(int argc, char **argv) {
         }
         markers.append(smoothed_reference_marker);
         visualization_msgs::Marker vehicle_geometry_marker =
-            markers.newLineList(0.1, "vehicle", id++, ros_viz_tools::LIME_GREEN, marker_frame_id);
+            markers.newLineList(0.05, "vehicle", id++, ros_viz_tools::GRAY, marker_frame_id);
         // Visualize vehicle geometry.
         double length{config.car_length_};
         double width{config.car_width_};
