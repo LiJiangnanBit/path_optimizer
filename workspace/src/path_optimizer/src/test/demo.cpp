@@ -172,6 +172,7 @@ int main(int argc, char **argv) {
             config = path_optimizer.getConfig();
             if (path_optimizer.solve(reference_path, &result_path)) {
                 std::cout << "ok!" << std::endl;
+                path_optimizer.solveWithoutSmoothing(result_path, &result_path);
             }
             smoothed_reference_path = path_optimizer.getSmoothedPath();
             a_star_display = path_optimizer.a_star_display_;

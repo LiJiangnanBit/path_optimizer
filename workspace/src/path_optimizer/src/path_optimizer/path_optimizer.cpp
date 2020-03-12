@@ -53,9 +53,9 @@ void PathOptimizer::setConfig() {
     config_.cartesian_deviation_w_ = 0.001;
     //
     config_.opt_curvature_w_ = 10;
-    config_.opt_curvature_rate_w_ = 100;
+    config_.opt_curvature_rate_w_ = 200;
     config_.opt_deviation_w_ = 0;
-    config_.opt_slack_w_ = 3;
+    config_.opt_bound_slack_w_ = 3;
     config_.constraint_end_heading_ = true;
     // TODO: use this condition.
     config_.exact_end_position_ = false;
@@ -117,6 +117,7 @@ bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::
         printf("empty input, quit path optimization\n");
         return false;
     }
+    vehicle_state_.initial_heading_error_ = vehicle_state_.initial_offset_ = 0;
     reference_path_.reference_states = &reference_points;
     reference_path_.updateBounds(grid_map_, config_);
     N_ = reference_path_.bounds.size();

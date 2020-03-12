@@ -54,8 +54,8 @@ public:
 
     // Solvers
     // TODO: use derived classes instead of putting all solvers in one class.
-    OsqpEigen::Solver solver_for_sampling_;
-    OsqpEigen::Solver solver_for_dynamic_env_;
+//    OsqpEigen::Solver solver_for_sampling_;
+//    OsqpEigen::Solver solver_for_dynamic_env_;
     bool solver_for_sampling_initialized_flag_{false};
     bool solver_for_dynamic_initialized_flag_{false};
     Eigen::VectorXd lowerBound_;
