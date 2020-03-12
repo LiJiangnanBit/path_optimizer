@@ -41,19 +41,19 @@ public:
     // Incomplete:
     // Sample a set of candidate paths of various longitudinal distance and lateral offset.
     // Note that it might be very slow if "densify_path" is set to false.
-    bool samplePaths(const std::vector<State> &reference_points,
-                     const std::vector<double> &lon_set,
-                     const std::vector<double> &lat_set,
-                     std::vector<std::vector<State>> *final_path_set);
+//    bool samplePaths(const std::vector<State> &reference_points,
+//                     const std::vector<double> &lon_set,
+//                     const std::vector<double> &lat_set,
+//                     std::vector<std::vector<State>> *final_path_set);
 
     // Incomplete:
     // For dynamic obstacle avoidance. Please Ignore this.
-    bool optimizeDynamic(const std::vector<State> &reference_points,
-                         const std::vector<double> &sr_list,
-                         const std::vector<std::vector<double>> &clearance_list,
-                         std::vector<double> *x_list,
-                         std::vector<double> *y_list,
-                         std::vector<double> *s_list);
+//    bool optimizeDynamic(const std::vector<State> &reference_points,
+//                         const std::vector<double> &sr_list,
+//                         const std::vector<std::vector<double>> &clearance_list,
+//                         std::vector<double> *x_list,
+//                         std::vector<double> *y_list,
+//                         std::vector<double> *s_list);
 
     // Get config:
     const Config &getConfig() {
@@ -75,14 +75,14 @@ private:
     bool optimizePath(std::vector<State> *final_path);
 
     // Generate a set of paths with the same longitudinal length on reference line.
-    bool sampleSingleLongitudinalPaths(double lon,
-                                       const std::vector<double> &lat_set,
-                                       std::vector<std::vector<State>> *final_path_set,
-                                       bool max_lon_flag);
+//    bool sampleSingleLongitudinalPaths(double lon,
+//                                       const std::vector<double> &lat_set,
+//                                       std::vector<std::vector<State>> *final_path_set,
+//                                       bool max_lon_flag);
 
     // Get bounds for each circle at each sampling point.
-    std::vector<double> getClearanceWithDirectionStrict(const State &state, double radius) const;
-    std::shared_ptr<std::vector<double>> getClearanceFor4Circles(const State &state);
+//    std::vector<double> getClearanceWithDirectionStrict(const State &state, double radius) const;
+//    std::shared_ptr<std::vector<double>> getClearanceFor4Circles(const State &state);
 
     // Divide smoothed path into segments.
     bool divideSmoothedPath();

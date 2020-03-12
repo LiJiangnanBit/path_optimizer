@@ -53,7 +53,7 @@ add_library(${PROJECT_NAME}
         src/tools/Map.cpp include/path_optimizer/tools/Map.hpp
         src/tools/car_geometry.cpp
         src/solver/solver.cpp
-        src/solver/solver_kp_as_input.cpp)
+        src/solver/solver_kp_as_input.cpp src/data_struct/date_struct.cpp)
 target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
         )
 

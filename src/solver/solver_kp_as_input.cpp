@@ -23,8 +23,6 @@ SolverKpAsInput::SolverKpAsInput(const Config &config,
 }
 
 void SolverKpAsInput::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const {
-
-
     const size_t matrix_size = state_size_ + control_size_ + slack_size_;
     Eigen::MatrixXd hessian{Eigen::MatrixXd::Constant(matrix_size, matrix_size, 0)};
     double w_c = config_.opt_curvature_w_;
@@ -45,10 +43,7 @@ void SolverKpAsInput::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) co
 void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_constraints,
                                           Eigen::VectorXd *lower_bound,
                                           Eigen::VectorXd *upper_bound) const {
-    const auto &seg_s_list = reference_path_.seg_s_list_;
-    const auto &seg_k_list = reference_path_.seg_k_list_;
-    const auto &seg_angle_list = reference_path_.seg_angle_list_;
-    const auto &seg_clearance_list = reference_path_.seg_clearance_list_;
+    const auto &ref_states = *reference_path_.reference_states;
     const size_t trans_range_begin{0};
     const size_t vars_range_begin{trans_range_begin + 3 * horizon_};
     const size_t collision_range_begin{vars_range_begin + 2 * horizon_ + control_horizon_};
@@ -65,9 +60,9 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
     b(2, 0) = 1;
     std::vector<Eigen::MatrixXd> c_list;
     for (size_t i = 0; i != horizon_ - 1; ++i) {
-        const auto ref_k{seg_k_list[i]};
-        const auto ds{seg_s_list[i + 1] - seg_s_list[i]};
-        const auto ref_kp{(seg_k_list[i + 1] - ref_k) / ds};
+        const auto ref_k{ref_states[i].k};
+        const auto ds{ref_states[i + 1].s - ref_states[i].s};
+        const auto ref_kp{(ref_states[i + 1].k - ref_k) / ds};
         a(1, 0) = -pow(ref_k, 2);
         auto A{a * ds + Eigen::Matrix3d::Identity()};
         auto B{b * ds};
@@ -137,16 +132,17 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
     }
 
     // Collision bound.
+    const auto &bounds = reference_path_.bounds;
     for (size_t i = 0; i != horizon_; ++i) {
         Eigen::Vector3d ld, ud;
         ud
-            << seg_clearance_list[i][0], seg_clearance_list[i][4], seg_clearance_list[i][6];
+            << bounds[i].c0.ub, bounds[i].c2.ub, bounds[i].c3.ub;
         ld
-            << seg_clearance_list[i][1], seg_clearance_list[i][5], seg_clearance_list[i][7];
+            << bounds[i].c0.lb, bounds[i].c2.lb, bounds[i].c3.lb;
         lower_bound->block(collision_range_begin + 3 * i, 0, 3, 1) = ld;
         upper_bound->block(collision_range_begin + 3 * i, 0, 3, 1) = ud;
-        double uds = seg_clearance_list[i][2] - config_.expected_safety_margin_;
-        double lds = seg_clearance_list[i][3] + config_.expected_safety_margin_;
+        double uds = bounds[i].c1.ub - config_.expected_safety_margin_;
+        double lds = bounds[i].c1.lb + config_.expected_safety_margin_;
         (*upper_bound)(collision_range_begin + 3 * horizon_ + i, 0) = uds;
         (*lower_bound)(collision_range_begin + 3 * horizon_ + i, 0) = -OsqpEigen::INFTY;
         (*lower_bound)(collision_range_begin + 4 * horizon_ + i, 0) = lds;
@@ -160,7 +156,7 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
     (*lower_bound)(end_state_range_begin + 1) = -OsqpEigen::INFTY;
     (*upper_bound)(end_state_range_begin + 1) = OsqpEigen::INFTY;
     if (config_.constraint_end_heading_) {
-        double end_psi = constraintAngle(vehicle_state_.end_state_.z - seg_angle_list.back());
+        double end_psi = constraintAngle(vehicle_state_.end_state_.z - ref_states.back().z);
         if (end_psi < 70 * M_PI / 180) {
             (*lower_bound)(end_state_range_begin + 1) = end_psi - 5 * M_PI / 180;
             (*upper_bound)(end_state_range_begin + 1) = end_psi + 5 * M_PI / 180;
@@ -170,6 +166,7 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
 }
 
 bool SolverKpAsInput::solve(std::vector<PathOptimizationNS::State> *optimized_path) {
+    const auto &ref_states = *reference_path_.reference_states;
     solver_.settings()->setVerbosity(false);
     solver_.settings()->setWarmStart(true);
     solver_.data()->setNumberOfVariables(state_size_ + control_size_ + slack_size_);
@@ -200,11 +197,10 @@ bool SolverKpAsInput::solve(std::vector<PathOptimizationNS::State> *optimized_pa
     optimized_path->clear();
     double tmp_s = 0;
     for (size_t i = 0; i != horizon_; ++i) {
-        double length_on_ref_path = reference_path_.seg_s_list_[i];
-        double angle = reference_path_.seg_angle_list_[i];
+        double angle = ref_states[i].z;
         double new_angle = constraintAngle(angle + M_PI_2);
-        double tmp_x = reference_path_.x_s_(length_on_ref_path) + QPSolution(3 * i) * cos(new_angle);
-        double tmp_y = reference_path_.y_s_(length_on_ref_path) + QPSolution(3 * i) * sin(new_angle);
+        double tmp_x = ref_states[i].x + QPSolution(3 * i) * cos(new_angle);
+        double tmp_y = ref_states[i].y + QPSolution(3 * i) * sin(new_angle);
         double k = QPSolution(3 * i + 2);
         if (i != 0) {
             tmp_s += sqrt(pow(tmp_x - optimized_path->back().x, 2) + pow(tmp_y - optimized_path->back().y, 2));

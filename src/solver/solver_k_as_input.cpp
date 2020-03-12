@@ -21,6 +21,7 @@ SolverKAsInput::SolverKAsInput(const Config &config,
 }
 
 bool SolverKAsInput::solve(std::vector<State> *optimized_path) {
+    const auto &ref_states = *reference_path_.reference_states;
     solver_.settings()->setVerbosity(false);
     solver_.settings()->setWarmStart(true);
     solver_.data()->setNumberOfVariables(4 * horizon_ - 1);
@@ -51,11 +52,10 @@ bool SolverKAsInput::solve(std::vector<State> *optimized_path) {
     optimized_path->clear();
     double tmp_s = 0;
     for (size_t i = 0; i != horizon_; ++i) {
-        double length_on_ref_path = reference_path_.seg_s_list_[i];
-        double angle = reference_path_.seg_angle_list_[i];
+        double angle = ref_states[i].z;
         double new_angle = constraintAngle(angle + M_PI_2);
-        double tmp_x = reference_path_.x_s_(length_on_ref_path) + QPSolution(2 * i + 1) * cos(new_angle);
-        double tmp_y = reference_path_.y_s_(length_on_ref_path) + QPSolution(2 * i + 1) * sin(new_angle);
+        double tmp_x = ref_states[i].x + QPSolution(2 * i + 1) * cos(new_angle);
+        double tmp_y = ref_states[i].y + QPSolution(2 * i + 1) * sin(new_angle);
         double k = 0;
         if (i != horizon_ - 1) {
             k = QPSolution(2 * horizon_ + i);
@@ -70,117 +70,117 @@ bool SolverKAsInput::solve(std::vector<State> *optimized_path) {
     return true;
 }
 
-bool SolverKAsInput::initializeSampling(double target_angle, double angle_error_allowed, double offset_error_allowed) {
-    offset_error_allowed_ = offset_error_allowed;
-    solver_for_sampling_.settings()->setVerbosity(false);
-    solver_for_sampling_.settings()->setWarmStart(true);
-    solver_for_sampling_.settings()->setMaxIteraction(250);
-    solver_for_sampling_.data()->setNumberOfVariables(3 * horizon_ - 1);
-    solver_for_sampling_.data()->setNumberOfConstraints(9 * horizon_ - 1);
-    // Allocate QP problem matrices and vectors.
-    Eigen::SparseMatrix<double> hessian;
-    Eigen::VectorXd gradient = Eigen::VectorXd::Zero(3 * horizon_ - 1);
-    Eigen::SparseMatrix<double> linearMatrix;
-    // Set Hessian matrix.
-    setHessianMatrix(&hessian);
-    // Set state transition matrix, constraint matrix and bound vector.
-    setConstraintMatrixWithOffset(
-        0,
-        target_angle,
-        angle_error_allowed,
-        offset_error_allowed,
-        &linearMatrix,
-        &lowerBound_,
-        &upperBound_);
-    // Input to solver.
-    if (!solver_for_sampling_.data()->setHessianMatrix(hessian)) return false;
-    if (!solver_for_sampling_.data()->setGradient(gradient)) return false;
-    if (!solver_for_sampling_.data()->setLinearConstraintsMatrix(linearMatrix)) return false;
-    if (!solver_for_sampling_.data()->setLowerBound(lowerBound_)) return false;
-    if (!solver_for_sampling_.data()->setUpperBound(upperBound_)) return false;
-    // Initialization.
-    if (solver_for_sampling_.initSolver()) {
-        solver_for_sampling_initialized_flag_ = true;
-        return true;
-    } else {
-        return false;
-    }
-}
+//bool SolverKAsInput::initializeSampling(double target_angle, double angle_error_allowed, double offset_error_allowed) {
+//    offset_error_allowed_ = offset_error_allowed;
+//    solver_for_sampling_.settings()->setVerbosity(false);
+//    solver_for_sampling_.settings()->setWarmStart(true);
+//    solver_for_sampling_.settings()->setMaxIteraction(250);
+//    solver_for_sampling_.data()->setNumberOfVariables(3 * horizon_ - 1);
+//    solver_for_sampling_.data()->setNumberOfConstraints(9 * horizon_ - 1);
+//    // Allocate QP problem matrices and vectors.
+//    Eigen::SparseMatrix<double> hessian;
+//    Eigen::VectorXd gradient = Eigen::VectorXd::Zero(3 * horizon_ - 1);
+//    Eigen::SparseMatrix<double> linearMatrix;
+//    // Set Hessian matrix.
+//    setHessianMatrix(&hessian);
+//    // Set state transition matrix, constraint matrix and bound vector.
+//    setConstraintMatrixWithOffset(
+//        0,
+//        target_angle,
+//        angle_error_allowed,
+//        offset_error_allowed,
+//        &linearMatrix,
+//        &lowerBound_,
+//        &upperBound_);
+//    // Input to solver.
+//    if (!solver_for_sampling_.data()->setHessianMatrix(hessian)) return false;
+//    if (!solver_for_sampling_.data()->setGradient(gradient)) return false;
+//    if (!solver_for_sampling_.data()->setLinearConstraintsMatrix(linearMatrix)) return false;
+//    if (!solver_for_sampling_.data()->setLowerBound(lowerBound_)) return false;
+//    if (!solver_for_sampling_.data()->setUpperBound(upperBound_)) return false;
+//    // Initialization.
+//    if (solver_for_sampling_.initSolver()) {
+//        solver_for_sampling_initialized_flag_ = true;
+//        return true;
+//    } else {
+//        return false;
+//    }
+//}
 
-bool SolverKAsInput::solveSampling(Eigen::VectorXd *solution,
-                                    double offset) {
-    if (!solver_for_sampling_initialized_flag_) {
-        std::cout << "sampling solver is uninitialized!" << std::endl;
-        return false;
-    } else {
-        lowerBound_(2 * horizon_ + 2 * horizon_ - 1) = offset - offset_error_allowed_;
-        upperBound_(2 * horizon_ + 2 * horizon_ - 1) = offset + offset_error_allowed_;
-        if (!solver_for_sampling_.updateBounds(lowerBound_, upperBound_)) return false;
-        // Solve.
-        bool ok = solver_for_sampling_.solve();
-        if (!ok) {
-            return false;
-        }
-        // Get single path.
-        *solution = solver_for_sampling_.getSolution();
-        return true;
-    }
-}
-
-bool SolverKAsInput::solveDynamic(Eigen::VectorXd *solution) {
-    solver_for_dynamic_env_.settings()->setVerbosity(false);
-    solver_for_dynamic_env_.settings()->setWarmStart(true);
-//        solver_dynamic.settings()->setMaxIteraction(250);
-    solver_for_dynamic_env_.data()->setNumberOfVariables(3 * horizon_ - 1);
-    solver_for_dynamic_env_.data()->setNumberOfConstraints(9 * horizon_ - 1);
-    // Allocate QP problem matrices and vectors.
-    Eigen::SparseMatrix<double> hessian;
-    Eigen::VectorXd gradient = Eigen::VectorXd::Zero(3 * horizon_ - 1);
-    Eigen::SparseMatrix<double> linearMatrix;
-    setHessianMatrix(&hessian);
-    setConstraintMatrix(&linearMatrix,
-                        &lowerBound_,
-                        &upperBound_);
-    if (!solver_for_dynamic_env_.data()->setHessianMatrix(hessian)) return false;
-    if (!solver_for_dynamic_env_.data()->setGradient(gradient)) return false;
-    if (!solver_for_dynamic_env_.data()->setLinearConstraintsMatrix(linearMatrix)) return false;
-    if (!solver_for_dynamic_env_.data()->setLowerBound(lowerBound_)) return false;
-    if (!solver_for_dynamic_env_.data()->setUpperBound(upperBound_)) return false;
-    if (!solver_for_dynamic_env_.initSolver()) return false;
-    solver_for_dynamic_initialized_flag_ = true;
-    bool ok = solver_for_dynamic_env_.solve();
-    if (!ok) {
-        printf("dynamic solver failed\n");
-        return false;
-    }
-    *solution = solver_for_dynamic_env_.getSolution();
-    solver_for_dynamic_initialized_flag_ = true;
-    return true;
-}
-
-bool SolverKAsInput::solveDynamicUpdate(Eigen::VectorXd *solution, const std::vector<std::vector<double>> &clearance) {
-    if (!solver_for_dynamic_initialized_flag_) {
-        std::cout << "solver for dynamic env is not initialized!" << std::endl;
-    } else {
-        // Update bounds.
-        for (size_t i = 0; i != horizon_; ++i) {
-            Eigen::Vector4d ld, ud;
-            ud
-                << clearance[i][0], clearance[i][2], clearance[i][4], clearance[i][6];
-            ld
-                << clearance[i][1], clearance[i][3], clearance[i][5], clearance[i][7];
-            lowerBound_.block(5 * horizon_ - 1 + 4 * i, 0, 4, 1) = ld;
-            upperBound_.block(5 * horizon_ - 1 + 4 * i, 0, 4, 1) = ud;
-        }
-        if (!solver_for_dynamic_env_.updateBounds(lowerBound_, upperBound_)) return false;
-        if (!solver_for_dynamic_env_.solve()) {
-            printf("dynamic solver failed\n");
-            return false;
-        }
-        *solution = solver_for_dynamic_env_.getSolution();
-        return true;
-    }
-}
+//bool SolverKAsInput::solveSampling(Eigen::VectorXd *solution,
+//                                    double offset) {
+//    if (!solver_for_sampling_initialized_flag_) {
+//        std::cout << "sampling solver is uninitialized!" << std::endl;
+//        return false;
+//    } else {
+//        lowerBound_(2 * horizon_ + 2 * horizon_ - 1) = offset - offset_error_allowed_;
+//        upperBound_(2 * horizon_ + 2 * horizon_ - 1) = offset + offset_error_allowed_;
+//        if (!solver_for_sampling_.updateBounds(lowerBound_, upperBound_)) return false;
+//        // Solve.
+//        bool ok = solver_for_sampling_.solve();
+//        if (!ok) {
+//            return false;
+//        }
+//        // Get single path.
+//        *solution = solver_for_sampling_.getSolution();
+//        return true;
+//    }
+//}
+//
+//bool SolverKAsInput::solveDynamic(Eigen::VectorXd *solution) {
+//    solver_for_dynamic_env_.settings()->setVerbosity(false);
+//    solver_for_dynamic_env_.settings()->setWarmStart(true);
+////        solver_dynamic.settings()->setMaxIteraction(250);
+//    solver_for_dynamic_env_.data()->setNumberOfVariables(3 * horizon_ - 1);
+//    solver_for_dynamic_env_.data()->setNumberOfConstraints(9 * horizon_ - 1);
+//    // Allocate QP problem matrices and vectors.
+//    Eigen::SparseMatrix<double> hessian;
+//    Eigen::VectorXd gradient = Eigen::VectorXd::Zero(3 * horizon_ - 1);
+//    Eigen::SparseMatrix<double> linearMatrix;
+//    setHessianMatrix(&hessian);
+//    setConstraintMatrix(&linearMatrix,
+//                        &lowerBound_,
+//                        &upperBound_);
+//    if (!solver_for_dynamic_env_.data()->setHessianMatrix(hessian)) return false;
+//    if (!solver_for_dynamic_env_.data()->setGradient(gradient)) return false;
+//    if (!solver_for_dynamic_env_.data()->setLinearConstraintsMatrix(linearMatrix)) return false;
+//    if (!solver_for_dynamic_env_.data()->setLowerBound(lowerBound_)) return false;
+//    if (!solver_for_dynamic_env_.data()->setUpperBound(upperBound_)) return false;
+//    if (!solver_for_dynamic_env_.initSolver()) return false;
+//    solver_for_dynamic_initialized_flag_ = true;
+//    bool ok = solver_for_dynamic_env_.solve();
+//    if (!ok) {
+//        printf("dynamic solver failed\n");
+//        return false;
+//    }
+//    *solution = solver_for_dynamic_env_.getSolution();
+//    solver_for_dynamic_initialized_flag_ = true;
+//    return true;
+//}
+//
+//bool SolverKAsInput::solveDynamicUpdate(Eigen::VectorXd *solution, const std::vector<std::vector<double>> &clearance) {
+//    if (!solver_for_dynamic_initialized_flag_) {
+//        std::cout << "solver for dynamic env is not initialized!" << std::endl;
+//    } else {
+//        // Update bounds.
+//        for (size_t i = 0; i != horizon_; ++i) {
+//            Eigen::Vector4d ld, ud;
+//            ud
+//                << clearance[i][0], clearance[i][2], clearance[i][4], clearance[i][6];
+//            ld
+//                << clearance[i][1], clearance[i][3], clearance[i][5], clearance[i][7];
+//            lowerBound_.block(5 * horizon_ - 1 + 4 * i, 0, 4, 1) = ld;
+//            upperBound_.block(5 * horizon_ - 1 + 4 * i, 0, 4, 1) = ud;
+//        }
+//        if (!solver_for_dynamic_env_.updateBounds(lowerBound_, upperBound_)) return false;
+//        if (!solver_for_dynamic_env_.solve()) {
+//            printf("dynamic solver failed\n");
+//            return false;
+//        }
+//        *solution = solver_for_dynamic_env_.getSolution();
+//        return true;
+//    }
+//}
 
 void SolverKAsInput::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const {
     const size_t state_size = 2 * horizon_;
@@ -226,12 +226,11 @@ void SolverKAsInput::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) con
 }
 
 void SolverKAsInput::setDynamicMatrix(size_t i,
-                                       const std::vector<double> &seg_s_list,
-                                       const std::vector<double> &seg_k_list,
-                                       Eigen::Matrix<double, 2, 2> *matrix_a,
-                                       Eigen::Matrix<double, 2, 1> *matrix_b) const {
-    double ref_k = seg_k_list[i];
-    double ref_s = seg_s_list[i + 1] - seg_s_list[i];
+                                      Eigen::Matrix<double, 2, 2> *matrix_a,
+                                      Eigen::Matrix<double, 2, 1> *matrix_b) const {
+    const auto &ref_states = *reference_path_.reference_states;
+    double ref_k = ref_states[i].k;
+    double ref_s = ref_states[i + 1].s - ref_states[i].s;
     double ref_delta = atan(ref_k * config_.wheel_base_);
     Eigen::Matrix2d a;
     a << 1, -ref_s * pow(ref_k, 2),
@@ -245,10 +244,7 @@ void SolverKAsInput::setDynamicMatrix(size_t i,
 void SolverKAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_constraints,
                                           Eigen::VectorXd *lower_bound,
                                           Eigen::VectorXd *upper_bound) const {
-    const auto &seg_s_list = reference_path_.seg_s_list_;
-    const auto &seg_k_list = reference_path_.seg_k_list_;
-    const auto &seg_angle_list = reference_path_.seg_angle_list_;
-    const auto &seg_clearance_list = reference_path_.seg_clearance_list_;
+    const auto &ref_states = *reference_path_.reference_states;
     Eigen::MatrixXd cons = Eigen::MatrixXd::Zero(11 * horizon_ - 1, 4 * horizon_ - 1);
 
     // Set trans part.
@@ -258,7 +254,7 @@ void SolverKAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_con
     Eigen::Matrix<double, 2, 2> a;
     Eigen::Matrix<double, 2, 1> b;
     for (size_t i = 0; i != horizon_ - 1; ++i) {
-        setDynamicMatrix(i, seg_s_list, seg_k_list, &a, &b);
+        setDynamicMatrix(i, &a, &b);
         cons.block(2 * (i + 1), 2 * i, 2, 2) = a;
         cons.block(2 * (i + 1), 2 * horizon_ + i, 2, 1) = b;
     }
@@ -299,8 +295,8 @@ void SolverKAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_con
     lower_bound->block(0, 0, 2, 1) = -x0;
     upper_bound->block(0, 0, 2, 1) = -x0;
     for (size_t i = 0; i != horizon_ - 1; ++i) {
-        double ds = seg_s_list[i + 1] - seg_s_list[i];
-        double steer = atan(seg_k_list[i] * config_.wheel_base_);
+        double ds = ref_states[i + 1].s - ref_states[i].s;
+        double steer = atan(ref_states[i].k * config_.wheel_base_);
         Eigen::Vector2d c;
         c << ds * steer / config_.wheel_base_ / pow(cos(steer), 2), 0;
         lower_bound->block(2 + 2 * i, 0, 2, 1) = c;
@@ -311,7 +307,7 @@ void SolverKAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_con
     upper_bound->block(2 * horizon_, 0, 2 * horizon_, 1) = Eigen::VectorXd::Constant(2 * horizon_, OsqpEigen::INFTY);
     // Add end state bounds.
     if (config_.constraint_end_heading_) {
-        double end_psi = constraintAngle(vehicle_state_.end_state_.z - seg_angle_list.back());
+        double end_psi = constraintAngle(vehicle_state_.end_state_.z - ref_states.back().z);
         if (end_psi < 70 * M_PI / 180) {
             (*lower_bound)(2 * horizon_ + 2 * horizon_ - 2) = end_psi - 5 * M_PI / 180;
             (*upper_bound)(2 * horizon_ + 2 * horizon_ - 2) = end_psi + 5 * M_PI / 180;
@@ -325,12 +321,13 @@ void SolverKAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_con
     upper_bound->block(5 * horizon_ - 1, 0, horizon_, 1) =
         Eigen::VectorXd::Constant(horizon_, config_.expected_safety_margin_);
     // Set collision bound part 1.
+    const auto &bounds = reference_path_.bounds;
     for (size_t i = 0; i != horizon_; ++i) {
         Eigen::Vector3d ld, ud;
         ud
-            << seg_clearance_list[i][0], seg_clearance_list[i][4], seg_clearance_list[i][6];
+            << bounds[i].c0.ub, bounds[i].c2.ub, bounds[i].c3.ub;
         ld
-            << seg_clearance_list[i][1], seg_clearance_list[i][5], seg_clearance_list[i][7];
+            << bounds[i].c0.lb, bounds[i].c2.lb, bounds[i].c3.lb;
         lower_bound->block(6 * horizon_ - 1 + 3 * i, 0, 3, 1) = ld;
         upper_bound->block(6 * horizon_ - 1 + 3 * i, 0, 3, 1) = ud;
     }
@@ -338,82 +335,82 @@ void SolverKAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_con
     upper_bound->block(10 * horizon_ - 1, 0, horizon_, 1) = Eigen::VectorXd::Constant(horizon_, OsqpEigen::INFTY);
     lower_bound->block(9 * horizon_ - 1, 0, horizon_, 1) = Eigen::VectorXd::Constant(horizon_, -OsqpEigen::INFTY);
     for (size_t i = 0; i != horizon_; ++i) {
-        double ud = seg_clearance_list[i][2] - config_.expected_safety_margin_;
-        double ld = seg_clearance_list[i][3] + config_.expected_safety_margin_;
+        double ud = bounds[i].c1.ub - config_.expected_safety_margin_;
+        double ld = bounds[i].c1.lb + config_.expected_safety_margin_;
         (*upper_bound)(9 * horizon_ - 1 + i, 0) = ud;
         (*lower_bound)(10 * horizon_ - 1 + i, 0) = ld;
     }
 }
 
-void SolverKAsInput::setConstraintMatrixWithOffset(double offset,
-                                                    double target_angle,
-                                                    double angle_error_allowed,
-                                                    double offset_error_allowed,
-                                                    Eigen::SparseMatrix<double> *matrix_constraints,
-                                                    Eigen::VectorXd *lower_bound,
-                                                    Eigen::VectorXd *upper_bound) const {
-    assert(angle_error_allowed >= 0 && offset_error_allowed >= 0);
-    const auto &seg_s_list = reference_path_.seg_s_list_;
-    const auto &seg_k_list = reference_path_.seg_k_list_;
-    const auto &seg_angle_list = reference_path_.seg_angle_list_;
-    const auto &seg_clearance_list = reference_path_.seg_clearance_list_;
-    Eigen::MatrixXd cons = Eigen::MatrixXd::Zero(9 * horizon_ - 1, 3 * horizon_ - 1);
-    for (size_t i = 0; i != 2 * horizon_; ++i) {
-        cons(i, i) = -1;
-    }
-    Eigen::Matrix<double, 2, 2> a;
-    Eigen::Matrix<double, 2, 1> b;
-    for (size_t i = 0; i != horizon_ - 1; ++i) {
-        setDynamicMatrix(i, seg_s_list, seg_k_list, &a, &b);
-        cons.block(2 * (i + 1), 2 * i, 2, 2) = a;
-        cons.block(2 * (i + 1), 2 * horizon_ + i, 2, 1) = b;
-    }
-    for (size_t i = 0; i != 3 * horizon_ - 1; ++i) {
-        cons(2 * horizon_ + i, i) = 1;
-    }
-    Eigen::Matrix<double, 4, 2> collision;
-    collision << config_.d1_ + config_.rear_axle_to_center_distance_, 1,
-        config_.d2_ + config_.rear_axle_to_center_distance_, 1,
-        config_.d3_ + config_.rear_axle_to_center_distance_, 1,
-        config_.d4_ + config_.rear_axle_to_center_distance_, 1;
-    for (size_t i = 0; i != horizon_; ++i) {
-        cons.block(5 * horizon_ - 1 + 4 * i, 2 * i, 4, 2) = collision;
-    }
-    *matrix_constraints = cons.sparseView();
-
-    *lower_bound = Eigen::MatrixXd::Zero(9 * horizon_ - 1, 1);
-    *upper_bound = Eigen::MatrixXd::Zero(9 * horizon_ - 1, 1);
-    Eigen::Matrix<double, 2, 1> x0;
-    x0 << vehicle_state_.initial_heading_error_, vehicle_state_.initial_offset_;
-    lower_bound->block(0, 0, 2, 1) = -x0;
-    upper_bound->block(0, 0, 2, 1) = -x0;
-    for (size_t i = 0; i != horizon_ - 1; ++i) {
-        double ds = seg_s_list[i + 1] - seg_s_list[i];
-        double steer = atan(seg_k_list[i] * config_.wheel_base_);
-        Eigen::Vector2d c;
-        c << ds * steer / config_.wheel_base_ / pow(cos(steer), 2), 0;
-        lower_bound->block(2 + 2 * i, 0, 2, 1) = c;
-        upper_bound->block(2 + 2 * i, 0, 2, 1) = c;
-    }
-    lower_bound->block(2 * horizon_, 0, 2 * horizon_, 1) = Eigen::VectorXd::Constant(2 * horizon_, -OsqpEigen::INFTY);
-    upper_bound->block(2 * horizon_, 0, 2 * horizon_, 1) = Eigen::VectorXd::Constant(2 * horizon_, OsqpEigen::INFTY);
-    // Add end state constraint.
-    double end_psi = constraintAngle(target_angle - seg_angle_list.back());
-    (*lower_bound)(2 * horizon_ + 2 * horizon_ - 2) = end_psi - angle_error_allowed / 2;
-    (*upper_bound)(2 * horizon_ + 2 * horizon_ - 2) = end_psi + angle_error_allowed / 2;
-    (*lower_bound)(2 * horizon_ + 2 * horizon_ - 1) = offset - offset_error_allowed / 2;
-    (*upper_bound)(2 * horizon_ + 2 * horizon_ - 1) = offset + offset_error_allowed / 2;
-    lower_bound->block(4 * horizon_, 0, horizon_ - 1, 1) = Eigen::VectorXd::Constant(horizon_ - 1, -30 * M_PI / 180);
-    upper_bound->block(4 * horizon_, 0, horizon_ - 1, 1) = Eigen::VectorXd::Constant(horizon_ - 1, 30 * M_PI / 180);
-    for (size_t i = 0; i != horizon_; ++i) {
-        Eigen::Vector4d ld, ud;
-        ud
-            << seg_clearance_list[i][0], seg_clearance_list[i][2], seg_clearance_list[i][4], seg_clearance_list[i][6];
-        ld
-            << seg_clearance_list[i][1], seg_clearance_list[i][3], seg_clearance_list[i][5], seg_clearance_list[i][7];
-        lower_bound->block(5 * horizon_ - 1 + 4 * i, 0, 4, 1) = ld;
-        upper_bound->block(5 * horizon_ - 1 + 4 * i, 0, 4, 1) = ud;
-    }
-}
+//void SolverKAsInput::setConstraintMatrixWithOffset(double offset,
+//                                                    double target_angle,
+//                                                    double angle_error_allowed,
+//                                                    double offset_error_allowed,
+//                                                    Eigen::SparseMatrix<double> *matrix_constraints,
+//                                                    Eigen::VectorXd *lower_bound,
+//                                                    Eigen::VectorXd *upper_bound) const {
+//    assert(angle_error_allowed >= 0 && offset_error_allowed >= 0);
+//    const auto &seg_s_list = reference_path_.seg_s_list_;
+//    const auto &seg_k_list = reference_path_.seg_k_list_;
+//    const auto &seg_angle_list = reference_path_.seg_angle_list_;
+//    const auto &seg_clearance_list = reference_path_.seg_clearance_list_;
+//    Eigen::MatrixXd cons = Eigen::MatrixXd::Zero(9 * horizon_ - 1, 3 * horizon_ - 1);
+//    for (size_t i = 0; i != 2 * horizon_; ++i) {
+//        cons(i, i) = -1;
+//    }
+//    Eigen::Matrix<double, 2, 2> a;
+//    Eigen::Matrix<double, 2, 1> b;
+//    for (size_t i = 0; i != horizon_ - 1; ++i) {
+//        setDynamicMatrix(i, &a, &b);
+//        cons.block(2 * (i + 1), 2 * i, 2, 2) = a;
+//        cons.block(2 * (i + 1), 2 * horizon_ + i, 2, 1) = b;
+//    }
+//    for (size_t i = 0; i != 3 * horizon_ - 1; ++i) {
+//        cons(2 * horizon_ + i, i) = 1;
+//    }
+//    Eigen::Matrix<double, 4, 2> collision;
+//    collision << config_.d1_ + config_.rear_axle_to_center_distance_, 1,
+//        config_.d2_ + config_.rear_axle_to_center_distance_, 1,
+//        config_.d3_ + config_.rear_axle_to_center_distance_, 1,
+//        config_.d4_ + config_.rear_axle_to_center_distance_, 1;
+//    for (size_t i = 0; i != horizon_; ++i) {
+//        cons.block(5 * horizon_ - 1 + 4 * i, 2 * i, 4, 2) = collision;
+//    }
+//    *matrix_constraints = cons.sparseView();
+//
+//    *lower_bound = Eigen::MatrixXd::Zero(9 * horizon_ - 1, 1);
+//    *upper_bound = Eigen::MatrixXd::Zero(9 * horizon_ - 1, 1);
+//    Eigen::Matrix<double, 2, 1> x0;
+//    x0 << vehicle_state_.initial_heading_error_, vehicle_state_.initial_offset_;
+//    lower_bound->block(0, 0, 2, 1) = -x0;
+//    upper_bound->block(0, 0, 2, 1) = -x0;
+//    for (size_t i = 0; i != horizon_ - 1; ++i) {
+//        double ds = seg_s_list[i + 1] - seg_s_list[i];
+//        double steer = atan(seg_k_list[i] * config_.wheel_base_);
+//        Eigen::Vector2d c;
+//        c << ds * steer / config_.wheel_base_ / pow(cos(steer), 2), 0;
+//        lower_bound->block(2 + 2 * i, 0, 2, 1) = c;
+//        upper_bound->block(2 + 2 * i, 0, 2, 1) = c;
+//    }
+//    lower_bound->block(2 * horizon_, 0, 2 * horizon_, 1) = Eigen::VectorXd::Constant(2 * horizon_, -OsqpEigen::INFTY);
+//    upper_bound->block(2 * horizon_, 0, 2 * horizon_, 1) = Eigen::VectorXd::Constant(2 * horizon_, OsqpEigen::INFTY);
+//    // Add end state constraint.
+//    double end_psi = constraintAngle(target_angle - seg_angle_list.back());
+//    (*lower_bound)(2 * horizon_ + 2 * horizon_ - 2) = end_psi - angle_error_allowed / 2;
+//    (*upper_bound)(2 * horizon_ + 2 * horizon_ - 2) = end_psi + angle_error_allowed / 2;
+//    (*lower_bound)(2 * horizon_ + 2 * horizon_ - 1) = offset - offset_error_allowed / 2;
+//    (*upper_bound)(2 * horizon_ + 2 * horizon_ - 1) = offset + offset_error_allowed / 2;
+//    lower_bound->block(4 * horizon_, 0, horizon_ - 1, 1) = Eigen::VectorXd::Constant(horizon_ - 1, -30 * M_PI / 180);
+//    upper_bound->block(4 * horizon_, 0, horizon_ - 1, 1) = Eigen::VectorXd::Constant(horizon_ - 1, 30 * M_PI / 180);
+//    for (size_t i = 0; i != horizon_; ++i) {
+//        Eigen::Vector4d ld, ud;
+//        ud
+//            << seg_clearance_list[i][0], seg_clearance_list[i][2], seg_clearance_list[i][4], seg_clearance_list[i][6];
+//        ld
+//            << seg_clearance_list[i][1], seg_clearance_list[i][3], seg_clearance_list[i][5], seg_clearance_list[i][7];
+//        lower_bound->block(5 * horizon_ - 1 + 4 * i, 0, 4, 1) = ld;
+//        upper_bound->block(5 * horizon_ - 1 + 4 * i, 0, 4, 1) = ud;
+//    }
+//}
 
 }
