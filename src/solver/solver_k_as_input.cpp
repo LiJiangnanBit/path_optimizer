@@ -190,7 +190,7 @@ void SolverKAsInput::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) con
     double w_c = config_.opt_curvature_w_;
     double w_cr = config_.opt_curvature_rate_w_;
     double w_pq = config_.opt_deviation_w_;
-    double w_e = config_.opt_slack_w_;
+    double w_e = config_.opt_bound_slack_w_;
     Eigen::MatrixXd hessian = Eigen::MatrixXd::Constant(matrix_size, matrix_size, 0);
     // Populate hessian matrix
     // Matrix Q is for state variables, only related to e_y.

@@ -28,7 +28,7 @@ void SolverKpAsInput::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) co
     double w_c = config_.opt_curvature_w_;
     double w_cr = config_.opt_curvature_rate_w_;
     double w_pq = config_.opt_deviation_w_;
-    double w_e = config_.opt_slack_w_;
+    double w_e = config_.opt_bound_slack_w_;
     for (size_t i = 0; i != horizon_; ++i) {
         hessian(3 * i, 3 * i) += w_pq;
         hessian(3 * i + 2, 3 * i + 2) += w_c;
