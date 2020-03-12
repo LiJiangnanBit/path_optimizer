@@ -5,9 +5,29 @@
 #ifndef PATH_OPTIMIZER_INCLUDE_DATA_STRUCT_DATA_STRUCT_HPP_
 #define PATH_OPTIMIZER_INCLUDE_DATA_STRUCT_DATA_STRUCT_HPP_
 #include <vector>
+#include <memory>
 #include "../tools/spline.h"
 
 namespace PathOptimizationNS {
+// Standard point struct.
+struct State {
+  State() = default;
+  State(double x, double y, double z = 0, double k = 0, double s = 0, double v = 0, double a = 0) :
+      x(x),
+      y(y),
+      z(z),
+      k(k),
+      s(s),
+      v(v),
+      a(a) {}
+  double x{};
+  double y{};
+  double z{}; // Heading.
+  double k{}; // Curvature.
+  double s{};
+  double v{};
+  double a{};
+};
 
 struct ReferencePath {
     ReferencePath() = default;
@@ -26,6 +46,14 @@ struct ReferencePath {
         seg_x_list_.assign(divided_segments_.seg_x_list_.begin(), divided_segments_.seg_x_list_.begin() + target_index);
         seg_y_list_.assign(divided_segments_.seg_y_list_.begin(), divided_segments_.seg_y_list_.begin() + target_index);
     }
+    inline void clear() {
+        seg_s_list_.clear();
+        seg_k_list_.clear();
+        seg_x_list_.clear();
+        seg_y_list_.clear();
+        seg_angle_list_.clear();
+        seg_clearance_list_.clear();
+    }
     // Reference path representation.
     tk::spline x_s_;
     tk::spline y_s_;
@@ -37,26 +65,6 @@ struct ReferencePath {
     std::vector<double> seg_y_list_;
     std::vector<double> seg_angle_list_;
     std::vector<std::vector<double> > seg_clearance_list_;
-};
-
-// Standard point struct.
-struct State {
-    State() = default;
-    State(double x, double y, double z = 0, double k = 0, double s = 0, double v = 0, double a = 0) :
-        x(x),
-        y(y),
-        z(z),
-        k(k),
-        s(s),
-        v(v),
-        a(a) {}
-    double x{};
-    double y{};
-    double z{}; // Heading.
-    double k{}; // Curvature.
-    double s{};
-    double v{};
-    double a{};
 };
 
 struct Circle {

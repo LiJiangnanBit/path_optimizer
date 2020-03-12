@@ -80,8 +80,8 @@ static void BM_optimizePath(benchmark::State &state) {
     goal_state.z = -1.30825;
     goal_state.k = 0;
     for (auto _:state) {
-        PathOptimizationNS::PathOptimizer path_optimizer(points, start_state, goal_state, grid_map);
-        path_optimizer.solve(&final_path);
+        PathOptimizationNS::PathOptimizer path_optimizer(start_state, goal_state, grid_map);
+        path_optimizer.solve(points, &final_path);
     }
 }
 BENCHMARK(BM_optimizePath)->Unit(benchmark::kMillisecond);

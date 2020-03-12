@@ -12,16 +12,13 @@
 
 namespace PathOptimizationNS {
 
-PathOptimizer::PathOptimizer(const std::vector<State> &points_list,
-                             const State &start_state,
+PathOptimizer::PathOptimizer(const State &start_state,
                              const State &end_state,
                              const grid_map::GridMap &map) :
     grid_map_(map),
     collision_checker_(map),
     vehicle_state_(start_state, end_state, 0, 0),
     N_(0),
-    points_list_(points_list),
-    point_num_(points_list.size()),
     solver_dynamic_initialized(false) {
     setConfig();
     collision_checker_.init(config_);
@@ -69,15 +66,15 @@ void PathOptimizer::setConfig() {
     config_.output_interval_ = 0.3;
 }
 
-bool PathOptimizer::solve(std::vector<State> *final_path) {
+bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vector<State> *final_path) {
     auto t1 = std::clock();
-    if (point_num_ == 0) {
+    if (reference_points.empty()) {
         printf("empty input, quit path optimization\n");
         return false;
     }
     // Smooth reference path.
     ReferencePathSmoother
-        reference_path_smoother(points_list_, vehicle_state_.start_state_, grid_map_, config_);
+        reference_path_smoother(reference_points, vehicle_state_.start_state_, grid_map_, config_);
     bool smoothing_ok = false;
     if (config_.smoothing_method_ == FRENET) {
         smoothing_ok = reference_path_smoother.solve<FrenetReferencePathSmoother>(&reference_path_, &smoothed_path_);
@@ -112,19 +109,29 @@ bool PathOptimizer::solve(std::vector<State> *final_path) {
     return optimization_ok;
 }
 
+bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::State> &reference_points,
+                                          std::vector<PathOptimizationNS::State> *final_path) {
+    if (reference_points.empty()) {
+        printf("empty input, quit path optimization\n");
+        return false;
+    }
+
+}
+
 // Incomplete:
 // Sample a set of candidate paths of various longitudinal distance and lateral offset.
 // Note that it might be very slow if "densify_path" is set to false.
-bool PathOptimizer::samplePaths(const std::vector<double> &lon_set,
+bool PathOptimizer::samplePaths(const std::vector<State> &reference_points,
+                                const std::vector<double> &lon_set,
                                 const std::vector<double> &lat_set,
                                 std::vector<std::vector<State>> *final_path_set) {
-    if (point_num_ == 0) {
+    if (reference_points.empty()) {
         printf("empty input, quit path optimization\n");
         return false;
     }
     // Smooth reference path.
     ReferencePathSmoother
-        reference_path_smoother(points_list_, vehicle_state_.start_state_, grid_map_, config_);
+        reference_path_smoother(reference_points, vehicle_state_.start_state_, grid_map_, config_);
     bool smoothing_ok = false;
     if (config_.smoothing_method_ == FRENET) {
         smoothing_ok = reference_path_smoother.solve<FrenetReferencePathSmoother>(&reference_path_, &smoothed_path_);
@@ -158,7 +165,7 @@ bool PathOptimizer::divideSmoothedPath() {
     State first_point;
     first_point.x = reference_path_.x_s_(0);
     first_point.y = reference_path_.y_s_(0);
-    first_point.z = atan2(reference_path_.y_s_.deriv(1, 0), reference_path_.x_s_.deriv(1, 0));
+    first_point.z = getHeading(reference_path_.x_s_, reference_path_.y_s_, 0);
     auto first_point_local = global2Local(vehicle_state_.start_state_, first_point);
     double min_distance = distance(vehicle_state_.start_state_, first_point);
     if (first_point_local.y < 0) {
@@ -209,6 +216,7 @@ bool PathOptimizer::divideSmoothedPath() {
     // If the initial heading error with the reference path is small, then set intervals equal.
     if (fabs(vehicle_state_.initial_heading_error_) < 20 * M_PI / 180) delta_s_smaller = delta_s_larger;
     double tmp_max_s = delta_s_smaller;
+    reference_path_.clear();
     reference_path_.seg_s_list_.emplace_back(0);
     while (tmp_max_s < reference_path_.max_s_) {
         reference_path_.seg_s_list_.emplace_back(tmp_max_s);
@@ -458,7 +466,8 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
     return true;
 }
 
-bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
+bool PathOptimizer::optimizeDynamic(const std::vector<State> &reference_points,
+                                    const std::vector<double> &sr_list,
                                     const std::vector<std::vector<double>> &clearance_list,
                                     std::vector<double> *x_list,
                                     std::vector<double> *y_list,
@@ -466,7 +475,7 @@ bool PathOptimizer::optimizeDynamic(const std::vector<double> &sr_list,
     auto N = sr_list.size();
     if (!solver_dynamic_initialized) {
         std::vector<double> x_set, y_set, s_set;
-        for (const auto &point : points_list_) {
+        for (const auto &point : reference_points) {
             x_set.emplace_back(point.x);
             y_set.emplace_back(point.y);
             s_set.emplace_back(point.s);
