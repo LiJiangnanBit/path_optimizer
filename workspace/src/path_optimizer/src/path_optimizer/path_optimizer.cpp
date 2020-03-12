@@ -2,12 +2,14 @@
 // Created by ljn on 19-8-16.
 //
 
+#include <path_optimizer/solver/solver_kp_as_input_constrained.hpp>
 #include "path_optimizer/path_optimizer.hpp"
 #include "path_optimizer/reference_path_smoother/reference_path_smoother.hpp"
 #include "path_optimizer/reference_path_smoother/frenet_reference_path_smoother.hpp"
 #include "path_optimizer/reference_path_smoother/cartesian_reference_path_smoother.hpp"
 #include "path_optimizer/solver/solver_k_as_input.hpp"
 #include "path_optimizer/solver/solver_kp_as_input.hpp"
+#include "path_optimizer/solver/solver_kp_as_input_constrained.hpp"
 #include "path_optimizer/tools/tools.hpp"
 
 namespace PathOptimizationNS {
@@ -121,6 +123,15 @@ bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::
     reference_path_.reference_states = &reference_points;
     reference_path_.updateBounds(grid_map_, config_);
     N_ = reference_path_.bounds.size();
+
+    reference_path_.max_k_list.clear();
+    reference_path_.max_kp_list.clear();
+    for (size_t i = 0; i != N_; ++i) {
+        if (i < N_ / 2) reference_path_.max_k_list.emplace_back(0.1);
+        else reference_path_.max_k_list.emplace_back(tan(config_.max_steer_angle_) / config_.wheel_base_);
+        reference_path_.max_kp_list.emplace_back(DBL_MAX);
+    }
+
     bool optimization_ok = optimizePath(final_path);
     auto t2 = std::clock();
     std::cout << "[PathOptimizer] solve without smoothing time cost: " << time_s(t1, t2) << std::endl;
@@ -243,6 +254,12 @@ bool PathOptimizer::divideSmoothedPath() {
     }
     N_ = reference_path_.bounds.size();
 
+    reference_path_.max_k_list.clear();
+    reference_path_.max_kp_list.clear();
+    for (size_t i = 0; i != N_; ++i) {
+        reference_path_.max_k_list.emplace_back(tan(config_.max_steer_angle_) / config_.wheel_base_);
+        reference_path_.max_kp_list.emplace_back(DBL_MAX);
+    }
 //    double tmp_max_s = delta_s_smaller;
 //    reference_path_.seg_s_list_.emplace_back(0);
 //    while (tmp_max_s < reference_path_.max_s_) {
@@ -443,7 +460,7 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
     }
 
     // Solve problem.
-    SolverKpAsInput solver_interface(config_,
+    SolverKpAsInputConstrained solver_interface(config_,
                                      reference_path_,
                                      vehicle_state_,
                                      N_);
