@@ -26,8 +26,7 @@ class SolverKAsInput;
 class PathOptimizer {
 public:
     PathOptimizer() = delete;
-    PathOptimizer(const std::vector<State> &points_list,
-                  const State &start_state,
+    PathOptimizer(const State &start_state,
                   const State &end_state,
                   const grid_map::GridMap &map);
 
@@ -36,18 +35,21 @@ public:
     bool setConfig(const std::string &config_name, const T &value);
 
     // Call this to get the optimized path.
-    bool solve(std::vector<State> *final_path);
+    bool solve(const std::vector<State> &reference_points, std::vector<State> *final_path);
+    bool solveWithoutSmoothing(const std::vector<State> &reference_points, std::vector<State> *final_path);
 
     // Incomplete:
     // Sample a set of candidate paths of various longitudinal distance and lateral offset.
     // Note that it might be very slow if "densify_path" is set to false.
-    bool samplePaths(const std::vector<double> &lon_set,
+    bool samplePaths(const std::vector<State> &reference_points,
+                     const std::vector<double> &lon_set,
                      const std::vector<double> &lat_set,
                      std::vector<std::vector<State>> *final_path_set);
 
     // Incomplete:
     // For dynamic obstacle avoidance. Please Ignore this.
-    bool optimizeDynamic(const std::vector<double> &sr_list,
+    bool optimizeDynamic(const std::vector<State> &reference_points,
+                         const std::vector<double> &sr_list,
                          const std::vector<std::vector<double>> &clearance_list,
                          std::vector<double> *x_list,
                          std::vector<double> *y_list,
@@ -91,9 +93,6 @@ private:
     ReferencePath reference_path_;
     VehicleState vehicle_state_;
     size_t N_{};
-    // Input path
-    std::vector<State> points_list_;
-    size_t point_num_{};
     // For dynamic obstacle avoidace. Please Ignore this.
     std::shared_ptr<SolverKAsInput> dynamic_solver_ptr;
     bool solver_dynamic_initialized{false};
