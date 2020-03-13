@@ -23,6 +23,8 @@ public:
     double rear_axle_to_center_distance_{}; // Distance from rear axle center to the center of the vehicle.
     double d1_{}, d2_{}, d3_{}, d4_{}; // Distance from vehicle center to the covering circles, from rear to front.
     double max_steer_angle_{};
+    double mu_{};
+    double max_curvature_rate_{};
 
     // Smoothing phase related:
     SmoothingMethod smoothing_method_{FRENET};

@@ -39,12 +39,14 @@ void PathOptimizer::setConfig() {
     config_.d3_ = 1.0 / 8.0 * config_.car_length_;
     config_.d4_ = 3.0 / 8.0 * config_.car_length_;
     config_.max_steer_angle_ = 30 * M_PI / 180;
+    config_.max_curvature_rate_ = 0.13; // TODO: verify this.
 
     config_.smoothing_method_ = FRENET;
     config_.modify_input_points_ = true;
     config_.a_star_lateral_range_ = 10;
     config_.a_star_longitudinal_interval_ = 1.5;
     config_.a_star_lateral_interval_ = 0.6;
+    config_.mu_ = 0.4;
 
     //
     config_.frenet_curvature_rate_w_ = 1500;
@@ -122,16 +124,8 @@ bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::
     vehicle_state_.initial_heading_error_ = vehicle_state_.initial_offset_ = 0;
     reference_path_.reference_states = &reference_points;
     reference_path_.updateBounds(grid_map_, config_);
+    reference_path_.updateLimits(config_);
     N_ = reference_path_.bounds.size();
-
-    reference_path_.max_k_list.clear();
-    reference_path_.max_kp_list.clear();
-    for (size_t i = 0; i != N_; ++i) {
-        if (i < N_ / 2) reference_path_.max_k_list.emplace_back(0.1);
-        else reference_path_.max_k_list.emplace_back(tan(config_.max_steer_angle_) / config_.wheel_base_);
-        reference_path_.max_kp_list.emplace_back(DBL_MAX);
-    }
-
     bool optimization_ok = optimizePath(final_path);
     auto t2 = std::clock();
     std::cout << "[PathOptimizer] solve without smoothing time cost: " << time_s(t1, t2) << std::endl;

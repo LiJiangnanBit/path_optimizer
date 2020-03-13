@@ -29,7 +29,7 @@ class OsqpSolver {
       reference_path_(reference_path),
       vehicle_state_(vehicle_state) {}
 
-  ~OsqpSolver() = default;
+  virtual ~OsqpSolver() = default;
 
   virtual bool solve(std::vector<State> *optimized_path) = 0;
 
