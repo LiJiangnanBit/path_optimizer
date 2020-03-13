@@ -29,8 +29,8 @@ void SolverKpAsInputConstrained::setHessianMatrix(Eigen::SparseMatrix<double> *m
     double w_cr = config_.opt_curvature_rate_w_;
     double w_pq = config_.opt_deviation_w_;
     double w_collision_slack = config_.opt_bound_slack_w_;
-    double w_k_slack = 1;
-    double w_kp_slack = 1;
+    double w_k_slack = 500;
+    double w_kp_slack = 500;
     for (size_t i = 0; i != horizon_; ++i) {
         hessian(3 * i, 3 * i) += w_pq;
         hessian(3 * i + 2, 3 * i + 2) += w_c;
@@ -90,6 +90,8 @@ void SolverKpAsInputConstrained::setConstraintMatrix(Eigen::SparseMatrix<double>
         cons(kl_range_begin + i, state_size_ + control_size_ + horizon_ + i) = 1;
         cons(ku_range_begin + i, 3 * i + 2) = 1;
         cons(ku_range_begin + i, state_size_ + control_size_ + horizon_ + i) = -1;
+        cons(slack_range_begin + i, state_size_ + control_size_ + i) = 1;
+        cons(slack_range_begin + horizon_ + i, state_size_ + control_size_ + horizon_ + i) = 1;
     }
     // kp:
     for (size_t i = 0; i != control_size_; ++i) {
@@ -97,6 +99,7 @@ void SolverKpAsInputConstrained::setConstraintMatrix(Eigen::SparseMatrix<double>
         cons(kpl_range_begin + i, state_size_ + control_size_ + 2 * horizon_ + i) = 1;
         cons(kpu_range_begin + i, state_size_ + i) = 1;
         cons(kpu_range_begin + i, state_size_ + control_size_ + 2 * horizon_ + i) = -1;
+        cons(slack_range_begin + 2 * horizon_ + i, state_size_ + control_size_ + 2 * horizon_ + i) = 1;
     }
 
     // Set collision part.
@@ -145,11 +148,14 @@ void SolverKpAsInputConstrained::setConstraintMatrix(Eigen::SparseMatrix<double>
         (*lower_bound)(slack_range_begin + i) = 0;
         (*upper_bound)(slack_range_begin + i) = config_.expected_safety_margin_;
         (*lower_bound)(slack_range_begin + horizon_ + i) = 0;
-        (*upper_bound)(slack_range_begin + horizon_ + i) = tan(config_.max_steer_angle_) / config_.wheel_base_ - reference_path_.max_k_list[i];
+        (*upper_bound)(slack_range_begin + horizon_ + i) = //OsqpEigen::INFTY;
+            std::max(tan(config_.max_steer_angle_) / config_.wheel_base_ - reference_path_.max_k_list[i], 0.0);
     }
     for (size_t i = 0; i != control_horizon_; ++i) {
         (*lower_bound)(kpl_range_begin + i) = -reference_path_.max_kp_list[i];
-        (*upper_bound)(kpl_range_begin + i) = reference_path_.max_kp_list[i];
+        (*upper_bound)(kpl_range_begin + i) = OsqpEigen::INFTY;
+        (*lower_bound)(kpu_range_begin + i) = -OsqpEigen::INFTY;
+        (*upper_bound)(kpu_range_begin + i) = reference_path_.max_kp_list[i];
 
         (*lower_bound)(slack_range_begin + 2 * horizon_ + i) = 0;
         (*upper_bound)(slack_range_begin + 2 * horizon_ + i) = OsqpEigen::INFTY;

@@ -43,27 +43,11 @@ struct CoveringCircleBounds {
 };
 
 struct ReferencePath {
-    ReferencePath() = default;
-    // Copy some elements from another one.
-//    ReferencePath(const ReferencePath &divided_segments_, size_t target_index) :
-//        x_s_(divided_segments_.x_s_),
-//        y_s_(divided_segments_.y_s_),
-//        max_s_(divided_segments_.max_s_) {
-//        assert(target_index <= divided_segments_.seg_angle_list_.size());
-//        seg_s_list_.assign(divided_segments_.seg_s_list_.begin(), divided_segments_.seg_s_list_.begin() + target_index);
-//        seg_angle_list_.assign(divided_segments_.seg_angle_list_.begin(),
-//                               divided_segments_.seg_angle_list_.begin() + target_index);
-//        seg_k_list_.assign(divided_segments_.seg_k_list_.begin(), divided_segments_.seg_k_list_.begin() + target_index);
-//        seg_clearance_list_.assign(divided_segments_.seg_clearance_list_.begin(),
-//                                   divided_segments_.seg_clearance_list_.begin() + target_index);
-//        seg_x_list_.assign(divided_segments_.seg_x_list_.begin(), divided_segments_.seg_x_list_.begin() + target_index);
-//        seg_y_list_.assign(divided_segments_.seg_y_list_.begin(), divided_segments_.seg_y_list_.begin() + target_index);
-//    }
     inline void setReference(const std::vector<State> *reference) {
         reference_states = reference;
     }
     void updateBounds(const Map &map, const Config &config);
-    void updateLimits();
+    void updateLimits(const Config &config);
     std::vector<double> getClearanceWithDirectionStrict(const PathOptimizationNS::State &state,
                                                         const PathOptimizationNS::Map &map,
                                                         double radius) const;
@@ -76,12 +60,6 @@ struct ReferencePath {
     std::vector<CoveringCircleBounds> bounds;
     std::vector<double> max_k_list;
     std::vector<double> max_kp_list;
-//    std::vector<double> seg_s_list_;
-//    std::vector<double> seg_k_list_;
-//    std::vector<double> seg_x_list_;
-//    std::vector<double> seg_y_list_;
-//    std::vector<double> seg_angle_list_;
-//    std::vector<std::vector<double> > seg_clearance_list_;
 };
 
 struct Circle {

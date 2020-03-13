@@ -1,13 +1,33 @@
 //
 // Created by ljn on 20-3-12.
 //
-
+#include <cfloat>
 #include <path_optimizer/tools/Map.hpp>
 #include <path_optimizer/config/config.hpp>
 #include "path_optimizer/data_struct/data_struct.hpp"
 #include "path_optimizer/tools/tools.hpp"
 
 namespace PathOptimizationNS {
+
+void ReferencePath::updateLimits(const Config &config) {
+    if (!reference_states) {
+        LOG(WARNING) << "[SolverInput] Empty reference, updateLimits fail!";
+        return;
+    }
+    max_k_list.clear();
+    max_kp_list.clear();
+    for (size_t i = 0; i != reference_states->size(); ++i) {
+        // Friction circle limit.
+        double ref_v = reference_states->at(i).v;
+        double ref_ax = reference_states->at(i).a;
+        double ay_allowed = sqrt(pow(config.mu_ * 9.8, 2) - pow(ref_ax, 2));
+        if (ref_v > 0.0001) max_k_list.emplace_back(ay_allowed / pow(ref_v, 2));
+        else max_k_list.emplace_back(DBL_MAX);
+        // Control rate limit.
+        if (ref_v > 0.0001) max_kp_list.emplace_back(config.max_curvature_rate_ / ref_v);
+        else max_kp_list.emplace_back(DBL_MAX);
+    }
+}
 
 void ReferencePath::updateBounds(const Map &map, const Config &config) {
     if (!reference_states) {
@@ -138,10 +158,8 @@ std::vector<double> ReferencePath::getClearanceWithDirectionStrict(const PathOpt
             right_bound = -(right_s - delta_s);
         }
     }
-    // Search again.
+    // Search backward.
     double smaller_ds = 0.1;
-//    double left_bound_1 = left_bound;
-//    double right_bound_1 = right_bound;
     for (int i = 1; i != static_cast<int>(delta_s / smaller_ds); ++i) {
         left_bound += smaller_ds;
         grid_map::Position position(
