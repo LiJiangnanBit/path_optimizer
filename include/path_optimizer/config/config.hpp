@@ -44,6 +44,7 @@ public:
     // Output option
     bool raw_result_{};
     double output_interval_{};
+    bool info_output_{};
 };
 }
 #endif //PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_CONFIG_HPP_

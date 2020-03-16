@@ -18,8 +18,6 @@ SolverKpAsInput::SolverKpAsInput(const Config &config,
     state_size_(3 * horizon_),
     control_size_(control_horizon_),
     slack_size_(horizon_) {
-    std::cout << "optimization horizon: " << horizon_ << std::endl;
-    std::cout << "control horizon: " << control_horizon_ << std::endl;
 }
 
 void SolverKpAsInput::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const {

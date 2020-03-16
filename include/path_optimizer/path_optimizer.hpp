@@ -38,23 +38,6 @@ public:
     bool solve(const std::vector<State> &reference_points, std::vector<State> *final_path);
     bool solveWithoutSmoothing(const std::vector<State> &reference_points, std::vector<State> *final_path);
 
-    // Incomplete:
-    // Sample a set of candidate paths of various longitudinal distance and lateral offset.
-    // Note that it might be very slow if "densify_path" is set to false.
-//    bool samplePaths(const std::vector<State> &reference_points,
-//                     const std::vector<double> &lon_set,
-//                     const std::vector<double> &lat_set,
-//                     std::vector<std::vector<State>> *final_path_set);
-
-    // Incomplete:
-    // For dynamic obstacle avoidance. Please Ignore this.
-//    bool optimizeDynamic(const std::vector<State> &reference_points,
-//                         const std::vector<double> &sr_list,
-//                         const std::vector<std::vector<double>> &clearance_list,
-//                         std::vector<double> *x_list,
-//                         std::vector<double> *y_list,
-//                         std::vector<double> *s_list);
-
     // Get config:
     const Config &getConfig() {
         return config_;
@@ -74,16 +57,6 @@ private:
     // Core function.
     bool optimizePath(std::vector<State> *final_path);
 
-    // Generate a set of paths with the same longitudinal length on reference line.
-//    bool sampleSingleLongitudinalPaths(double lon,
-//                                       const std::vector<double> &lat_set,
-//                                       std::vector<std::vector<State>> *final_path_set,
-//                                       bool max_lon_flag);
-
-    // Get bounds for each circle at each sampling point.
-//    std::vector<double> getClearanceWithDirectionStrict(const State &state, double radius) const;
-//    std::shared_ptr<std::vector<double>> getClearanceFor4Circles(const State &state);
-
     // Divide smoothed path into segments.
     bool divideSmoothedPath();
 
@@ -93,10 +66,7 @@ private:
     ReferencePath reference_path_;
     VehicleState vehicle_state_;
     size_t N_{};
-    // For dynamic obstacle avoidace. Please Ignore this.
-    std::shared_ptr<SolverKAsInput> dynamic_solver_ptr;
-    bool solver_dynamic_initialized{false};
-    tk::spline xsr_, ysr_;
+
     // For visualization purpose.
     std::vector<State> rear_bounds_;
     std::vector<State> center_bounds_;
@@ -134,6 +104,8 @@ bool PathOptimizer::setConfig(const std::string &config_name, const T &value) {
         config_.raw_result_ = static_cast<bool>(value);
     } else if (config_name == "output_interval_") {
         config_.output_interval_ = static_cast<double>(value);
+    } else if (config_name == "info_ootput_") {
+        config_.info_output_ == static_cast<bool>(value);
     } else {
         LOG(WARNING) << "[PathOptimizer] No config named " << config_name << " or this config can only be changed in config file.";
         return false;

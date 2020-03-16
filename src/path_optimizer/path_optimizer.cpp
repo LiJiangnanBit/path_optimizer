@@ -20,8 +20,7 @@ PathOptimizer::PathOptimizer(const State &start_state,
     grid_map_(map),
     collision_checker_(map),
     vehicle_state_(start_state, end_state, 0, 0),
-    N_(0),
-    solver_dynamic_initialized(false) {
+    N_(0) {
     setConfig();
     collision_checker_.init(config_);
 }
@@ -39,7 +38,7 @@ void PathOptimizer::setConfig() {
     config_.d3_ = 1.0 / 8.0 * config_.car_length_;
     config_.d4_ = 3.0 / 8.0 * config_.car_length_;
     config_.max_steer_angle_ = 30 * M_PI / 180;
-    config_.max_curvature_rate_ = 0.13; // TODO: verify this.
+    config_.max_curvature_rate_ = 0.1; // TODO: verify this.
 
     config_.smoothing_method_ = FRENET;
     config_.modify_input_points_ = true;
@@ -68,12 +67,18 @@ void PathOptimizer::setConfig() {
     //
     config_.raw_result_ = true;
     config_.output_interval_ = 0.3;
+    config_.info_output_ = true;
 }
 
 bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vector<State> *final_path) {
+    std::cout << "------" << std::endl;
+    if (!final_path) {
+        LOG(WARNING) << "[PathOptimizer] No place for result!";
+        return false;
+    }
     auto t1 = std::clock();
     if (reference_points.empty()) {
-        printf("empty input, quit path optimization\n");
+        LOG(WARNING) << "[PathOptimizer] empty input, quit path optimization";
         return false;
     }
     // Smooth reference path.
@@ -87,38 +92,46 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
     }
     a_star_display_ = reference_path_smoother.display();
     if (!smoothing_ok) {
-        printf("smoothing stage failed, quit path optimization.\n");
+        LOG(WARNING) << "[PathOptimizer] Reference Smoothing failed!";
         return false;
     }
     auto t2 = std::clock();
-    // Divide reference path into segments and store infomation into vectors.
+    // Divide reference path into segments;
     if (!divideSmoothedPath()) {
         printf("divide stage failed, quit path optimization.\n");
+        LOG(WARNING) << "[PathOptimizer] Reference path segmentation failed!";
         return false;
-    };
+    }
     auto t3 = std::clock();
     // Optimize.
-    bool optimization_ok = optimizePath(final_path);
-    auto t4 = std::clock();
-    printf("*********\n"
-           "smooth phase t: %f\n"
-           "divide phase t: %f\n"
-           "optimize phase t: %f\n"
-           "all t: %f\n"
-           "*********\n\n\n",
-           time_s(t1, t2),
-           time_s(t2, t3),
-           time_s(t3, t4),
-           time_s(t1, t4));
-    delete reference_path_.reference_states;
-    return optimization_ok;
+    if (optimizePath(final_path)) {
+        auto t4 = std::clock();
+        if (config_.info_output_) {
+            time_ms_out(t1, t2, "Reference smoothing");
+            time_ms_out(t2, t3, "Reference segmentation");
+            time_ms_out(t3, t4, "Optimization phase");
+            time_ms_out(t1, t4, "All");
+        }
+        LOG(INFO) << "[PathOptimizer] Solved!";
+        delete reference_path_.reference_states;
+        return true;
+    } else {
+        LOG(WARNING) << "[PathOptimizer] Failed!";
+        delete reference_path_.reference_states;
+        return false;
+    }
 }
 
 bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::State> &reference_points,
                                           std::vector<PathOptimizationNS::State> *final_path) {
+    std::cout << "------" << std::endl;
+    if (!final_path) {
+        LOG(WARNING) << "[PathOptimizer] No place for result!";
+        return false;
+    }
     auto t1 = std::clock();
     if (reference_points.empty()) {
-        printf("empty input, quit path optimization\n");
+        LOG(WARNING) << "[PathOptimizer] Empty input, quit path optimization!";
         return false;
     }
     vehicle_state_.initial_heading_error_ = vehicle_state_.initial_offset_ = 0;
@@ -126,53 +139,22 @@ bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::
     reference_path_.updateBounds(grid_map_, config_);
     reference_path_.updateLimits(config_);
     N_ = reference_path_.bounds.size();
-    bool optimization_ok = optimizePath(final_path);
-    auto t2 = std::clock();
-    std::cout << "[PathOptimizer] solve without smoothing time cost: " << time_s(t1, t2) << std::endl;
-    return optimization_ok;
+    if (optimizePath(final_path)) {
+        auto t2 = std::clock();
+        if (config_.info_output_) {
+            time_ms_out(t1, t2, "Solve without smoothing");
+        }
+        LOG(INFO) << "[PathOptimizer] Solved without smoothing!";
+        return true;
+    } else {
+        LOG(WARNING) << "[PathOptimizer] Solving without smoothing failed!";
+        return false;
+    }
 }
-
-// Incomplete:
-// Sample a set of candidate paths of various longitudinal distance and lateral offset.
-// Note that it might be very slow if "densify_path" is set to false.
-//bool PathOptimizer::samplePaths(const std::vector<State> &reference_points,
-//                                const std::vector<double> &lon_set,
-//                                const std::vector<double> &lat_set,
-//                                std::vector<std::vector<State>> *final_path_set) {
-//    if (reference_points.empty()) {
-//        printf("empty input, quit path optimization\n");
-//        return false;
-//    }
-//    // Smooth reference path.
-//    ReferencePathSmoother
-//        reference_path_smoother(reference_points, vehicle_state_.start_state_, grid_map_, config_);
-//    bool smoothing_ok = false;
-//    if (config_.smoothing_method_ == FRENET) {
-//        smoothing_ok = reference_path_smoother.solve<FrenetReferencePathSmoother>(&reference_path_, &smoothed_path_);
-//    } else if (config_.smoothing_method_ == CARTESIAN) {
-//        smoothing_ok = reference_path_smoother.solve<CartesianReferencePathSmoother>(&reference_path_, &smoothed_path_);
-//    }
-//    if (!smoothing_ok) {
-//        printf("smoothing stage failed, quit path optimization.\n");
-//        return false;
-//    }
-//    // Divide reference path into segments and store infomation into vectors.
-//    if (!divideSmoothedPath()) {
-//        printf("divide path failed!\n");
-//        return false;
-//    }
-//    // Sample paths for each longitudinal s.
-//    bool max_lon_flag = false;
-//    for (size_t i = 0; i != lon_set.size(); ++i) {
-//        if (i == lon_set.size() - 1) max_lon_flag = true;
-//        if (!sampleSingleLongitudinalPaths(lon_set[i], lat_set, final_path_set, max_lon_flag)) continue;
-//    }
-//    return !final_path_set->empty();
-//}
 
 bool PathOptimizer::divideSmoothedPath() {
     if (reference_path_.max_s_ == 0) {
-        LOG(INFO) << "Smoothed path is empty!";
+        LOG(INFO) << "[PathOptimizer] Smoothed path is empty!";
         return false;
     }
     // Calculate the initial deviation and angle difference.
@@ -190,7 +172,7 @@ bool PathOptimizer::divideSmoothedPath() {
     vehicle_state_.initial_heading_error_ = constraintAngle(vehicle_state_.start_state_.z - first_point.z);
     // If the start heading differs a lot with the ref path, quit.
     if (fabs(vehicle_state_.initial_heading_error_) > 75 * M_PI / 180) {
-        LOG(WARNING) << "initial epsi is larger than 90°, quit mpc path optimization!";
+        LOG(WARNING) << "[PathOptimizer] Initial epsi is larger than 90°, quit path optimization!";
         return false;
     }
 
@@ -247,212 +229,16 @@ bool PathOptimizer::divideSmoothedPath() {
         reference_states->resize(reference_path_.bounds.size());
     }
     N_ = reference_path_.bounds.size();
-
     reference_path_.max_k_list.clear();
     reference_path_.max_kp_list.clear();
     for (size_t i = 0; i != N_; ++i) {
         reference_path_.max_k_list.emplace_back(tan(config_.max_steer_angle_) / config_.wheel_base_);
         reference_path_.max_kp_list.emplace_back(DBL_MAX);
     }
-//    double tmp_max_s = delta_s_smaller;
-//    reference_path_.seg_s_list_.emplace_back(0);
-//    while (tmp_max_s < reference_path_.max_s_) {
-//        reference_path_.seg_s_list_.emplace_back(tmp_max_s);
-//        if (tmp_max_s <= 2) {
-//            tmp_max_s += delta_s_smaller;
-//        } else {
-//            tmp_max_s += delta_s_larger;
-//        }
-//    }
-//    if (reference_path_.max_s_ - reference_path_.seg_s_list_.back() > 1) {
-//        reference_path_.seg_s_list_.emplace_back(reference_path_.max_s_);
-//    }
-//    N_ = reference_path_.seg_s_list_.size();
-//    // Store reference states in vectors. They will be used later.
-//    for (size_t i = 0; i != N_; ++i) {
-//        double length_on_ref_path = reference_path_.seg_s_list_[i];
-//        reference_path_.seg_x_list_.emplace_back(reference_path_.x_s_(length_on_ref_path));
-//        reference_path_.seg_y_list_.emplace_back(reference_path_.y_s_(length_on_ref_path));
-//        double x_d1 = reference_path_.x_s_.deriv(1, length_on_ref_path);
-//        double y_d1 = reference_path_.y_s_.deriv(1, length_on_ref_path);
-//        double x_d2 = reference_path_.x_s_.deriv(2, length_on_ref_path);
-//        double y_d2 = reference_path_.y_s_.deriv(2, length_on_ref_path);
-//        double tmp_h = atan2(y_d1, x_d1);
-//        double tmp_k = (x_d1 * y_d2 - y_d1 * x_d2) / pow(pow(x_d1, 2) + pow(y_d1, 2), 1.5);
-//        reference_path_.seg_angle_list_.emplace_back(tmp_h);
-//        reference_path_.seg_k_list_.emplace_back(tmp_k);
-//    }
-    // Get clearance of covering circles.
-//    for (size_t i = 0; i != N_; ++i) {
-//        State center_state(reference_path_.seg_x_list_[i],
-//                           reference_path_.seg_y_list_[i],
-//                           reference_path_.seg_angle_list_[i],
-//                           0,
-//                           reference_path_.seg_s_list_[i]);
-//        // Function getClearance uses the center position as input.
-//        if (config_.car_type_ == ACKERMANN_STEERING) {
-//            center_state.x += config_.rear_axle_to_center_distance_ * cos(center_state.z);
-//            center_state.y += config_.rear_axle_to_center_distance_ * sin(center_state.z);
-//        }
-//        auto clearance = getClearanceFor4Circles(center_state);
-//        // Terminate if collision is inevitable near the end.
-//        if ((clearance->at(0) == clearance->at(1)
-//            || clearance->at(2) == clearance->at(3)
-//            || clearance->at(4) == clearance->at(5)
-//            || clearance->at(6) == clearance->at(7))
-//            && center_state.s > 0.75 * reference_path_.max_s_) {
-//            printf("some states near end are not satisfying\n");
-//            N_ = i;
-//            config_.constraint_end_heading_ = false;
-//            reference_path_.seg_x_list_.erase(reference_path_.seg_x_list_.begin() + i,
-//                                              reference_path_.seg_x_list_.end());
-//            reference_path_.seg_y_list_.erase(reference_path_.seg_y_list_.begin() + i,
-//                                              reference_path_.seg_y_list_.end());
-//            reference_path_.seg_s_list_.erase(reference_path_.seg_s_list_.begin() + i,
-//                                              reference_path_.seg_s_list_.end());
-//            reference_path_.seg_k_list_.erase(reference_path_.seg_k_list_.begin() + i,
-//                                              reference_path_.seg_k_list_.end());
-//            reference_path_.seg_angle_list_.erase(reference_path_.seg_angle_list_.begin() + i,
-//                                                  reference_path_.seg_angle_list_.end());
-//            break;
-//        }
-//        reference_path_.seg_clearance_list_.emplace_back(*clearance);
-//    }
     return true;
 }
 
-//bool PathOptimizer::sampleSingleLongitudinalPaths(double lon,
-//                                                  const std::vector<double> &lat_set,
-//                                                  std::vector<std::vector<State>> *final_path_set,
-//                                                  bool max_lon_flag) {
-//    // TODO: use provided lateral set.
-//    auto t1 = std::clock();
-//    size_t index = 0;
-//    for (; index != N_; ++index) {
-//        if (reference_path_.seg_s_list_[index] > lon) break;
-//    }
-//    ReferencePath divided_segments(reference_path_, index);
-//    auto N = divided_segments.seg_s_list_.size();
-//
-//    auto t2 = std::clock();
-//    SolverKAsInput solver_interface(config_, reference_path_, vehicle_state_, N);
-//    double target_angle = divided_segments.seg_angle_list_.back();
-//    solver_interface.initializeSampling(target_angle, 0, 0.1);
-//
-//    auto t3 = std::clock();
-//    size_t count = 0;
-//    double left_bound = divided_segments.seg_clearance_list_.back()[0];
-//    double right_bound = divided_segments.seg_clearance_list_.back()[1];
-////    double range = (left_bound - right_bound) * 0.95;
-//    double range = (left_bound - right_bound);
-//    double reduced_range;
-//    // Total lateral sampling range is 6m.
-//    if (range >= 6) reduced_range = (range - 6) / 2;
-//    else reduced_range = 0;
-//    double interval = 0.3;
-//    std::vector<double> offset_set;
-//    for (size_t i = 0; i * interval <= range - 2 * reduced_range; ++i) {
-//        offset_set.emplace_back(right_bound + reduced_range + i * interval);
-//    }
-//    offset_set.emplace_back(0);
-//    State sample_state;
-//    Eigen::VectorXd QPSolution;
-////    for (size_t i = 0; i != lat_set.size(); ++i) {
-//    for (size_t i = 0; i != offset_set.size(); ++i) {
-//        sample_state.x = divided_segments.seg_x_list_.back() + offset_set[i] * cos(target_angle + M_PI_2);
-//        sample_state.y = divided_segments.seg_y_list_.back() + offset_set[i] * sin(target_angle + M_PI_2);
-//        sample_state.z = target_angle;
-//        if (!collision_checker_.isSingleStateCollisionFreeImproved(sample_state)) {
-//            printf("lon: %f, lat: %f is not feasible!\n", lon, offset_set[i]);
-//            continue;
-//        }
-//        if (!solver_interface.solveSampling(&QPSolution, offset_set[i])) {
-//            printf("solver failed at lon: %f, lat: %f!\n", lon, offset_set[i]);
-//            continue;
-//        }
-//        // Get single path.
-//        std::vector<double> result_x, result_y, result_s;
-//        double total_s = 0;
-//        double last_x = 0, last_y = 0;
-//        for (size_t j = 0; j != N; ++j) {
-//            double length_on_ref_path = divided_segments.seg_s_list_[j];
-//            double angle = divided_segments.seg_angle_list_[j];
-//            double new_angle = constraintAngle(angle + M_PI_2);
-//            double tmp_x = reference_path_.x_s_(length_on_ref_path) + QPSolution(2 * j + 1) * cos(new_angle);
-//            double tmp_y = reference_path_.y_s_(length_on_ref_path) + QPSolution(2 * j + 1) * sin(new_angle);
-//            result_x.emplace_back(tmp_x);
-//            result_y.emplace_back(tmp_y);
-//            if (j != 0) {
-//                total_s += sqrt(pow(tmp_x - last_x, 2) + pow(tmp_y - last_y, 2));
-//            }
-//            result_s.emplace_back(total_s);
-//            last_x = tmp_x;
-//            last_y = tmp_y;
-//        }
-//        tk::spline x_s, y_s;
-//        x_s.set_points(result_s, result_x);
-//        y_s.set_points(result_s, result_y);
-//        std::vector<State> tmp_final_path;
-//        double delta_s = 0.3;
-//        double tmp_s = 0;
-//        State tmp_state;
-//        for (int j = 0; tmp_s < result_s.back(); ++j) {
-//            tmp_s = j * delta_s;
-//            tmp_state.x = x_s(tmp_s);
-//            tmp_state.y = y_s(tmp_s);
-//            tmp_state.z = atan2(y_s.deriv(1, tmp_s), x_s.deriv(1, tmp_s));
-//            tmp_state.s = tmp_s;
-//            if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
-//                tmp_final_path.emplace_back(tmp_state);
-//            } else {
-//                printf("path optimization collision check failed at %f of %fm, lat: %f\n",
-//                       tmp_s,
-//                       result_s.back(),
-//                       offset_set[i]);
-//                break;
-//            }
-//            if ((j + 1) * delta_s > result_s.back()) {
-//                tmp_s = result_s.back();
-//                tmp_state.x = x_s(tmp_s);
-//                tmp_state.y = y_s(tmp_s);
-//                tmp_state.z = atan2(y_s.deriv(1, tmp_s), x_s.deriv(1, tmp_s));
-//                tmp_state.s = tmp_s;
-//                if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
-//                    tmp_final_path.emplace_back(tmp_state);
-//                }
-//            }
-//        }
-//        if (!tmp_final_path.empty()) {
-//            final_path_set->emplace_back(tmp_final_path);
-//            ++count;
-//        }
-//    }
-//
-//    auto t4 = std::clock();
-//    printf("got %d paths at %fm\n", static_cast<int>(count), lon);
-//    printf("**********\n"
-//           "preprocess: %f\n"
-//           "solver init: %f\n"
-//           "solve: %f\n"
-//           "all: %f\n"
-//           "**********\n",
-//           time_s(t1, t2),
-//           time_s(t2, t3),
-//           time_s(t3, t4),
-//           time_s(t1, t4));
-//    return true;
-//}
-
 bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
-    if (!final_path) {
-        LOG(WARNING) << "[PathOptimizer] null";
-        return false;
-    }
-    if (reference_path_.max_s_ == 0) {
-        LOG(WARNING) << "[PathOptimizer] path optimization input is empty!";
-        return false;
-    }
-
     // Solve problem.
     SolverKpAsInputConstrained solver_interface(config_,
                                      reference_path_,
@@ -476,10 +262,10 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
         return true;
     } else {
         std::vector<double> result_x, result_y, result_s;
-        for (auto iter = final_path->begin(); iter != final_path->end(); ++iter) {
-            result_x.emplace_back(iter->x);
-            result_y.emplace_back(iter->y);
-            result_s.emplace_back(iter->s);
+        for (const auto &p : *final_path) {
+            result_x.emplace_back(p.x);
+            result_y.emplace_back(p.y);
+            result_s.emplace_back(p.s);
         }
         tk::spline x_s, y_s;
         x_s.set_points(result_s, result_x);
@@ -503,251 +289,6 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
     }
     return true;
 }
-
-//bool PathOptimizer::optimizeDynamic(const std::vector<State> &reference_points,
-//                                    const std::vector<double> &sr_list,
-//                                    const std::vector<std::vector<double>> &clearance_list,
-//                                    std::vector<double> *x_list,
-//                                    std::vector<double> *y_list,
-//                                    std::vector<double> *s_list) {
-//    auto N = sr_list.size();
-//    if (!solver_dynamic_initialized) {
-//        std::vector<double> x_set, y_set, s_set;
-//        for (const auto &point : reference_points) {
-//            x_set.emplace_back(point.x);
-//            y_set.emplace_back(point.y);
-//            s_set.emplace_back(point.s);
-//        }
-//        xsr_.set_points(s_set, x_set);
-//        ysr_.set_points(s_set, y_set);
-//        std::vector<double> angle_list, k_list;
-//        for (size_t i = 0; i != sr_list.size(); ++i) {
-//            double tmp_s = sr_list[i];
-//            double x_d1 = xsr_.deriv(1, tmp_s);
-//            double y_d1 = ysr_.deriv(1, tmp_s);
-//            double x_d2 = xsr_.deriv(2, tmp_s);
-//            double y_d2 = ysr_.deriv(2, tmp_s);
-//            double h = atan2(y_d1, x_d1);
-//            double k = (x_d1 * y_d2 - y_d1 * x_d2) / pow(pow(x_d1, 2) + pow(y_d1, 2), 1.5);
-//            angle_list.emplace_back(h);
-//            k_list.emplace_back(k);
-//        }
-//        reference_path_.seg_angle_list_ = std::move(angle_list);
-//        reference_path_.seg_k_list_ = std::move(k_list);
-//        reference_path_.seg_s_list_.assign(sr_list.cbegin(), sr_list.cend());
-//        reference_path_.seg_clearance_list_.assign(clearance_list.cbegin(), clearance_list.cend());
-//        // Initialize solver.
-//        dynamic_solver_ptr = std::make_shared<SolverKAsInput>(config_, reference_path_, vehicle_state_, N);
-//        Eigen::VectorXd QPSolution;
-//        dynamic_solver_ptr->solveDynamic(&QPSolution);
-//        double total_s = 0;
-//        for (size_t j = 0; j != N; ++j) {
-//            double length_on_ref_path = sr_list[j];
-//            double angle = reference_path_.seg_angle_list_[j];
-//            double new_angle = constraintAngle(angle + M_PI_2);
-//            double tmp_x = xsr_(length_on_ref_path) + QPSolution(2 * j + 1) * cos(new_angle);
-//            double tmp_y = ysr_(length_on_ref_path) + QPSolution(2 * j + 1) * sin(new_angle);
-//            if (j != 0) {
-//                total_s += sqrt(pow(tmp_x - x_list->back(), 2) + pow(tmp_y - y_list->back(), 2));
-//            }
-//            s_list->emplace_back(total_s);
-//            x_list->emplace_back(tmp_x);
-//            y_list->emplace_back(tmp_y);
-//        }
-//        solver_dynamic_initialized = true;
-//        return true;
-//    } else {
-//        Eigen::VectorXd QPSolution;
-//        dynamic_solver_ptr->solveDynamicUpdate(&QPSolution, clearance_list);
-//        double total_s = 0;
-//        for (size_t j = 0; j != N; ++j) {
-//            double length_on_ref_path = sr_list[j];
-//            double x_d1 = xsr_.deriv(1, length_on_ref_path);
-//            double y_d1 = ysr_.deriv(1, length_on_ref_path);
-//            double angle = atan2(y_d1, x_d1);
-//            double new_angle = constraintAngle(angle + M_PI_2);
-//            double tmp_x = xsr_(length_on_ref_path) + QPSolution(2 * j + 1) * cos(new_angle);
-//            double tmp_y = ysr_(length_on_ref_path) + QPSolution(2 * j + 1) * sin(new_angle);
-//            if (j != 0) {
-//                total_s += sqrt(pow(tmp_x - x_list->back(), 2) + pow(tmp_y - y_list->back(), 2));
-//            }
-//            s_list->emplace_back(total_s);
-//            x_list->emplace_back(tmp_x);
-//            y_list->emplace_back(tmp_y);
-//        }
-//        return true;
-//    }
-//}
-
-//std::vector<double> PathOptimizer::getClearanceWithDirectionStrict(const State &state, double radius) const {
-//    double left_bound = 0;
-//    double right_bound = 0;
-//    double delta_s = 0.5;
-//    double left_angle = constraintAngle(state.z + M_PI_2);
-//    double right_angle = constraintAngle(state.z - M_PI_2);
-//    auto n = static_cast<size_t >(5.0 / delta_s);
-//    // Check if the original position is collision free.
-//    grid_map::Position original_position(state.x, state.y);
-//    auto original_clearance = grid_map_.getObstacleDistance(original_position);
-//    if (original_clearance > radius) {
-//        // Normal case:
-//        double right_s = 0;
-//        for (size_t j = 0; j != n; ++j) {
-//            right_s += delta_s;
-//            double x = state.x + right_s * cos(right_angle);
-//            double y = state.y + right_s * sin(right_angle);
-//            grid_map::Position new_position(x, y);
-//            double clearance = grid_map_.getObstacleDistance(new_position);
-//            if (clearance < radius) {
-//                break;
-//            }
-//        }
-//        double left_s = 0;
-//        for (size_t j = 0; j != n; ++j) {
-//            left_s += delta_s;
-//            double x = state.x + left_s * cos(left_angle);
-//            double y = state.y + left_s * sin(left_angle);
-//            grid_map::Position new_position(x, y);
-//            double clearance = grid_map_.getObstacleDistance(new_position);
-//            if (clearance < radius) {
-//                break;
-//            }
-//        }
-//        right_bound = -(right_s - delta_s);
-//        left_bound = left_s - delta_s;
-//    } else {
-//        // Collision already; pick one side to expand:
-//        double right_s = 0;
-//        for (size_t j = 0; j != n; ++j) {
-//            right_s += delta_s;
-//            double x = state.x + right_s * cos(right_angle);
-//            double y = state.y + right_s * sin(right_angle);
-//            grid_map::Position new_position(x, y);
-//            double clearance = grid_map_.getObstacleDistance(new_position);
-//            if (clearance > radius) {
-//                break;
-//            }
-//        }
-//        double left_s = 0;
-//        for (size_t j = 0; j != n; ++j) {
-//            left_s += delta_s;
-//            double x = state.x + left_s * cos(left_angle);
-//            double y = state.y + left_s * sin(left_angle);
-//            grid_map::Position new_position(x, y);
-//            double clearance = grid_map_.getObstacleDistance(new_position);
-//            if (clearance > radius) {
-//                break;
-//            }
-//        }
-//        // Compare
-//        if (left_s < right_s) {
-//            // Pick left side:
-//            right_bound = left_s;
-//            for (size_t j = 0; j != n; ++j) {
-//                left_s += delta_s;
-//                double x = state.x + left_s * cos(left_angle);
-//                double y = state.y + left_s * sin(left_angle);
-//                grid_map::Position new_position(x, y);
-//                double clearance = grid_map_.getObstacleDistance(new_position);
-//                if (clearance < radius) {
-//                    break;
-//                }
-//            }
-//            left_bound = left_s - delta_s;
-//        } else {
-//            // Pick right side:
-//            left_bound = -right_s;
-//            for (size_t j = 0; j != n; ++j) {
-//                right_s += delta_s;
-//                double x = state.x + right_s * cos(right_angle);
-//                double y = state.y + right_s * sin(right_angle);
-//                grid_map::Position new_position(x, y);
-//                double clearance = grid_map_.getObstacleDistance(new_position);
-//                if (clearance < radius) {
-//                    break;
-//                }
-//            }
-//            right_bound = -(right_s - delta_s);
-//        }
-//    }
-//    // Search again.
-//    double smaller_ds = 0.1;
-////    double left_bound_1 = left_bound;
-////    double right_bound_1 = right_bound;
-//    for (int i = 1; i != static_cast<int>(delta_s / smaller_ds); ++i) {
-//        left_bound += smaller_ds;
-//        grid_map::Position position(
-//            state.x + left_bound * cos(left_angle),
-//            state.y + left_bound * sin(left_angle)
-//            );
-//        if (grid_map_.getObstacleDistance(position) < radius) {
-//            left_bound -= smaller_ds;
-//            break;
-//        }
-//    }
-//    for (int i = 1; i != static_cast<int>(delta_s / smaller_ds); ++i) {
-//        right_bound -= smaller_ds;
-//        grid_map::Position position(
-//            state.x + right_bound * cos(right_angle),
-//            state.y + right_bound * sin(right_angle)
-//        );
-//        if (grid_map_.getObstacleDistance(position) < radius) {
-//            right_bound += smaller_ds;
-//            break;
-//        }
-//    }
-//    return {left_bound, right_bound};
-//}
-//
-//std::shared_ptr<std::vector<double>> PathOptimizer::getClearanceFor4Circles(const State &state) {
-//    double circle_r = config_.circle_radius_;
-//    double center_x = state.x;
-//    double center_y = state.y;
-//    double c0_x = center_x + config_.d1_ * cos(state.z);
-//    double c0_y = center_y + config_.d1_ * sin(state.z);
-//    double c1_x = center_x + config_.d2_ * cos(state.z);
-//    double c1_y = center_y + config_.d2_ * sin(state.z);
-//    double c2_x = center_x + config_.d3_ * cos(state.z);
-//    double c2_y = center_y + config_.d3_ * sin(state.z);
-//    double c3_x = center_x + config_.d4_ * cos(state.z);
-//    double c3_y = center_y + config_.d4_ * sin(state.z);
-//    State c0(c0_x, c0_y, state.z), c1(c1_x, c1_y, state.z), c2(c2_x, c2_y, state.z), c3(c3_x, c3_y, state.z);
-//    std::vector<double> result;
-//    std::vector<double> c0_bounds = getClearanceWithDirectionStrict(c0, circle_r);
-//    std::vector<double> c1_bounds = getClearanceWithDirectionStrict(c1, circle_r);
-//    std::vector<double> c2_bounds = getClearanceWithDirectionStrict(c2, circle_r);
-//    std::vector<double> c3_bounds = getClearanceWithDirectionStrict(c3, circle_r);
-//    result.emplace_back(c0_bounds[0]);
-//    result.emplace_back(c0_bounds[1]);
-//    result.emplace_back(c1_bounds[0]);
-//    result.emplace_back(c1_bounds[1]);
-//    result.emplace_back(c2_bounds[0]);
-//    result.emplace_back(c2_bounds[1]);
-//    result.emplace_back(c3_bounds[0]);
-//    result.emplace_back(c3_bounds[1]);
-//    // For visualization purpoose:
-//    State rear_bound_l, center_bound_l, front_bound_l, rear_bound_r, center_bound_r, front_bound_r;
-//    rear_bound_l.x = c0_x + result[0] * cos(state.z + M_PI_2);
-//    rear_bound_l.y = c0_y + result[0] * sin(state.z + M_PI_2);
-//    rear_bound_r.x = c0_x + result[1] * cos(state.z + M_PI_2);
-//    rear_bound_r.y = c0_y + result[1] * sin(state.z + M_PI_2);
-//    center_bound_l.x = c2_x + result[4] * cos(state.z + M_PI_2);
-//    center_bound_l.y = c2_y + result[4] * sin(state.z + M_PI_2);
-//    center_bound_r.x = c2_x + result[5] * cos(state.z + M_PI_2);
-//    center_bound_r.y = c2_y + result[5] * sin(state.z + M_PI_2);
-//    front_bound_l.x = c3_x + result[6] * cos(state.z + M_PI_2);
-//    front_bound_l.y = c3_y + result[6] * sin(state.z + M_PI_2);
-//    front_bound_r.x = c3_x + result[7] * cos(state.z + M_PI_2);
-//    front_bound_r.y = c3_y + result[7] * sin(state.z + M_PI_2);
-//    rear_bounds_.emplace_back(rear_bound_l);
-//    rear_bounds_.emplace_back(rear_bound_r);
-//    center_bounds_.emplace_back(center_bound_l);
-//    center_bounds_.emplace_back(center_bound_r);
-//    front_bounds_.emplace_back(front_bound_l);
-//    front_bounds_.emplace_back(front_bound_r);
-//    return std::make_shared<std::vector<double>>(result);
-//
-//}
 
 const std::vector<State> &PathOptimizer::getRearBounds() const {
     return this->rear_bounds_;
