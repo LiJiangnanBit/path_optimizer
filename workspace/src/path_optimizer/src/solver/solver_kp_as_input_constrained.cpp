@@ -18,8 +18,6 @@ SolverKpAsInputConstrained::SolverKpAsInputConstrained(const Config &config,
     state_size_(3 * horizon_),
     control_size_(control_horizon_),
     slack_size_(3 * horizon_) {
-    std::cout << "optimization horizon: " << horizon_ << std::endl;
-    std::cout << "control horizon: " << control_horizon_ << std::endl;
 }
 
 void SolverKpAsInputConstrained::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const {
@@ -30,7 +28,7 @@ void SolverKpAsInputConstrained::setHessianMatrix(Eigen::SparseMatrix<double> *m
     double w_pq = config_.opt_deviation_w_;
     double w_collision_slack = config_.opt_bound_slack_w_;
     double w_k_slack = 500;
-    double w_kp_slack = 500;
+    double w_kp_slack = 25000;
     for (size_t i = 0; i != horizon_; ++i) {
         hessian(3 * i, 3 * i) += w_pq;
         hessian(3 * i + 2, 3 * i + 2) += w_c;
@@ -39,7 +37,7 @@ void SolverKpAsInputConstrained::setHessianMatrix(Eigen::SparseMatrix<double> *m
     }
     for (size_t i = 0; i != control_horizon_; ++i) {
         hessian(state_size_ + i, state_size_ + i) += keep_control_steps_ * w_cr;
-        hessian(state_size_ + control_size_ + 2 * horizon_ + i, state_size_ + control_size_ + 2 * horizon_ + i) += w_kp_slack;
+        hessian(state_size_ + control_size_ + 2 * horizon_ + i, state_size_ + control_size_ + 2 * horizon_ + i) += w_kp_slack * keep_control_steps_;
     }
     *matrix_h = hessian.sparseView();
 }
@@ -105,14 +103,14 @@ void SolverKpAsInputConstrained::setConstraintMatrix(Eigen::SparseMatrix<double>
     // Set collision part.
     Eigen::Matrix<double, 3, 2> collision;
     collision << 1, config_.d1_ + config_.rear_axle_to_center_distance_,
-//        config_.d2_ + config_.rear_axle_to_center_distance_, 1,
-        1, config_.d3_ + config_.rear_axle_to_center_distance_,
+        config_.d2_ + config_.rear_axle_to_center_distance_, 1,
+//        1, config_.d3_ + config_.rear_axle_to_center_distance_,
         1, config_.d4_ + config_.rear_axle_to_center_distance_;
     for (size_t i = 0; i != horizon_; ++i) {
         cons.block(collision_range_begin + 3 * i, 3 * i, 3, 2) = collision;
     }
     Eigen::Matrix<double, 1, 2> collision1;
-    collision1 << 1, config_.d2_ + config_.rear_axle_to_center_distance_;
+    collision1 << 1, config_.d3_ + config_.rear_axle_to_center_distance_;
     for (size_t i = 0; i != horizon_; ++i) {
         cons.block(collision_range_begin + 3 * horizon_ + i, 3 * i, 1, 2) = collision1;
         cons(collision_range_begin + 3 * horizon_ + i, state_size_ + control_size_ + i) = -1;
@@ -166,13 +164,13 @@ void SolverKpAsInputConstrained::setConstraintMatrix(Eigen::SparseMatrix<double>
     for (size_t i = 0; i != horizon_; ++i) {
         Eigen::Vector3d ld, ud;
         ud
-            << bounds[i].c0.ub, bounds[i].c2.ub, bounds[i].c3.ub;
+            << bounds[i].c0.ub, bounds[i].c1.ub, bounds[i].c3.ub;
         ld
-            << bounds[i].c0.lb, bounds[i].c2.lb, bounds[i].c3.lb;
+            << bounds[i].c0.lb, bounds[i].c1.lb, bounds[i].c3.lb;
         lower_bound->block(collision_range_begin + 3 * i, 0, 3, 1) = ld;
         upper_bound->block(collision_range_begin + 3 * i, 0, 3, 1) = ud;
-        double uds = bounds[i].c1.ub - config_.expected_safety_margin_;
-        double lds = bounds[i].c1.lb + config_.expected_safety_margin_;
+        double uds = bounds[i].c2.ub - config_.expected_safety_margin_;
+        double lds = bounds[i].c2.lb + config_.expected_safety_margin_;
         (*upper_bound)(collision_range_begin + 3 * horizon_ + i, 0) = uds;
         (*lower_bound)(collision_range_begin + 3 * horizon_ + i, 0) = -OsqpEigen::INFTY;
         (*lower_bound)(collision_range_begin + 4 * horizon_ + i, 0) = lds;
@@ -229,6 +227,7 @@ bool SolverKpAsInputConstrained::solve(std::vector<PathOptimizationNS::State> *o
     for (size_t i = 0; i != horizon_; ++i) {
 //        std::cout << "k: " << QPSolution(3 * i + 2) << ", limit: " << reference_path_.max_k_list[i] << std::endl;
 //        std::cout << "k slack: " << QPSolution(state_size_ + control_size_ + horizon_ + i) << std::endl;
+//        std::cout << "kp slack: " << QPSolution(state_size_ + control_size_ + 2 * horizon_ + i) << std::endl;
         double angle = ref_states[i].z;
         double new_angle = constraintAngle(angle + M_PI_2);
         double tmp_x = ref_states[i].x + QPSolution(3 * i) * cos(new_angle);

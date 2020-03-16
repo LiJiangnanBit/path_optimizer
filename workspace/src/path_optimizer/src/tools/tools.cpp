@@ -16,6 +16,14 @@ double time_ms(const clock_t &begin, const clock_t &end) {
     return static_cast<double>(end - begin) / CLOCKS_PER_SEC * 1000;
 }
 
+void time_s_out(const clock_t &begin, const clock_t &end, const std::string &text) {
+    std::cout << text << " time cost: " << time_s(begin, end) << " s." << std::endl;
+}
+
+void time_ms_out(const clock_t &begin, const clock_t &end, const std::string &text) {
+    std::cout << text << " time cost: " << time_ms(begin, end) << " ms." << std::endl;
+}
+
 bool isEqual(double a, double b) {
     return fabs(a - b) < 0.000001;
 }

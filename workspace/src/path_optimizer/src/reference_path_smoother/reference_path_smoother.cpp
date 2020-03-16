@@ -103,12 +103,11 @@ bool ReferencePathSmoother::modifyInputPoints() {
     // Search.
     while (true) {
         if (open_set_.empty()) {
-            std::cout << "a* fail" << std::endl;
+            LOG(WARNING) << "A* fail!";
             return false;
         }
         auto tmp_point_ptr = open_set_.top();
         if (isEqual(tmp_point_ptr->s, target_s_)) {
-            std::cout << "a* reached target" << std::endl;
             break;
         }
         open_set_.pop();
@@ -154,7 +153,7 @@ bool ReferencePathSmoother::modifyInputPoints() {
     int control_points_num = (a_x_list.size() - 1) / n + 1;
     int degree = 3;
     if (control_points_num <= degree) {
-        std::cout << "reference path is too short!" << std::endl;
+        LOG(WARNING) << "Reference path is too short for BSpline!";
         return false;
     }
     // Modify.
@@ -182,7 +181,9 @@ bool ReferencePathSmoother::modifyInputPoints() {
         s_list_.emplace_back(s_list_.back() + dis);
     }
     auto t2 = std::clock();
-    std::cout << "a* time cost: " << time_s(t1, t2) << std::endl;
+    if (config_.info_output_) {
+        time_ms_out(t1, t2, "A* search");
+    }
     return true;
 }
 

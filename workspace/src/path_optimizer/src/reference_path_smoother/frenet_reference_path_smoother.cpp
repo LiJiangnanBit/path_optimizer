@@ -39,7 +39,7 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
     x_spline.set_points(s_list_, x_list_);
     y_spline.set_points(s_list_, y_list_);
     double max_s = s_list_.back();
-    std::cout << "ref path length: " << max_s << std::endl;
+    if (config_.info_output_) std::cout << "ref path length: " << max_s << std::endl;
     x_list.clear();
     y_list.clear();
     s_list.clear();

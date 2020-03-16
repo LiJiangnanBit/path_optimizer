@@ -38,11 +38,15 @@ T constraintAngle(T angle) {
     }
 }
 
-// Output time duration in seconds.
+// Time duration in seconds.
 double time_s(const clock_t &begin, const clock_t &end);
 
-// Output time duration in ms.
+// Time duration in ms.
 double time_ms(const clock_t &begin, const clock_t &end);
+
+// Output time duration.
+void time_s_out(const clock_t &begin, const clock_t &end, const std::string &text);
+void time_ms_out(const clock_t &begin, const clock_t &end, const std::string &text);
 
 // Return true if a == b.
 bool isEqual(double a, double b);
