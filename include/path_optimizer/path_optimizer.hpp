@@ -106,7 +106,10 @@ bool PathOptimizer::setConfig(const std::string &config_name, const T &value) {
         config_.output_interval_ = static_cast<double>(value);
     } else if (config_name == "info_ootput_") {
         config_.info_output_ == static_cast<bool>(value);
-    } else {
+    } else if (config_name == "optimization_method_") {
+        config_.optimization_method_ = static_cast<OptimizationMethod>(value);
+    }
+    else {
         LOG(WARNING) << "[PathOptimizer] No config named " << config_name << " or this config can only be changed in config file.";
         return false;
     }

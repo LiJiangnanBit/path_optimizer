@@ -10,6 +10,7 @@ namespace PathOptimizationNS {
 
 enum CarType { ACKERMANN_STEERING = 0, SKID_STEERING = 1, };
 enum SmoothingMethod { FRENET = 0, CARTESIAN = 1 };
+enum OptimizationMethod {K = 0, KP = 1, KPC = 2};
 
 class Config {
 public:
@@ -36,6 +37,7 @@ public:
     double cartesian_curvature_w_{}, cartesian_deviation_w_{}; // Cartesian method weights.
 
     // Optimization phase related:
+    OptimizationMethod optimization_method_{KP};
     double opt_curvature_w_{}, opt_curvature_rate_w_{}, opt_deviation_w_{}, opt_bound_slack_w_{};
     bool constraint_end_heading_{};
     bool exact_end_position_{};

@@ -19,7 +19,7 @@ public:
                     const VehicleState &vehicle_state,
                     const size_t &horizon);
 
-    ~SolverKAsInput() = default;
+    ~SolverKAsInput() override = default;
     // Core function.
     bool solve(std::vector<State> *optimized_path) override ;
 

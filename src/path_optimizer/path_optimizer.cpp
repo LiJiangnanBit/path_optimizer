@@ -1,8 +1,6 @@
 //
 // Created by ljn on 19-8-16.
 //
-
-#include <path_optimizer/solver/solver_kp_as_input_constrained.hpp>
 #include "path_optimizer/path_optimizer.hpp"
 #include "path_optimizer/reference_path_smoother/reference_path_smoother.hpp"
 #include "path_optimizer/reference_path_smoother/frenet_reference_path_smoother.hpp"
@@ -19,8 +17,7 @@ PathOptimizer::PathOptimizer(const State &start_state,
                              const grid_map::GridMap &map) :
     grid_map_(map),
     collision_checker_(map),
-    vehicle_state_(start_state, end_state, 0, 0),
-    N_(0) {
+    vehicle_state_(start_state, end_state, 0, 0) {
     setConfig();
     collision_checker_.init(config_);
 }
@@ -55,6 +52,7 @@ void PathOptimizer::setConfig() {
     config_.cartesian_curvature_w_ = 10;
     config_.cartesian_deviation_w_ = 0.001;
     //
+    config_.optimization_method_ = KP;
     config_.opt_curvature_w_ = 10;
     config_.opt_curvature_rate_w_ = 200;
     config_.opt_deviation_w_ = 0;
@@ -72,10 +70,7 @@ void PathOptimizer::setConfig() {
 
 bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vector<State> *final_path) {
     std::cout << "------" << std::endl;
-    if (!final_path) {
-        LOG(WARNING) << "[PathOptimizer] No place for result!";
-        return false;
-    }
+    CHECK_NOTNULL(final_path);
     auto t1 = std::clock();
     if (reference_points.empty()) {
         LOG(WARNING) << "[PathOptimizer] empty input, quit path optimization";
@@ -125,10 +120,7 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
 bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::State> &reference_points,
                                           std::vector<PathOptimizationNS::State> *final_path) {
     std::cout << "------" << std::endl;
-    if (!final_path) {
-        LOG(WARNING) << "[PathOptimizer] No place for result!";
-        return false;
-    }
+    CHECK_NOTNULL(final_path);
     auto t1 = std::clock();
     if (reference_points.empty()) {
         LOG(WARNING) << "[PathOptimizer] Empty input, quit path optimization!";
@@ -137,7 +129,8 @@ bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::
     vehicle_state_.initial_heading_error_ = vehicle_state_.initial_offset_ = 0;
     reference_path_.reference_states = &reference_points;
     reference_path_.updateBounds(grid_map_, config_);
-    reference_path_.updateLimits(config_);
+    // If solver type is KPC, then k and kp should be limited according to speed and acc information.
+    if (config_.optimization_method_ == KPC) reference_path_.updateLimits(config_);
     N_ = reference_path_.bounds.size();
     if (optimizePath(final_path)) {
         auto t2 = std::clock();
@@ -240,14 +233,28 @@ bool PathOptimizer::divideSmoothedPath() {
 
 bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
     // Solve problem.
-    SolverKpAsInputConstrained solver_interface(config_,
+    OsqpSolver *solver{nullptr};
+    if (config_.optimization_method_ == K)
+        solver = new SolverKAsInput(config_, reference_path_, vehicle_state_, N_);
+    else if (config_.optimization_method_ == KP)
+        solver = new SolverKpAsInput(config_,
                                      reference_path_,
                                      vehicle_state_,
                                      N_);
-    if (!solver_interface.solve(final_path)) {
+    else if (config_.optimization_method_ == KPC)
+        solver = new SolverKpAsInputConstrained(config_,
+                                                reference_path_,
+                                                vehicle_state_,
+                                                N_);
+    else {
+        LOG(WARNING) << "No such solver type!";
         return false;
     }
-
+    bool solve_ok{solver->solve(final_path)};
+    delete solver;
+    if (!solve_ok) {
+        return false;
+    }
     // Output. Choose from:
     // 1. set the interval smaller and output the result directly.
     // 2. set the interval larger and use interpolation to make the result dense.
