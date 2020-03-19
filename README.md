@@ -1,9 +1,9 @@
 # path_optimizer
 **This ROS package generates feasible paths for non-holonomic vehicles according to reference paths (discrete points).**  
-![2020-02-19 19-37-46屏幕截图.png](https://i.loli.net/2020/02/19/WHomBSMfyZ4jR62.png)    
+![2020-03-19 19-24-35屏幕截图.png](https://i.loli.net/2020/03/19/ZQyMPqFIxnK6Eif.png)    
 
 ## Run demos 
-### Install dependencies 
+### 0. Install dependencies 
 - ROS kinetic on Ubuntu 16.04 
 - OpenCV 3    
 ~~~
