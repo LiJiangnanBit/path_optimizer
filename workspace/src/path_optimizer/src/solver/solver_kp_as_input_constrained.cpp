@@ -45,7 +45,7 @@ void SolverKpAsInputConstrained::setHessianMatrix(Eigen::SparseMatrix<double> *m
 void SolverKpAsInputConstrained::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_constraints,
                                                      Eigen::VectorXd *lower_bound,
                                                      Eigen::VectorXd *upper_bound) const {
-    const auto &ref_states = *reference_path_.reference_states;
+    const auto &ref_states = *reference_path_.reference_states_;
     const size_t trans_range_begin{0};
     const size_t kl_range_begin{trans_range_begin + 3 * horizon_}; // k lower
     const size_t ku_range_begin{kl_range_begin + horizon_}; // k upper
@@ -138,29 +138,29 @@ void SolverKpAsInputConstrained::setConstraintMatrix(Eigen::SparseMatrix<double>
     // Vars bound.
     // kl and ku:
     for (size_t i = 0; i != horizon_; ++i) {
-        (*lower_bound)(kl_range_begin + i) = -reference_path_.max_k_list[i];
+        (*lower_bound)(kl_range_begin + i) = -reference_path_.max_k_list_[i];
         (*upper_bound)(kl_range_begin + i) = OsqpEigen::INFTY;
         (*lower_bound)(ku_range_begin + i) = -OsqpEigen::INFTY;
-        (*upper_bound)(ku_range_begin + i) = reference_path_.max_k_list[i];
+        (*upper_bound)(ku_range_begin + i) = reference_path_.max_k_list_[i];
 
         (*lower_bound)(slack_range_begin + i) = 0;
         (*upper_bound)(slack_range_begin + i) = config_.expected_safety_margin_;
         (*lower_bound)(slack_range_begin + horizon_ + i) = 0;
         (*upper_bound)(slack_range_begin + horizon_ + i) = //OsqpEigen::INFTY;
-            std::max(tan(config_.max_steer_angle_) / config_.wheel_base_ - reference_path_.max_k_list[i], 0.0);
+            std::max(tan(config_.max_steer_angle_) / config_.wheel_base_ - reference_path_.max_k_list_[i], 0.0);
     }
     for (size_t i = 0; i != control_horizon_; ++i) {
-        (*lower_bound)(kpl_range_begin + i) = -reference_path_.max_kp_list[i];
+        (*lower_bound)(kpl_range_begin + i) = -reference_path_.max_kp_list_[i];
         (*upper_bound)(kpl_range_begin + i) = OsqpEigen::INFTY;
         (*lower_bound)(kpu_range_begin + i) = -OsqpEigen::INFTY;
-        (*upper_bound)(kpu_range_begin + i) = reference_path_.max_kp_list[i];
+        (*upper_bound)(kpu_range_begin + i) = reference_path_.max_kp_list_[i];
 
         (*lower_bound)(slack_range_begin + 2 * horizon_ + i) = 0;
         (*upper_bound)(slack_range_begin + 2 * horizon_ + i) = OsqpEigen::INFTY;
     }
 
     // Collision bound.
-    const auto &bounds = reference_path_.bounds;
+    const auto &bounds = reference_path_.bounds_;
     for (size_t i = 0; i != horizon_; ++i) {
         Eigen::Vector3d ld, ud;
         ud
@@ -194,7 +194,7 @@ void SolverKpAsInputConstrained::setConstraintMatrix(Eigen::SparseMatrix<double>
 }
 
 bool SolverKpAsInputConstrained::solve(std::vector<PathOptimizationNS::State> *optimized_path) {
-    const auto &ref_states = *reference_path_.reference_states;
+    const auto &ref_states = *reference_path_.reference_states_;
     solver_.settings()->setVerbosity(false);
     solver_.settings()->setWarmStart(true);
     solver_.data()->setNumberOfVariables(state_size_ + control_size_ + slack_size_);

@@ -39,7 +39,7 @@ public:
     bool solveWithoutSmoothing(const std::vector<State> &reference_points, std::vector<State> *final_path);
 
     // Get config:
-    const Config &getConfig() {
+    const Config &getConfig() const {
         return config_;
     }
 
@@ -65,7 +65,7 @@ private:
     Config config_;
     ReferencePath reference_path_;
     VehicleState vehicle_state_;
-    size_t N_{};
+    size_t size_{};
 
     // For visualization purpose.
     std::vector<State> rear_bounds_;
