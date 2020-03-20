@@ -76,6 +76,7 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
         LOG(WARNING) << "[PathOptimizer] empty input, quit path optimization";
         return false;
     }
+    reference_path_.clear();
     // Smooth reference path.
     ReferencePathSmoother
         reference_path_smoother(reference_points, vehicle_state_.start_state_, grid_map_, config_);
@@ -108,17 +109,16 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
             time_ms_out(t1, t4, "All");
         }
         LOG(INFO) << "[PathOptimizer] Solved!";
-        delete reference_path_.reference_states;
         return true;
     } else {
         LOG(WARNING) << "[PathOptimizer] Failed!";
-        delete reference_path_.reference_states;
         return false;
     }
 }
 
 bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::State> &reference_points,
                                           std::vector<PathOptimizationNS::State> *final_path) {
+    // This function is used to calculate once more based on the previous result.
     std::cout << "------" << std::endl;
     CHECK_NOTNULL(final_path);
     auto t1 = std::clock();
@@ -127,11 +127,11 @@ bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::
         return false;
     }
     vehicle_state_.initial_heading_error_ = vehicle_state_.initial_offset_ = 0;
-    reference_path_.reference_states = &reference_points;
+    reference_path_.clear();
+    reference_path_.setReference(std::make_shared<std::vector<State>>(reference_points));
     reference_path_.updateBounds(grid_map_, config_);
-    // If solver type is KPC, then k and kp should be limited according to speed and acc information.
-    if (config_.optimization_method_ == KPC) reference_path_.updateLimits(config_);
-    N_ = reference_path_.bounds.size();
+    reference_path_.updateLimits(config_);
+    size_ = reference_path_.bounds_.size();
     if (optimizePath(final_path)) {
         auto t2 = std::clock();
         if (config_.info_output_) {
@@ -204,54 +204,34 @@ bool PathOptimizer::divideSmoothedPath() {
     double delta_s_larger = config_.raw_result_ ? config_.output_interval_ : 1.0;
     // If the initial heading error with the reference path is small, then set intervals equal.
     if (fabs(vehicle_state_.initial_heading_error_) < 20 * M_PI / 180) delta_s_smaller = delta_s_larger;
-
-    auto reference_states = new std::vector<State>;
-    double tmp_s = 0;
-    while (tmp_s <= reference_path_.max_s_) {
-        double x = reference_path_.x_s_(tmp_s);
-        double y = reference_path_.y_s_(tmp_s);
-        double h = getHeading(reference_path_.x_s_, reference_path_.y_s_, tmp_s);
-        double k = getCurvature(reference_path_.x_s_, reference_path_.y_s_, tmp_s);
-        reference_states->emplace_back(x, y, h, k, tmp_s);
-        if (tmp_s <= 2) tmp_s += delta_s_smaller;
-        else tmp_s += delta_s_larger;
-    }
-    reference_path_.reference_states = reference_states;
+    reference_path_.buildReferenceFromSpline(delta_s_smaller, delta_s_larger);
     reference_path_.updateBounds(grid_map_, config_);
-    if (reference_path_.reference_states->size() != reference_path_.bounds.size()) {
-        reference_states->resize(reference_path_.bounds.size());
-    }
-    N_ = reference_path_.bounds.size();
-    reference_path_.max_k_list.clear();
-    reference_path_.max_kp_list.clear();
-    for (size_t i = 0; i != N_; ++i) {
-        reference_path_.max_k_list.emplace_back(tan(config_.max_steer_angle_) / config_.wheel_base_);
-        reference_path_.max_kp_list.emplace_back(DBL_MAX);
-    }
+    reference_path_.updateLimits(config_);
+    size_ = reference_path_.bounds_.size();
     return true;
 }
 
 bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
     // Solve problem.
-    OsqpSolver *solver{nullptr};
+//    OsqpSolver *solver{nullptr};
+    std::shared_ptr<OsqpSolver> solver;
     if (config_.optimization_method_ == K)
-        solver = new SolverKAsInput(config_, reference_path_, vehicle_state_, N_);
+        solver.reset(new SolverKAsInput(config_, reference_path_, vehicle_state_, size_));
     else if (config_.optimization_method_ == KP)
-        solver = new SolverKpAsInput(config_,
-                                     reference_path_,
-                                     vehicle_state_,
-                                     N_);
+        solver.reset(new SolverKpAsInput(config_,
+                                         reference_path_,
+                                         vehicle_state_,
+                                         size_));
     else if (config_.optimization_method_ == KPC)
-        solver = new SolverKpAsInputConstrained(config_,
-                                                reference_path_,
-                                                vehicle_state_,
-                                                N_);
+        solver.reset(new SolverKpAsInputConstrained(config_,
+                                                    reference_path_,
+                                                    vehicle_state_,
+                                                    size_));
     else {
         LOG(WARNING) << "No such solver type!";
         return false;
     }
     bool solve_ok{solver->solve(final_path)};
-    delete solver;
     if (!solve_ok) {
         return false;
     }

@@ -17,7 +17,7 @@ SolverKAsInput::SolverKAsInput(const Config &config,
 }
 
 bool SolverKAsInput::solve(std::vector<State> *optimized_path) {
-    const auto &ref_states = *reference_path_.reference_states;
+    const auto &ref_states = *reference_path_.reference_states_;
     solver_.settings()->setVerbosity(false);
     solver_.settings()->setWarmStart(true);
     solver_.data()->setNumberOfVariables(4 * horizon_ - 1);
@@ -112,7 +112,7 @@ void SolverKAsInput::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) con
 void SolverKAsInput::setDynamicMatrix(size_t i,
                                       Eigen::Matrix<double, 2, 2> *matrix_a,
                                       Eigen::Matrix<double, 2, 1> *matrix_b) const {
-    const auto &ref_states = *reference_path_.reference_states;
+    const auto &ref_states = *reference_path_.reference_states_;
     double ref_k = ref_states[i].k;
     double ref_s = ref_states[i + 1].s - ref_states[i].s;
     double ref_delta = atan(ref_k * config_.wheel_base_);
@@ -128,7 +128,7 @@ void SolverKAsInput::setDynamicMatrix(size_t i,
 void SolverKAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_constraints,
                                           Eigen::VectorXd *lower_bound,
                                           Eigen::VectorXd *upper_bound) const {
-    const auto &ref_states = *reference_path_.reference_states;
+    const auto &ref_states = *reference_path_.reference_states_;
     Eigen::MatrixXd cons = Eigen::MatrixXd::Zero(11 * horizon_ - 1, 4 * horizon_ - 1);
 
     // Set trans part.
@@ -205,7 +205,7 @@ void SolverKAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_con
     upper_bound->block(5 * horizon_ - 1, 0, horizon_, 1) =
         Eigen::VectorXd::Constant(horizon_, config_.expected_safety_margin_);
     // Set collision bound part 1.
-    const auto &bounds = reference_path_.bounds;
+    const auto &bounds = reference_path_.bounds_;
     for (size_t i = 0; i != horizon_; ++i) {
         Eigen::Vector3d ld, ud;
         ud

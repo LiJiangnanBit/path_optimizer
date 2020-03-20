@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
     std::string marker_frame_id = "/map";
 
     // Loop.
-    ros::Rate rate(20.0);
+    ros::Rate rate(30.0);
     while (nh.ok()) {
         ros::Time time = ros::Time::now();
         markers.clear();

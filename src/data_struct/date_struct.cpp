@@ -10,32 +10,44 @@
 namespace PathOptimizationNS {
 
 void ReferencePath::updateLimits(const Config &config) {
-    if (!reference_states) {
+    if (!reference_states_) {
         LOG(WARNING) << "[SolverInput] Empty reference, updateLimits fail!";
         return;
     }
-    max_k_list.clear();
-    max_kp_list.clear();
-    for (size_t i = 0; i != reference_states->size(); ++i) {
+    if (config.optimization_method_ != KPC) {
+        // curvature and curvature rate can only be limited in KPC method.
+        return;
+    }
+    max_k_list_.clear();
+    max_kp_list_.clear();
+    if (use_spline_) {
+        // If reference_states_ are built from spline, then no speed and acc info can be used.
+        for (size_t i = 0; i != reference_states_->size(); ++i) {
+            max_k_list_.emplace_back(tan(config.max_steer_angle_) / config.wheel_base_);
+            max_kp_list_.emplace_back(DBL_MAX);
+        }
+        return;
+    }
+    for (size_t i = 0; i != reference_states_->size(); ++i) {
         // Friction circle limit.
-        double ref_v = reference_states->at(i).v;
-        double ref_ax = reference_states->at(i).a;
+        double ref_v = reference_states_->at(i).v;
+        double ref_ax = reference_states_->at(i).a;
         double ay_allowed = sqrt(pow(config.mu_ * 9.8, 2) - pow(ref_ax, 2));
-        if (ref_v > 0.0001) max_k_list.emplace_back(ay_allowed / pow(ref_v, 2));
-        else max_k_list.emplace_back(DBL_MAX);
+        if (ref_v > 0.0001) max_k_list_.emplace_back(ay_allowed / pow(ref_v, 2));
+        else max_k_list_.emplace_back(DBL_MAX);
         // Control rate limit.
-        if (ref_v > 0.0001) max_kp_list.emplace_back(config.max_curvature_rate_ / ref_v);
-        else max_kp_list.emplace_back(DBL_MAX);
+        if (ref_v > 0.0001) max_kp_list_.emplace_back(config.max_curvature_rate_ / ref_v);
+        else max_kp_list_.emplace_back(DBL_MAX);
     }
 }
 
 void ReferencePath::updateBounds(const Map &map, const Config &config) {
-    if (!reference_states) {
+    if (!reference_states_) {
         LOG(WARNING) << "[SolverInput] Empty reference, updateBounds fail!";
         return;
     }
-    bounds.clear();
-    for (const auto &state : *reference_states) {
+    bounds_.clear();
+    for (const auto &state : *reference_states_) {
         double center_x = state.x + config.rear_axle_to_center_distance_ * cos(state.z);
         double center_y = state.y + config.rear_axle_to_center_distance_ * sin(state.z);
         State
@@ -50,9 +62,8 @@ void ReferencePath::updateBounds(const Map &map, const Config &config) {
         if (clearance_0[0] == clearance_0[1] ||
             clearance_1[0] == clearance_1[1] ||
             clearance_2[0] == clearance_2[1] ||
-            clearance_3[0] == clearance_3[1] &&
-            state.s > 0.75 * max_s_) {
-            printf("some states near end are not satisfying\n");
+            clearance_3[0] == clearance_3[1]) {
+            LOG(INFO) << "Path is blocked!";
             return;
         }
         CoveringCircleBounds covering_circle_bounds;
@@ -60,7 +71,10 @@ void ReferencePath::updateBounds(const Map &map, const Config &config) {
         covering_circle_bounds.c1 = clearance_1;
         covering_circle_bounds.c2 = clearance_2;
         covering_circle_bounds.c3 = clearance_3;
-        bounds.emplace_back(covering_circle_bounds);
+        bounds_.emplace_back(covering_circle_bounds);
+    }
+    if (reference_states_->size() != bounds_.size()) {
+        reference_states_->resize(bounds_.size());
     }
 }
 
@@ -183,6 +197,26 @@ std::vector<double> ReferencePath::getClearanceWithDirectionStrict(const PathOpt
         }
     }
     return {left_bound, right_bound};
+}
+
+bool ReferencePath::buildReferenceFromSpline(double delta_s_smaller, double delta_s_larger) {
+    if (!use_spline_ || max_s_ <= 0) {
+        LOG(WARNING) << "Cannot build reference line from spline!";
+        return false;
+    }
+    reference_states_ = std::make_shared<std::vector<State>>();
+    double tmp_s = 0;
+    while (tmp_s <= max_s_) {
+        double x = x_s_(tmp_s);
+        double y = y_s_(tmp_s);
+        double h = getHeading(x_s_, y_s_, tmp_s);
+        double k = getCurvature(x_s_, y_s_, tmp_s);
+        reference_states_->emplace_back(x, y, h, k, tmp_s);
+        if (tmp_s <= 2) tmp_s += delta_s_smaller;
+        else tmp_s += delta_s_larger;
+    }
+    use_spline_ = true;
+    return true;
 }
 
 }
