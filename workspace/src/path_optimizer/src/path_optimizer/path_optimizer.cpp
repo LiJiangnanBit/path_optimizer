@@ -1,6 +1,9 @@
 //
 // Created by ljn on 19-8-16.
 //
+#include <iostream>
+#include <cmath>
+#include <ctime>
 #include "path_optimizer/path_optimizer.hpp"
 #include "path_optimizer/reference_path_smoother/reference_path_smoother.hpp"
 #include "path_optimizer/reference_path_smoother/frenet_reference_path_smoother.hpp"
@@ -8,11 +11,13 @@
 #include "path_optimizer/tools/tools.hpp"
 #include "path_optimizer/data_struct/reference_path.hpp"
 #include "path_optimizer/data_struct/data_struct.hpp"
+#include "path_optimizer/data_struct/vehicle_state_frenet.hpp"
 #include "path_optimizer/tools/collosion_checker.hpp"
 #include "path_optimizer/tools/Map.hpp"
 #include "path_optimizer/tools/spline.h"
 #include "path_optimizer/solver/solver_factory.hpp"
 #include "path_optimizer/solver/solver.hpp"
+#include <tinyspline_ros/tinysplinecpp.h>
 
 namespace PathOptimizationNS {
 
@@ -89,19 +94,21 @@ void PathOptimizer::setConfig() {
 bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vector<State> *final_path) {
     std::cout << "------" << std::endl;
     CHECK_NOTNULL(final_path);
+
     auto t1 = std::clock();
     if (reference_points.empty()) {
         LOG(WARNING) << "[PathOptimizer] empty input, quit path optimization";
         return false;
     }
     reference_path_->clear();
+
     // Smooth reference path.
     ReferencePathSmoother
-        reference_path_smoother(reference_points, vehicle_state_->start_state_, *grid_map_, *config_);
+        reference_path_smoother(reference_points, vehicle_state_->getStartState(), *grid_map_, *config_);
     bool smoothing_ok = false;
     if (config_->smoothing_method_ == FRENET) {
         smoothing_ok = reference_path_smoother.solve<FrenetReferencePathSmoother>(reference_path_, &smoothed_path_);
-    } else if (config_->smoothing_method_ == CARTESIAN) {
+    } else if (config_->smoothing_method_ == CARTESIAN) { // Abandoned
         smoothing_ok = reference_path_smoother.solve<CartesianReferencePathSmoother>(reference_path_, &smoothed_path_);
     }
     a_star_display_ = reference_path_smoother.display();
@@ -109,13 +116,14 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
         LOG(WARNING) << "[PathOptimizer] Reference Smoothing failed!";
         return false;
     }
+
     auto t2 = std::clock();
     // Divide reference path into segments;
-    if (!divideSmoothedPath()) {
-        printf("divide stage failed, quit path optimization.\n");
+    if (!segmentSmoothedPath()) {
         LOG(WARNING) << "[PathOptimizer] Reference path segmentation failed!";
         return false;
     }
+
     auto t3 = std::clock();
     // Optimize.
     if (optimizePath(final_path)) {
@@ -144,12 +152,14 @@ bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::
         LOG(WARNING) << "[PathOptimizer] Empty input, quit path optimization!";
         return false;
     }
-    vehicle_state_->initial_heading_error_ = vehicle_state_->initial_offset_ = 0;
+    vehicle_state_->setInitError(0, 0);
+    // Set reference path.
     reference_path_->clear();
     reference_path_->setReference(reference_points);
     reference_path_->updateBounds(*grid_map_, *config_);
     reference_path_->updateLimits(*config_);
     size_ = reference_path_->getSize();
+
     if (optimizePath(final_path)) {
         auto t2 = std::clock();
         if (config_->info_output_) {
@@ -163,33 +173,33 @@ bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::
     }
 }
 
-bool PathOptimizer::divideSmoothedPath() {
+bool PathOptimizer::segmentSmoothedPath() {
     if (reference_path_->getLength() == 0) {
         LOG(INFO) << "[PathOptimizer] Smoothed path is empty!";
         return false;
     }
+
     // Calculate the initial deviation and angle difference.
     State first_point;
     first_point.x = reference_path_->getXS(0);
     first_point.y = reference_path_->getYS(0);
     first_point.z = getHeading(reference_path_->getXS(), reference_path_->getYS(), 0);
-    auto first_point_local = global2Local(vehicle_state_->start_state_, first_point);
-    double min_distance = distance(vehicle_state_->start_state_, first_point);
-    if (first_point_local.y < 0) {
-        vehicle_state_->initial_offset_ = min_distance;
-    } else {
-        vehicle_state_->initial_offset_ = -min_distance;
-    }
-    vehicle_state_->initial_heading_error_ = constraintAngle(vehicle_state_->start_state_.z - first_point.z);
+    auto first_point_local = global2Local(vehicle_state_->getStartState(), first_point);
+    // In reference smoothing, the closest point tu the vehicle is found and set as the
+    // first point. So the distance here is simply the initial offset.
+    double min_distance = distance(vehicle_state_->getStartState(), first_point);
+    double initial_offset = first_point_local.y < 0 ? min_distance : -min_distance;
+    double initial_heading_error = constraintAngle(vehicle_state_->getStartState().z - first_point.z);
+    vehicle_state_->setInitError(initial_offset, initial_heading_error);
     // If the start heading differs a lot with the ref path, quit.
-    if (fabs(vehicle_state_->initial_heading_error_) > 75 * M_PI / 180) {
+    if (fabs(initial_heading_error) > 75 * M_PI / 180) {
         LOG(WARNING) << "[PathOptimizer] Initial epsi is larger than 90°, quit path optimization!";
         return false;
     }
 
     double end_distance =
-        sqrt(pow(vehicle_state_->end_state_.x - reference_path_->getXS(reference_path_->getLength()), 2) +
-            pow(vehicle_state_->end_state_.y - reference_path_->getYS(reference_path_->getLength()), 2));
+        sqrt(pow(vehicle_state_->getEndState().x - reference_path_->getXS(reference_path_->getLength()), 2) +
+            pow(vehicle_state_->getEndState().y - reference_path_->getYS(reference_path_->getLength()), 2));
     if (end_distance > 0.001) {
         // If the goal position is not the same as the end position of the reference line,
         // then find the closest point to the goal and change max_s of the reference line.
@@ -205,7 +215,7 @@ bool PathOptimizer::divideSmoothedPath() {
         while (tmp_s > 0) {
             double x = reference_path_->getXS(tmp_s);
             double y = reference_path_->getYS(tmp_s);
-            double tmp_dis = sqrt(pow(x - vehicle_state_->end_state_.x, 2) + pow(y - vehicle_state_->end_state_.y, 2));
+            double tmp_dis = sqrt(pow(x - vehicle_state_->getEndState().x, 2) + pow(y - vehicle_state_->getEndState().y, 2));
             if (tmp_dis < min_dis_to_goal) {
                 min_dis_to_goal = tmp_dis;
                 min_dis_s = tmp_s;
@@ -221,7 +231,7 @@ bool PathOptimizer::divideSmoothedPath() {
     // If we want to output the result directly, the interval is controlled by config_->output_interval..
     double delta_s_larger = config_->raw_result_ ? config_->output_interval_ : 1.0;
     // If the initial heading error with the reference path is small, then set intervals equal.
-    if (fabs(vehicle_state_->initial_heading_error_) < 20 * M_PI / 180) delta_s_smaller = delta_s_larger;
+    if (fabs(initial_heading_error) < 20 * M_PI / 180) delta_s_smaller = delta_s_larger;
     reference_path_->buildReferenceFromSpline(delta_s_smaller, delta_s_larger);
     reference_path_->updateBounds(*grid_map_, *config_);
     reference_path_->updateLimits(*config_);
@@ -236,6 +246,7 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
     if (!solve_ok) {
         return false;
     }
+
     // Output. Choose from:
     // 1. set the interval smaller and output the result directly.
     // 2. set the interval larger and use interpolation to make the result dense.
