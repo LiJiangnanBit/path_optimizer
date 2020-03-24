@@ -5,24 +5,15 @@
 #ifndef PATH_OPTIMIZER__PATHOPTIMIZER_HPP_
 #define PATH_OPTIMIZER__PATHOPTIMIZER_HPP_
 
-#include <iostream>
 #include <string>
 #include <vector>
-#include <glog/logging.h>
-#include <cmath>
-#include <ctime>
 #include <memory>
-#include <ros/ros.h>
-#include <tinyspline_ros/tinysplinecpp.h>
+#include <glog/logging.h>
 #include "grid_map_core/grid_map_core.hpp"
-//#include "data_struct/data_struct.hpp"
-//#include "tools/collosion_checker.hpp"
-#include "config/config.hpp"
-//#include "tools/Map.hpp"
+#include "path_optimizer/config/config.hpp"
 
 namespace PathOptimizationNS {
 
-class SolverKAsInput;
 class ReferencePath;
 class State;
 class Map;
@@ -63,7 +54,7 @@ private:
     bool optimizePath(std::vector<State> *final_path);
 
     // Divide smoothed path into segments.
-    bool divideSmoothedPath();
+    bool segmentSmoothedPath();
 
     const Map *grid_map_;
     CollisionChecker *collision_checker_;

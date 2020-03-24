@@ -5,6 +5,7 @@
 #include "path_optimizer/solver/solver_kp_as_input_constrained.hpp"
 #include "path_optimizer/data_struct/data_struct.hpp"
 #include "path_optimizer/data_struct/reference_path.hpp"
+#include "path_optimizer/data_struct/vehicle_state_frenet.hpp"
 #include "path_optimizer/config/config.hpp"
 #include "path_optimizer/tools/tools.hpp"
 
@@ -128,7 +129,8 @@ void SolverKpAsInputConstrained::setConstraintMatrix(Eigen::SparseMatrix<double>
     *lower_bound = Eigen::MatrixXd::Zero(12 * horizon_ + 3 * control_horizon_ + 2, 1);
     *upper_bound = Eigen::MatrixXd::Zero(12 * horizon_ + 3 * control_horizon_ + 2, 1);
     Eigen::Matrix<double, 3, 1> x0;
-    x0 << vehicle_state_.initial_offset_, vehicle_state_.initial_heading_error_, vehicle_state_.start_state_.k;
+    const auto init_error{vehicle_state_.getInitError()};
+    x0 << init_error[0], init_error[1], vehicle_state_.getStartState().k;
     lower_bound->block(0, 0, 3, 1) = -x0;
     upper_bound->block(0, 0, 3, 1) = -x0;
     for (size_t i = 0; i != horizon_ - 1; ++i) {
@@ -187,7 +189,7 @@ void SolverKpAsInputConstrained::setConstraintMatrix(Eigen::SparseMatrix<double>
     (*lower_bound)(end_state_range_begin + 1) = -OsqpEigen::INFTY;
     (*upper_bound)(end_state_range_begin + 1) = OsqpEigen::INFTY;
     if (config_.constraint_end_heading_) {
-        double end_psi = constraintAngle(vehicle_state_.end_state_.z - ref_states.back().z);
+        double end_psi = constraintAngle(vehicle_state_.getEndState().z - ref_states.back().z);
         if (end_psi < 70 * M_PI / 180) {
             (*lower_bound)(end_state_range_begin + 1) = end_psi - 5 * M_PI / 180;
             (*upper_bound)(end_state_range_begin + 1) = end_psi + 5 * M_PI / 180;
