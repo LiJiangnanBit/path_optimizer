@@ -5,67 +5,85 @@
 #include "path_optimizer/reference_path_smoother/reference_path_smoother.hpp"
 #include "path_optimizer/reference_path_smoother/frenet_reference_path_smoother.hpp"
 #include "path_optimizer/reference_path_smoother/cartesian_reference_path_smoother.hpp"
-#include "path_optimizer/solver/solver_k_as_input.hpp"
-#include "path_optimizer/solver/solver_kp_as_input.hpp"
-#include "path_optimizer/solver/solver_kp_as_input_constrained.hpp"
 #include "path_optimizer/tools/tools.hpp"
+#include "path_optimizer/data_struct/reference_path.hpp"
+#include "path_optimizer/data_struct/data_struct.hpp"
+#include "path_optimizer/tools/collosion_checker.hpp"
+#include "path_optimizer/tools/Map.hpp"
+#include "path_optimizer/tools/spline.h"
+#include "path_optimizer/solver/solver_factory.hpp"
+#include "path_optimizer/solver/solver.hpp"
 
 namespace PathOptimizationNS {
 
 PathOptimizer::PathOptimizer(const State &start_state,
                              const State &end_state,
                              const grid_map::GridMap &map) :
-    grid_map_(map),
-    collision_checker_(map),
-    vehicle_state_(start_state, end_state, 0, 0) {
+    grid_map_(new Map{map}),
+    collision_checker_(new CollisionChecker{map}),
+    config_(new Config),
+    reference_path_(new ReferencePath),
+    vehicle_state_(new VehicleState{start_state, end_state, 0, 0}) {
     setConfig();
-    collision_checker_.init(config_);
+    collision_checker_->init(*config_);
+}
+
+PathOptimizer::~PathOptimizer() {
+    delete grid_map_;
+    delete collision_checker_;
+    delete config_;
+    delete reference_path_;
+    delete vehicle_state_;
+}
+
+const Config& PathOptimizer::getConfig() const  {
+    return *config_;
 }
 
 void PathOptimizer::setConfig() {
     // TODO: read from config file.
-    config_.car_type_ = ACKERMANN_STEERING;
-    config_.car_width_ = 2.0; //1.6;//
-    config_.car_length_ = 4.9; //4.0;//
-    config_.circle_radius_ = sqrt(pow(config_.car_length_ / 8, 2) + pow(config_.car_width_ / 2, 2));
-    config_.wheel_base_ = 2.85; //2.35;
-    config_.rear_axle_to_center_distance_ = 1.45; //1.0;
-    config_.d1_ = -3.0 / 8.0 * config_.car_length_;
-    config_.d2_ = -1.0 / 8.0 * config_.car_length_;
-    config_.d3_ = 1.0 / 8.0 * config_.car_length_;
-    config_.d4_ = 3.0 / 8.0 * config_.car_length_;
-    config_.max_steer_angle_ = 30 * M_PI / 180;
-    config_.max_curvature_rate_ = 0.1; // TODO: verify this.
+    config_->car_type_ = ACKERMANN_STEERING;
+    config_->car_width_ = 2.0; //1.6;//
+    config_->car_length_ = 4.9; //4.0;//
+    config_->circle_radius_ = sqrt(pow(config_->car_length_ / 8, 2) + pow(config_->car_width_ / 2, 2));
+    config_->wheel_base_ = 2.85; //2.35;
+    config_->rear_axle_to_center_distance_ = 1.45; //1.0;
+    config_->d1_ = -3.0 / 8.0 * config_->car_length_;
+    config_->d2_ = -1.0 / 8.0 * config_->car_length_;
+    config_->d3_ = 1.0 / 8.0 * config_->car_length_;
+    config_->d4_ = 3.0 / 8.0 * config_->car_length_;
+    config_->max_steer_angle_ = 30 * M_PI / 180;
+    config_->max_curvature_rate_ = 0.1; // TODO: verify this.
 
-    config_.smoothing_method_ = FRENET;
-    config_.modify_input_points_ = true;
-    config_.a_star_lateral_range_ = 10;
-    config_.a_star_longitudinal_interval_ = 1.5;
-    config_.a_star_lateral_interval_ = 0.6;
-    config_.mu_ = 0.4;
+    config_->smoothing_method_ = FRENET;
+    config_->modify_input_points_ = true;
+    config_->a_star_lateral_range_ = 10;
+    config_->a_star_longitudinal_interval_ = 1.5;
+    config_->a_star_lateral_interval_ = 0.6;
+    config_->mu_ = 0.4;
 
     //
-    config_.frenet_curvature_rate_w_ = 1500;
-    config_.frenet_curvature_w_ = 200;
-    config_.frenet_deviation_w_ = 4;
+    config_->frenet_curvature_rate_w_ = 1500;
+    config_->frenet_curvature_w_ = 200;
+    config_->frenet_deviation_w_ = 4;
     //
-    config_.cartesian_curvature_w_ = 10;
-    config_.cartesian_deviation_w_ = 0.001;
+    config_->cartesian_curvature_w_ = 10;
+    config_->cartesian_deviation_w_ = 0.001;
     //
-    config_.optimization_method_ = KP;
-    config_.opt_curvature_w_ = 10;
-    config_.opt_curvature_rate_w_ = 200;
-    config_.opt_deviation_w_ = 0;
-    config_.opt_bound_slack_w_ = 3;
-    config_.constraint_end_heading_ = true;
+    config_->optimization_method_ = KP;
+    config_->opt_curvature_w_ = 10;
+    config_->opt_curvature_rate_w_ = 200;
+    config_->opt_deviation_w_ = 0;
+    config_->opt_bound_slack_w_ = 3;
+    config_->constraint_end_heading_ = true;
     // TODO: use this condition.
-    config_.exact_end_position_ = false;
-    config_.expected_safety_margin_ = 1.3;
+    config_->exact_end_position_ = false;
+    config_->expected_safety_margin_ = 1.3;
 
     //
-    config_.raw_result_ = true;
-    config_.output_interval_ = 0.3;
-    config_.info_output_ = true;
+    config_->raw_result_ = true;
+    config_->output_interval_ = 0.3;
+    config_->info_output_ = true;
 }
 
 bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vector<State> *final_path) {
@@ -76,15 +94,15 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
         LOG(WARNING) << "[PathOptimizer] empty input, quit path optimization";
         return false;
     }
-    reference_path_.clear();
+    reference_path_->clear();
     // Smooth reference path.
     ReferencePathSmoother
-        reference_path_smoother(reference_points, vehicle_state_.start_state_, grid_map_, config_);
+        reference_path_smoother(reference_points, vehicle_state_->start_state_, *grid_map_, *config_);
     bool smoothing_ok = false;
-    if (config_.smoothing_method_ == FRENET) {
-        smoothing_ok = reference_path_smoother.solve<FrenetReferencePathSmoother>(&reference_path_, &smoothed_path_);
-    } else if (config_.smoothing_method_ == CARTESIAN) {
-        smoothing_ok = reference_path_smoother.solve<CartesianReferencePathSmoother>(&reference_path_, &smoothed_path_);
+    if (config_->smoothing_method_ == FRENET) {
+        smoothing_ok = reference_path_smoother.solve<FrenetReferencePathSmoother>(reference_path_, &smoothed_path_);
+    } else if (config_->smoothing_method_ == CARTESIAN) {
+        smoothing_ok = reference_path_smoother.solve<CartesianReferencePathSmoother>(reference_path_, &smoothed_path_);
     }
     a_star_display_ = reference_path_smoother.display();
     if (!smoothing_ok) {
@@ -102,7 +120,7 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
     // Optimize.
     if (optimizePath(final_path)) {
         auto t4 = std::clock();
-        if (config_.info_output_) {
+        if (config_->info_output_) {
             time_ms_out(t1, t2, "Reference smoothing");
             time_ms_out(t2, t3, "Reference segmentation");
             time_ms_out(t3, t4, "Optimization phase");
@@ -126,15 +144,15 @@ bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::
         LOG(WARNING) << "[PathOptimizer] Empty input, quit path optimization!";
         return false;
     }
-    vehicle_state_.initial_heading_error_ = vehicle_state_.initial_offset_ = 0;
-    reference_path_.clear();
-    reference_path_.setReference(std::make_shared<std::vector<State>>(reference_points));
-    reference_path_.updateBounds(grid_map_, config_);
-    reference_path_.updateLimits(config_);
-    size_ = reference_path_.bounds_.size();
+    vehicle_state_->initial_heading_error_ = vehicle_state_->initial_offset_ = 0;
+    reference_path_->clear();
+    reference_path_->setReference(reference_points);
+    reference_path_->updateBounds(*grid_map_, *config_);
+    reference_path_->updateLimits(*config_);
+    size_ = reference_path_->getSize();
     if (optimizePath(final_path)) {
         auto t2 = std::clock();
-        if (config_.info_output_) {
+        if (config_->info_output_) {
             time_ms_out(t1, t2, "Solve without smoothing");
         }
         LOG(INFO) << "[PathOptimizer] Solved without smoothing!";
@@ -146,91 +164,74 @@ bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::
 }
 
 bool PathOptimizer::divideSmoothedPath() {
-    if (reference_path_.max_s_ == 0) {
+    if (reference_path_->getLength() == 0) {
         LOG(INFO) << "[PathOptimizer] Smoothed path is empty!";
         return false;
     }
     // Calculate the initial deviation and angle difference.
     State first_point;
-    first_point.x = reference_path_.x_s_(0);
-    first_point.y = reference_path_.y_s_(0);
-    first_point.z = getHeading(reference_path_.x_s_, reference_path_.y_s_, 0);
-    auto first_point_local = global2Local(vehicle_state_.start_state_, first_point);
-    double min_distance = distance(vehicle_state_.start_state_, first_point);
+    first_point.x = reference_path_->getXS(0);
+    first_point.y = reference_path_->getYS(0);
+    first_point.z = getHeading(reference_path_->getXS(), reference_path_->getYS(), 0);
+    auto first_point_local = global2Local(vehicle_state_->start_state_, first_point);
+    double min_distance = distance(vehicle_state_->start_state_, first_point);
     if (first_point_local.y < 0) {
-        vehicle_state_.initial_offset_ = min_distance;
+        vehicle_state_->initial_offset_ = min_distance;
     } else {
-        vehicle_state_.initial_offset_ = -min_distance;
+        vehicle_state_->initial_offset_ = -min_distance;
     }
-    vehicle_state_.initial_heading_error_ = constraintAngle(vehicle_state_.start_state_.z - first_point.z);
+    vehicle_state_->initial_heading_error_ = constraintAngle(vehicle_state_->start_state_.z - first_point.z);
     // If the start heading differs a lot with the ref path, quit.
-    if (fabs(vehicle_state_.initial_heading_error_) > 75 * M_PI / 180) {
+    if (fabs(vehicle_state_->initial_heading_error_) > 75 * M_PI / 180) {
         LOG(WARNING) << "[PathOptimizer] Initial epsi is larger than 90°, quit path optimization!";
         return false;
     }
 
     double end_distance =
-        sqrt(pow(vehicle_state_.end_state_.x - reference_path_.x_s_(reference_path_.max_s_), 2) +
-            pow(vehicle_state_.end_state_.y - reference_path_.y_s_(reference_path_.max_s_), 2));
+        sqrt(pow(vehicle_state_->end_state_.x - reference_path_->getXS(reference_path_->getLength()), 2) +
+            pow(vehicle_state_->end_state_.y - reference_path_->getYS(reference_path_->getLength()), 2));
     if (end_distance > 0.001) {
         // If the goal position is not the same as the end position of the reference line,
         // then find the closest point to the goal and change max_s of the reference line.
         double search_delta_s = 0;
-        if (config_.exact_end_position_) {
+        if (config_->exact_end_position_) {
             search_delta_s = 0.1;
         } else {
             search_delta_s = 0.3;
         }
-        double tmp_s = reference_path_.max_s_ - search_delta_s;
+        double tmp_s = reference_path_->getLength() - search_delta_s;
         auto min_dis_to_goal = end_distance;
-        double min_dis_s = reference_path_.max_s_;
+        double min_dis_s = reference_path_->getLength();
         while (tmp_s > 0) {
-            double x = reference_path_.x_s_(tmp_s);
-            double y = reference_path_.y_s_(tmp_s);
-            double tmp_dis = sqrt(pow(x - vehicle_state_.end_state_.x, 2) + pow(y - vehicle_state_.end_state_.y, 2));
+            double x = reference_path_->getXS(tmp_s);
+            double y = reference_path_->getYS(tmp_s);
+            double tmp_dis = sqrt(pow(x - vehicle_state_->end_state_.x, 2) + pow(y - vehicle_state_->end_state_.y, 2));
             if (tmp_dis < min_dis_to_goal) {
                 min_dis_to_goal = tmp_dis;
                 min_dis_s = tmp_s;
             }
             tmp_s -= search_delta_s;
         }
-        reference_path_.max_s_ = min_dis_s;
+        reference_path_->setLength(min_dis_s);
     }
 
     // Divide the reference path. Intervals are smaller at the beginning.
     double delta_s_smaller = 0.3;
     // If we want to make the result path dense later, the interval here is 1.0m. This makes computation faster;
-    // If we want to output the result directly, the interval is controlled by config_.output_interval..
-    double delta_s_larger = config_.raw_result_ ? config_.output_interval_ : 1.0;
+    // If we want to output the result directly, the interval is controlled by config_->output_interval..
+    double delta_s_larger = config_->raw_result_ ? config_->output_interval_ : 1.0;
     // If the initial heading error with the reference path is small, then set intervals equal.
-    if (fabs(vehicle_state_.initial_heading_error_) < 20 * M_PI / 180) delta_s_smaller = delta_s_larger;
-    reference_path_.buildReferenceFromSpline(delta_s_smaller, delta_s_larger);
-    reference_path_.updateBounds(grid_map_, config_);
-    reference_path_.updateLimits(config_);
-    size_ = reference_path_.bounds_.size();
+    if (fabs(vehicle_state_->initial_heading_error_) < 20 * M_PI / 180) delta_s_smaller = delta_s_larger;
+    reference_path_->buildReferenceFromSpline(delta_s_smaller, delta_s_larger);
+    reference_path_->updateBounds(*grid_map_, *config_);
+    reference_path_->updateLimits(*config_);
+    size_ = reference_path_->getSize();
     return true;
 }
 
 bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
     // Solve problem.
-//    OsqpSolver *solver{nullptr};
-    std::shared_ptr<OsqpSolver> solver;
-    if (config_.optimization_method_ == K)
-        solver.reset(new SolverKAsInput(config_, reference_path_, vehicle_state_, size_));
-    else if (config_.optimization_method_ == KP)
-        solver.reset(new SolverKpAsInput(config_,
-                                         reference_path_,
-                                         vehicle_state_,
-                                         size_));
-    else if (config_.optimization_method_ == KPC)
-        solver.reset(new SolverKpAsInputConstrained(config_,
-                                                    reference_path_,
-                                                    vehicle_state_,
-                                                    size_));
-    else {
-        LOG(WARNING) << "No such solver type!";
-        return false;
-    }
+    std::shared_ptr<OsqpSolver> solver{SolverFactory::create(*config_, *reference_path_, *vehicle_state_, size_)};
     bool solve_ok{solver->solve(final_path)};
     if (!solve_ok) {
         return false;
@@ -238,9 +239,9 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
     // Output. Choose from:
     // 1. set the interval smaller and output the result directly.
     // 2. set the interval larger and use interpolation to make the result dense.
-    if (config_.raw_result_) {
+    if (config_->raw_result_) {
         for (auto iter = final_path->begin(); iter != final_path->end(); ++iter) {
-            if (!collision_checker_.isSingleStateCollisionFreeImproved(*iter)) {
+            if (!collision_checker_->isSingleStateCollisionFreeImproved(*iter)) {
                 final_path->erase(iter, final_path->end());
                 LOG(INFO) << "[PathOptimizer] collision checker failed at " << final_path->back().s << "m.";
                 return final_path->back().s >= 20;
@@ -258,7 +259,7 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
         x_s.set_points(result_s, result_x);
         y_s.set_points(result_s, result_y);
         final_path->clear();
-        double delta_s = config_.output_interval_;
+        double delta_s = config_->output_interval_;
         for (int i = 0; i * delta_s <= result_s.back(); ++i) {
             double tmp_s = i * delta_s;
             State tmp_state{x_s(tmp_s),
@@ -266,7 +267,7 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
                             getHeading(x_s, y_s, tmp_s),
                             getCurvature(x_s, y_s, tmp_s),
                             tmp_s};
-            if (collision_checker_.isSingleStateCollisionFreeImproved(tmp_state)) {
+            if (collision_checker_->isSingleStateCollisionFreeImproved(tmp_state)) {
                 final_path->emplace_back(tmp_state);
             } else {
                 LOG(INFO) << "[PathOptimizer] collision checker failed at " << final_path->back().s << "m.";

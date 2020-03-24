@@ -8,16 +8,19 @@
 #include <iostream>
 #include <cassert>
 #include <stdexcept>
+#include "Eigen/Core"
 #include <grid_map_core/grid_map_core.hpp>
-#include <glog/logging.h>
 
 namespace PathOptimizationNS {
 
 class Map {
-public:
+ public:
     Map() = delete;
-    Map(const grid_map::GridMap &grid_map);
-    double getObstacleDistance(const grid_map::Position &pos) const;
+    explicit Map(const grid_map::GridMap &grid_map);
+    double getObstacleDistance(const Eigen::Vector2d &pos) const;
+    bool isInside(const Eigen::Vector2d &pos) const;
+
+ private:
     const grid_map::GridMap &maps;
 };
 }

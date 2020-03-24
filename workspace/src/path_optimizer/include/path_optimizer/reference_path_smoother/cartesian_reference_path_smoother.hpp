@@ -16,6 +16,10 @@ namespace PathOptimizationNS {
 
 class Config;
 class Map;
+namespace tk {
+class spline;
+}
+class ReferencePath;
 
 using CppAD::AD;
 class FgEvalReferenceSmoothing {

@@ -4,6 +4,7 @@
 
 #include "path_optimizer/solver/solver_kp_as_input.hpp"
 #include "path_optimizer/data_struct/data_struct.hpp"
+#include "path_optimizer/data_struct/reference_path.hpp"
 #include "path_optimizer/config/config.hpp"
 #include "path_optimizer/tools/tools.hpp"
 
@@ -41,7 +42,7 @@ void SolverKpAsInput::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) co
 void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_constraints,
                                           Eigen::VectorXd *lower_bound,
                                           Eigen::VectorXd *upper_bound) const {
-    const auto &ref_states = *reference_path_.reference_states_;
+    const auto &ref_states = reference_path_.getReferenceStates();
     const size_t trans_range_begin{0};
     const size_t vars_range_begin{trans_range_begin + 3 * horizon_};
     const size_t collision_range_begin{vars_range_begin + 2 * horizon_ + control_horizon_};
@@ -130,7 +131,7 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
     }
 
     // Collision bound.
-    const auto &bounds = reference_path_.bounds_;
+    const auto &bounds = reference_path_.getBounds();
     for (size_t i = 0; i != horizon_; ++i) {
         Eigen::Vector3d ld, ud;
         ud
@@ -164,7 +165,7 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
 }
 
 bool SolverKpAsInput::solve(std::vector<PathOptimizationNS::State> *optimized_path) {
-    const auto &ref_states = *reference_path_.reference_states_;
+    const auto &ref_states = reference_path_.getReferenceStates();
     solver_.settings()->setVerbosity(false);
     solver_.settings()->setWarmStart(true);
     solver_.data()->setNumberOfVariables(state_size_ + control_size_ + slack_size_);

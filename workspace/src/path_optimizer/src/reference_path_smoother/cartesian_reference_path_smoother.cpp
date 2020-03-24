@@ -7,6 +7,8 @@
 #include "path_optimizer/config/config.hpp"
 #include "path_optimizer/tools/tools.hpp"
 #include "path_optimizer/tools/Map.hpp"
+#include "path_optimizer/tools/spline.h"
+#include "path_optimizer/data_struct/reference_path.hpp"
 
 namespace PathOptimizationNS {
 
@@ -25,10 +27,17 @@ CartesianReferencePathSmoother::CartesianReferencePathSmoother(const std::vector
 
 bool CartesianReferencePathSmoother::smooth(ReferencePath *reference_path,
                                             std::vector<State> *smoothed_path_display) const {
-    return smoothPathCartesian(&reference_path->x_s_,
-                               &reference_path->y_s_,
-                               &reference_path->max_s_,
-                               smoothed_path_display);
+    tk::spline x_s, y_s;
+    double max_s = 0;
+    bool ok = smoothPathCartesian(&x_s,
+                                  &y_s,
+                                  &max_s,
+                                  smoothed_path_display);
+    if (ok) {
+        reference_path->setSpline(x_s, y_s, max_s);
+        return true;
+    }
+    return false;
 }
 
 bool CartesianReferencePathSmoother::smoothPathCartesian(tk::spline *x_s_out,

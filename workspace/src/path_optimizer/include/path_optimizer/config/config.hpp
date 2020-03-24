@@ -6,8 +6,6 @@
 #define PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_CONFIG_HPP_
 namespace PathOptimizationNS {
 
-#define MAX_STEER_ANGLE 35 * M_PI / 180
-
 enum CarType { ACKERMANN_STEERING = 0, SKID_STEERING = 1, };
 enum SmoothingMethod { FRENET = 0, CARTESIAN = 1 };
 enum OptimizationMethod {K = 0, KP = 1, KPC = 2};
