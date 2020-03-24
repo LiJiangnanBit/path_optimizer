@@ -1,6 +1,7 @@
 //
 // Created by ljn on 20-2-9.
 //
+#include <glog/logging.h>
 #include "path_optimizer/reference_path_smoother/reference_path_smoother.hpp"
 #include "path_optimizer/tools/spline.h"
 #include "path_optimizer/tools/tools.hpp"
@@ -85,7 +86,7 @@ bool ReferencePathSmoother::modifyInputPoints() {
             point.layer = i;
             point.offset = offset;
             grid_map::Position position(point.x, point.y);
-            if (!grid_map_.maps.isInside(position)
+            if (!grid_map_.isInside(position)
                 || grid_map_.getObstacleDistance(position) < config_.circle_radius_) {
                 offset += config_.a_star_lateral_interval_;
                 continue;

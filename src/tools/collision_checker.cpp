@@ -50,7 +50,7 @@ bool CollisionChecker::isSingleStateCollisionFree(const State &current) {
         grid_map::Position pos(circle_itr.x,
                                circle_itr.y);
         // complete collision checking
-        if (this->in_gm_.maps.isInside(pos)) {
+        if (in_gm_.isInside(pos)) {
             double clearance = this->in_gm_.getObstacleDistance(pos);
             if (clearance < circle_itr.r) {  // collision
                 // less than circle radius, collision
@@ -85,7 +85,7 @@ bool CollisionChecker::isSingleStateCollisionFreeImproved(const State &current) 
 
     grid_map::Position pos(bounding_circle.x,
                            bounding_circle.y);
-    if (this->in_gm_.maps.isInside(pos)) {
+    if (in_gm_.isInside(pos)) {
         double clearance = this->in_gm_.getObstacleDistance(pos);
         if (clearance < bounding_circle.r) {
             // the big circle is not collision-free, then do an exact
@@ -109,7 +109,7 @@ void CollisionChecker::collisionCheckingHelper(std::vector<State> *curve) {
         for (auto &circle_itr : footprint) {
             grid_map::Position pos(circle_itr.x,
                                    circle_itr.y);
-            if (this->in_gm_.maps.isInside(pos)) {
+            if (in_gm_.isInside(pos)) {
                 double clearance = this->in_gm_.getObstacleDistance(pos);
                 if (clearance < circle_itr.r) {  // collision
                     state_itr.v = 1;  // the v field is used as a collision

@@ -16,6 +16,10 @@ namespace PathOptimizationNS {
 
 class Config;
 class Map;
+class ReferencePath;
+namespace tk {
+class spline;
+}
 
 using CppAD::AD;
 class FgEvalFrenetSmooth {

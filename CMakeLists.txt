@@ -55,7 +55,8 @@ add_library(${PROJECT_NAME}
         src/solver/solver.cpp
         src/solver/solver_kp_as_input.cpp
         src/solver/solver_kp_as_input_constrained.cpp
-        src/data_struct/date_struct.cpp)
+        src/data_struct/date_struct.cpp
+        src/data_struct/reference_path_impl.cpp src/data_struct/reference_path.cpp src/solver/solver_factory.cpp)
 target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
         )
 

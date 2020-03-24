@@ -19,7 +19,7 @@ namespace PathOptimizationNS {
 #define SMOOTHNESS_COST 10
 
 class Map;
-
+class ReferencePath;
 // This class use A* search to improve the quality of the input points (if needed), and
 // then uses a smoother to obtain a smoothed reference path.
 class ReferencePathSmoother {
