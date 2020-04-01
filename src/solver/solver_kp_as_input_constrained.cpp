@@ -105,7 +105,7 @@ void SolverKpAsInputConstrained::setConstraintMatrix(Eigen::SparseMatrix<double>
     // Set collision part.
     Eigen::Matrix<double, 3, 2> collision;
     collision << 1, config_.d1_ + config_.rear_axle_to_center_distance_,
-        config_.d2_ + config_.rear_axle_to_center_distance_, 1,
+        1, config_.d2_ + config_.rear_axle_to_center_distance_,
 //        1, config_.d3_ + config_.rear_axle_to_center_distance_,
         1, config_.d4_ + config_.rear_axle_to_center_distance_;
     for (size_t i = 0; i != horizon_; ++i) {

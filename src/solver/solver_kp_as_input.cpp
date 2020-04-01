@@ -87,14 +87,14 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
     // Set collision part.
     Eigen::Matrix<double, 3, 2> collision;
     collision << 1, config_.d1_ + config_.rear_axle_to_center_distance_,
-//        config_.d2_ + config_.rear_axle_to_center_distance_, 1,
-        1, config_.d3_ + config_.rear_axle_to_center_distance_,
+        1, config_.d2_ + config_.rear_axle_to_center_distance_,
+//        1, config_.d3_ + config_.rear_axle_to_center_distance_,
         1, config_.d4_ + config_.rear_axle_to_center_distance_;
     for (size_t i = 0; i != horizon_; ++i) {
         cons.block(collision_range_begin + 3 * i, 3 * i, 3, 2) = collision;
     }
     Eigen::Matrix<double, 1, 2> collision1;
-    collision1 << 1, config_.d2_ + config_.rear_axle_to_center_distance_;
+    collision1 << 1, config_.d3_ + config_.rear_axle_to_center_distance_;
     for (size_t i = 0; i != horizon_; ++i) {
         cons.block(collision_range_begin + 3 * horizon_ + i, 3 * i, 1, 2) = collision1;
         cons(collision_range_begin + 3 * horizon_ + i, state_size_ + control_size_ + i) = -1;
@@ -137,13 +137,13 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
     for (size_t i = 0; i != horizon_; ++i) {
         Eigen::Vector3d ld, ud;
         ud
-            << bounds[i].c0.ub, bounds[i].c2.ub, bounds[i].c3.ub;
+            << bounds[i].c0.ub, bounds[i].c1.ub, bounds[i].c3.ub;
         ld
-            << bounds[i].c0.lb, bounds[i].c2.lb, bounds[i].c3.lb;
+            << bounds[i].c0.lb, bounds[i].c1.lb, bounds[i].c3.lb;
         lower_bound->block(collision_range_begin + 3 * i, 0, 3, 1) = ld;
         upper_bound->block(collision_range_begin + 3 * i, 0, 3, 1) = ud;
-        double uds = bounds[i].c1.ub - config_.expected_safety_margin_;
-        double lds = bounds[i].c1.lb + config_.expected_safety_margin_;
+        double uds = bounds[i].c2.ub - config_.expected_safety_margin_;
+        double lds = bounds[i].c2.lb + config_.expected_safety_margin_;
         (*upper_bound)(collision_range_begin + 3 * horizon_ + i, 0) = uds;
         (*lower_bound)(collision_range_begin + 3 * horizon_ + i, 0) = -OsqpEigen::INFTY;
         (*lower_bound)(collision_range_begin + 4 * horizon_ + i, 0) = lds;
