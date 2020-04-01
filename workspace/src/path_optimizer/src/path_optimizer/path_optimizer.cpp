@@ -103,6 +103,7 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
     reference_path_->clear();
 
     // Smooth reference path.
+    // TODO: refactor this part!
     ReferencePathSmoother
         reference_path_smoother(reference_points, vehicle_state_->getStartState(), *grid_map_, *config_);
     bool smoothing_ok = false;
@@ -242,8 +243,7 @@ bool PathOptimizer::segmentSmoothedPath() {
 bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
     // Solve problem.
     std::shared_ptr<OsqpSolver> solver{SolverFactory::create(*config_, *reference_path_, *vehicle_state_, size_)};
-    bool solve_ok{solver->solve(final_path)};
-    if (!solve_ok) {
+    if (!solver->solve(final_path)) {
         return false;
     }
 

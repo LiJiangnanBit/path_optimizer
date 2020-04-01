@@ -39,13 +39,13 @@ void ReferencePathImpl::setSpline(const tk::spline &x_s,
 }
 
 void ReferencePathImpl::setReference(const std::vector<State> &reference) {
-    std::cout << "left reference version" << std::endl;
+    DLOG(INFO) << "left reference version";
     reference_states_ = reference;
     use_spline_ = false;
 }
 
 void ReferencePathImpl::setReference(const std::vector<PathOptimizationNS::State> &&reference) {
-    std::cout << "left reference version" << std::endl;
+    DLOG(INFO) << "right reference version";
     reference_states_ = reference;
     use_spline_ = false;
 }
