@@ -10,8 +10,9 @@
 mkdir -p workspace/src && cd workspace/src
 git clone git@github.com:LiJiangnanBit/path_optimizer.git
 sudo bash path_optimizer/scripts/install_deps.sh
+cd ..
 catkin build path_optimizer
-source ../devel/setup.bash
+source devel/setup.bash
 ~~~   
 *install_deps.sh* will install other dependencies (Those already installed will be skipped).
 These dependencies include ipopt, google benchmark, [osqp-eigen](https://github.com/robotology/osqp-eigen), [grid_map](https://github.com/ANYbotics/grid_map), [ros_viz_tools](https://github.com/Magic-wei/ros_viz_tools) and [tinyspline_ros](https://github.com/qutas/tinyspline_ros)).  
