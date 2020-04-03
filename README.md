@@ -7,13 +7,13 @@
 - ROS kinetic on Ubuntu 16.04 
 - OpenCV 3    
 ~~~
-git clone git@github.com:LiJiangnanBit/path-optimizer.git
-cd path-optimizer
-sudo bash scripts/install_deps.sh
-cd workspace
+mkdir -p workspace/src && cd workspace/src
+git clone git@github.com:LiJiangnanBit/path_optimizer.git
+sudo bash path_optimizer/scripts/install_deps.sh
+cd ..
 catkin build path_optimizer
 source devel/setup.bash
-~~~
+~~~   
 *install_deps.sh* will install other dependencies (Those already installed will be skipped).
 These dependencies include ipopt, google benchmark, [osqp-eigen](https://github.com/robotology/osqp-eigen), [grid_map](https://github.com/ANYbotics/grid_map), [ros_viz_tools](https://github.com/Magic-wei/ros_viz_tools) and [tinyspline_ros](https://github.com/qutas/tinyspline_ros)).  
 
@@ -50,4 +50,5 @@ This step can be skipped by changing settings.
 ![2020-02-13 16-28-05屏幕截图.png](https://i.loli.net/2020/02/13/Meqi3m7CXzZFIxJ.png)  
 4. Represent the path planning problem as a QP and solve it using OSQP.  
 ![2020-02-13 16-28-19屏幕截图.png](https://i.loli.net/2020/02/13/HaMpYKcZLxTdtAs.png)
+
 

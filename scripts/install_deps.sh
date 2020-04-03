@@ -133,13 +133,13 @@ install_grid_map() {
 }
 
 clone_other_ros_pkgs() {
-    cd $REPO_DIR/workspace/src
-    if (ls $REPO_DIR/workspace/src | grep ros_viz_tools); then
+    cd $REPO_DIR/..
+    if (ls $REPO_DIR/.. | grep ros_viz_tools); then
         echo "ros_rviz_tools already exist!"
     else 
         git clone https://github.com/Magic-wei/ros_viz_tools
     fi
-    if (ls $REPO_DIR/workspace/src | grep tinyspline_ros);then
+    if (ls $REPO_DIR/.. | grep tinyspline_ros);then
         echo "tinyspline_ros already exist!"
     else
         git clone https://github.com/qutas/tinyspline_ros
