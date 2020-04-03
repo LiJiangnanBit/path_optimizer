@@ -29,7 +29,18 @@ PathOptimizer::PathOptimizer(const State &start_state,
     config_(new Config),
     reference_path_(new ReferencePath),
     vehicle_state_(new VehicleState{start_state, end_state, 0, 0}) {
-    setConfig();
+    collision_checker_->init(*config_);
+}
+
+PathOptimizer::PathOptimizer(const PathOptimizationNS::State &start_state,
+                             const PathOptimizationNS::State &end_state,
+                             const grid_map::GridMap &map,
+                             const PathOptimizationNS::Config &config) :
+    grid_map_(new Map{map}),
+    collision_checker_(new CollisionChecker{map}),
+    config_(new Config{config}),
+    reference_path_(new ReferencePath),
+    vehicle_state_(new VehicleState{start_state, end_state, 0, 0}) {
     collision_checker_->init(*config_);
 }
 
@@ -43,52 +54,6 @@ PathOptimizer::~PathOptimizer() {
 
 const Config& PathOptimizer::getConfig() const  {
     return *config_;
-}
-
-void PathOptimizer::setConfig() {
-    // TODO: read from config file.
-    config_->car_type_ = ACKERMANN_STEERING;
-    config_->car_width_ = 2.0; //1.6;//
-    config_->car_length_ = 4.9; //4.0;//
-    config_->circle_radius_ = sqrt(pow(config_->car_length_ / 8, 2) + pow(config_->car_width_ / 2, 2));
-    config_->wheel_base_ = 2.85; //2.35;
-    config_->rear_axle_to_center_distance_ = 1.45; //1.0;
-    config_->d1_ = -3.0 / 8.0 * config_->car_length_;
-    config_->d2_ = -1.0 / 8.0 * config_->car_length_;
-    config_->d3_ = 1.0 / 8.0 * config_->car_length_;
-    config_->d4_ = 3.0 / 8.0 * config_->car_length_;
-    config_->max_steer_angle_ = 30 * M_PI / 180;
-    config_->max_curvature_rate_ = 0.1; // TODO: verify this.
-
-    config_->smoothing_method_ = FRENET;
-    config_->modify_input_points_ = true;
-    config_->a_star_lateral_range_ = 10;
-    config_->a_star_longitudinal_interval_ = 1.5;
-    config_->a_star_lateral_interval_ = 0.6;
-    config_->mu_ = 0.4;
-
-    //
-    config_->frenet_curvature_rate_w_ = 1500;
-    config_->frenet_curvature_w_ = 200;
-    config_->frenet_deviation_w_ = 4;
-    //
-    config_->cartesian_curvature_w_ = 10;
-    config_->cartesian_deviation_w_ = 0.001;
-    //
-    config_->optimization_method_ = KP;
-    config_->opt_curvature_w_ = 10;
-    config_->opt_curvature_rate_w_ = 200;
-    config_->opt_deviation_w_ = 0;
-    config_->opt_bound_slack_w_ = 3;
-    config_->constraint_end_heading_ = true;
-    // TODO: use this condition.
-    config_->exact_end_position_ = false;
-    config_->expected_safety_margin_ = 1.3;
-
-    //
-    config_->raw_result_ = true;
-    config_->output_interval_ = 0.3;
-    config_->info_output_ = true;
 }
 
 bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vector<State> *final_path) {

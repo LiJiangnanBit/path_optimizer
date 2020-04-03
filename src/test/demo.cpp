@@ -168,8 +168,6 @@ int main(int argc, char **argv) {
         std::vector<std::vector<double>> a_star_display(3);
         if (reference_rcv && start_state_rcv && end_state_rcv) {
             PathOptimizationNS::PathOptimizer path_optimizer(start_state, end_state, grid_map);
-//            path_optimizer.setConfig("optimization_method_", PathOptimizationNS::OptimizationMethod::KPC);
-//            path_optimizer.setConfig("raw_result_", false);
             config = path_optimizer.getConfig();
             if (path_optimizer.solve(reference_path, &result_path)) {
                 std::cout << "ok!" << std::endl;

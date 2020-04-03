@@ -26,6 +26,10 @@ public:
     PathOptimizer(const State &start_state,
                   const State &end_state,
                   const grid_map::GridMap &map);
+    PathOptimizer(const State &start_state,
+                  const State &end_state,
+                  const grid_map::GridMap &map,
+                  const Config &config);
     ~PathOptimizer();
 
     // Change config.
@@ -47,9 +51,6 @@ public:
     std::vector<std::vector<double>> a_star_display_;
 
 private:
-    // TODO: abandon this function, use the config class instead.
-    void setConfig();
-
     // Core function.
     bool optimizePath(std::vector<State> *final_path);
 
