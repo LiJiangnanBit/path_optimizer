@@ -1,5 +1,0 @@
-<launch>
-    <node pkg="path_optimizer" type="path_optimizer_demo" name="path_optimizer_demo" args="" output="screen" />
-    
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find path_optimizer)/config/rvizConfig.rviz" output="screen" />
-</launch>
