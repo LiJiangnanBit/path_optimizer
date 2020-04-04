@@ -114,7 +114,7 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
     weights.push_back(config_.frenet_curvature_w_); //curvature weight
     weights.push_back(config_.frenet_curvature_rate_w_); //curvature rate weight
     weights.push_back(0.01); //distance to boundary weight
-    weights.push_back(config_.frenet_deviation_w_); //path length weight
+    weights.push_back(config_.frenet_deviation_w_); //deviation weight
     FgEvalFrenetSmooth fg_eval_frenet(x_list,
                                       y_list,
                                       angle_list,

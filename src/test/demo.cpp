@@ -167,7 +167,9 @@ int main(int argc, char **argv) {
         std::vector<PathOptimizationNS::State> result_path, smoothed_reference_path;
         std::vector<std::vector<double>> a_star_display(3);
         if (reference_rcv && start_state_rcv && end_state_rcv) {
-            PathOptimizationNS::PathOptimizer path_optimizer(start_state, end_state, grid_map);
+            PathOptimizationNS::Config config1;
+            config1.frenet_deviation_w_ = 15;
+            PathOptimizationNS::PathOptimizer path_optimizer(start_state, end_state, grid_map, config1);
             config = path_optimizer.getConfig();
             if (path_optimizer.solve(reference_path, &result_path)) {
                 std::cout << "ok!" << std::endl;

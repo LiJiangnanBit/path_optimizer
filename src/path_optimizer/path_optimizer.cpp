@@ -216,7 +216,10 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
     // 1. set the interval smaller and output the result directly.
     // 2. set the interval larger and use interpolation to make the result dense.
     if (config_->raw_result_) {
+        double s{0};
         for (auto iter = final_path->begin(); iter != final_path->end(); ++iter) {
+            if (iter != final_path->begin()) s += distance(*(iter - 1), *iter);
+            iter->s = s;
             if (!collision_checker_->isSingleStateCollisionFreeImproved(*iter)) {
                 final_path->erase(iter, final_path->end());
                 LOG(INFO) << "[PathOptimizer] collision checker failed at " << final_path->back().s << "m.";
