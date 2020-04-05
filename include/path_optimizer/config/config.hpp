@@ -16,11 +16,20 @@ enum OptimizationMethod {K = 0, KP = 1, KPC = 2};
 class Config {
 public:
     Config() = default;
+    // Once config is changed, some of them must be re-calculated.
+    void update() {
+        circle_radius_ = sqrt(pow(car_length_ / 8, 2) + pow(car_width_ / 2, 2)) + safety_margin_;
+        d1_ = -3.0 / 8.0 * car_length_;
+        d2_ = -1.0 / 8.0 * car_length_;
+        d3_ = 1.0 / 8.0 * car_length_;
+        d4_ = 3.0 / 8.0 * car_length_;
+    };
     // Car param:
     CarType car_type_{ACKERMANN_STEERING};
     double car_width_{2.0};
     double car_length_{4.9};
-    double circle_radius_{sqrt(pow(car_length_ / 8, 2) + pow(car_width_ / 2, 2))};
+    double safety_margin_{0.0};
+    double circle_radius_{sqrt(pow(car_length_ / 8, 2) + pow(car_width_ / 2, 2)) + safety_margin_};
     double wheel_base_{2.85};
     double rear_axle_to_center_distance_{1.45}; // Distance from rear axle center to the center of the vehicle.
     double d1_{-3.0 / 8.0 * car_length_}, d2_{-1.0 / 8.0 * car_length_}, d3_{1.0 / 8.0 * car_length_}, d4_{3.0 / 8.0 * car_length_}; // Distance from vehicle center to the covering circles, from rear to front.
@@ -48,6 +57,7 @@ public:
     bool raw_result_{true};
     double output_interval_{0.3};
     bool info_output_{true};
+    bool check_collision_{true};
 };
 }
 #endif //PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_CONFIG_HPP_

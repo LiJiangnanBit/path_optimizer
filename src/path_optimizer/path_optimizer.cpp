@@ -41,6 +41,7 @@ PathOptimizer::PathOptimizer(const PathOptimizationNS::State &start_state,
     config_(new Config{config}),
     reference_path_(new ReferencePath),
     vehicle_state_(new VehicleState{start_state, end_state, 0, 0}) {
+    config_->update();
     collision_checker_->init(*config_);
 }
 
@@ -220,9 +221,9 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
         for (auto iter = final_path->begin(); iter != final_path->end(); ++iter) {
             if (iter != final_path->begin()) s += distance(*(iter - 1), *iter);
             iter->s = s;
-            if (!collision_checker_->isSingleStateCollisionFreeImproved(*iter)) {
+            if (config_->check_collision_ && !collision_checker_->isSingleStateCollisionFreeImproved(*iter)) {
                 final_path->erase(iter, final_path->end());
-                LOG(INFO) << "[PathOptimizer] collision checker failed at " << final_path->back().s << "m.";
+                LOG(INFO) << "collision check failed at " << final_path->back().s << "m.";
                 return final_path->back().s >= 20;
             }
         }
@@ -246,12 +247,11 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
                             getHeading(x_s, y_s, tmp_s),
                             getCurvature(x_s, y_s, tmp_s),
                             tmp_s};
-            if (collision_checker_->isSingleStateCollisionFreeImproved(tmp_state)) {
-                final_path->emplace_back(tmp_state);
-            } else {
-                LOG(INFO) << "[PathOptimizer] collision checker failed at " << final_path->back().s << "m.";
+            if (config_->check_collision_ && !collision_checker_->isSingleStateCollisionFreeImproved(tmp_state)) {
+                LOG(INFO) << "[PathOptimizer] collision check failed at " << final_path->back().s << "m.";
                 return final_path->back().s >= 20;
             }
+            final_path->emplace_back(tmp_state);
         }
     }
     return true;
