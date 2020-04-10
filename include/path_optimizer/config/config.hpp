@@ -43,8 +43,9 @@ public:
     double a_star_lateral_range_{10};
     double a_star_longitudinal_interval_{1.5},
         a_star_lateral_interval_{0.6}; // A* search interval. Affects quality and efficiency.
-    double frenet_curvature_w_{1500}, frenet_curvature_rate_w_{200}, frenet_deviation_w_{4}; // Frenet method weights.
+    double frenet_curvature_w_{1500}, frenet_curvature_rate_w_{200}, frenet_deviation_w_{15}; // Frenet method weights.
     double cartesian_curvature_w_{10}, cartesian_deviation_w_{0.001}; // Cartesian method weights.
+    bool simple_boundary_decider_{false};
 
     // Optimization phase related:
     OptimizationMethod optimization_method_{KP};

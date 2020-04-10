@@ -63,6 +63,14 @@ double distance(const State &p1, const State &p2);
 // Coordinate transform.
 State local2Global(const State &reference, const State &target);
 State global2Local(const State &reference, const State &target);
+
+State findClosestPoint(const tk::spline &xs,
+                       const tk::spline &ys,
+                       double max_s,
+                       const State &state,
+                       double grid = 0,
+                       double start_s = 0);
+
 }
 
 #endif //PATH_OPTIMIZER_INCLUDE_TOOLS_TOOLS_HPP_

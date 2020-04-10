@@ -59,7 +59,7 @@ add_library(${PROJECT_NAME}
         src/data_struct/reference_path_impl.cpp
         src/data_struct/reference_path.cpp
         src/solver/solver_factory.cpp
-        src/data_struct/vehicle_state_frenet.cpp)
+        src/data_struct/vehicle_state_frenet.cpp include/path_optimizer/reference_path_smoother/reference_path_smoother-in.hpp)
 target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
         )
 

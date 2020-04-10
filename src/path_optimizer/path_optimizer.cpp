@@ -17,7 +17,7 @@
 #include "path_optimizer/tools/spline.h"
 #include "path_optimizer/solver/solver_factory.hpp"
 #include "path_optimizer/solver/solver.hpp"
-#include <tinyspline_ros/tinysplinecpp.h>
+#include "tinyspline_ros/tinysplinecpp.h"
 
 namespace PathOptimizationNS {
 
@@ -257,19 +257,16 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
     return true;
 }
 
-const std::vector<State> &PathOptimizer::getRearBounds() const {
-    return this->rear_bounds_;
-}
-
-const std::vector<State> &PathOptimizer::getCenterBounds() const {
-    return this->center_bounds_;
-}
-
-const std::vector<State> &PathOptimizer::getFrontBounds() const {
-    return this->front_bounds_;
-}
-
 const std::vector<State> &PathOptimizer::getSmoothedPath() const {
     return this->smoothed_path_;
 }
+
+std::vector<std::tuple<State, double, double>> PathOptimizer::display_abnormal_bounds() const {
+    return this->reference_path_->display_abnormal_bounds();
+}
+
+const std::vector<std::vector<double>>& PathOptimizer::getSearchResult() const {
+    return this->a_star_display_;
+}
+
 }

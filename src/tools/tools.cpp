@@ -1,7 +1,7 @@
 //
 // Created by ljn on 20-1-26.
 //
-
+#include <cfloat>
 #include "path_optimizer/tools/tools.hpp"
 #include "path_optimizer/tools/spline.h"
 #include "path_optimizer/data_struct/data_struct.hpp"
@@ -60,6 +60,29 @@ State global2Local(const State &reference, const State &target) {
     double y = -dx * sin(reference.z) + dy * cos(reference.z);
     double z = target.z - reference.z;;
     return {x, y, z, target.k, 0};
+}
+
+State findClosestPoint(const tk::spline &xs,
+                       const tk::spline &ys,
+                       double max_s,
+                       const State &state,
+                       double grid,
+                       double start_s) {
+    if (max_s < grid || max_s <= start_s || grid == 0) {
+        return State{xs(start_s), ys(start_s)};
+    }
+    double tmp_s{start_s}, min_dis_s{start_s};
+    double min_dis{DBL_MAX};
+    while (tmp_s <= max_s) {
+        State state_on_spline{xs(tmp_s), ys(tmp_s)};
+        double tmp_dis{distance(state_on_spline, state)};
+        if (tmp_dis < min_dis) {
+            min_dis = tmp_dis;
+            min_dis_s = tmp_s;
+        }
+        tmp_s += grid;
+    }
+    return State{xs(min_dis_s), ys(min_dis_s)};
 }
 
 }

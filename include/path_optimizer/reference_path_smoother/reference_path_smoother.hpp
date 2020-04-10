@@ -10,6 +10,7 @@
 #include <queue>
 #include <ctime>
 #include <tinyspline_ros/tinysplinecpp.h>
+#include <path_optimizer/tools/spline.h>
 #include "../config/config.hpp"
 #include "../data_struct/data_struct.hpp"
 
@@ -58,17 +59,7 @@ private:
     std::vector<APoint*> closed_set_;
 
 };
-
-template<typename Smoother>
-bool ReferencePathSmoother::solve(PathOptimizationNS::ReferencePath *reference_path,
-                                  std::vector<State> *smoothed_path_display) {
-    bSpline();
-    if (config_.modify_input_points_) {
-        modifyInputPoints();
-    }
-    Smoother smoother(x_list_, y_list_, s_list_, start_state_, grid_map_, config_);
-    return smoother.smooth(reference_path, smoothed_path_display);
 }
-}
+#include "reference_path_smoother-in.hpp"
 
 #endif //PATH_OPTIMIZER_INCLUDE_REFERENCE_PATH_SMOOTHER_REFERENCE_PATH_SMOOTHER_HPP_

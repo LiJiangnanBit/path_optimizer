@@ -12,14 +12,17 @@
 
 namespace PathOptimizationNS {
 
-ReferencePathImpl::ReferencePathImpl():
-x_s_(new tk::spline),
-y_s_(new tk::spline)
-{}
+ReferencePathImpl::ReferencePathImpl() :
+    x_s_(new tk::spline),
+    y_s_(new tk::spline),
+    original_x_s_(new tk::spline),
+    original_y_s_(new tk::spline) {}
 
 ReferencePathImpl::~ReferencePathImpl() {
     delete x_s_;
     delete y_s_;
+    delete original_x_s_;
+    delete original_y_s_;
 }
 
 const tk::spline &ReferencePathImpl::getXS() const {
@@ -36,6 +39,24 @@ void ReferencePathImpl::setSpline(const tk::spline &x_s,
     *x_s_ = x_s;
     *y_s_ = y_s;
     max_s_ = max_s;
+    use_spline_ = true;
+}
+
+void ReferencePathImpl::setOriginalSpline(const PathOptimizationNS::tk::spline &x_s,
+                                          const PathOptimizationNS::tk::spline &y_s,
+                                          double max_s) {
+    *original_x_s_ = x_s;
+    *original_y_s_ = y_s;
+    original_max_s_ = max_s;
+    is_original_spline_set = true;
+}
+
+const tk::spline &ReferencePathImpl::getOriginalXS() const {
+    return *original_x_s_;
+}
+
+const tk::spline &ReferencePathImpl::getOriginalYS() const {
+    return *original_y_s_;
 }
 
 void ReferencePathImpl::setReference(const std::vector<State> &reference) {
@@ -77,20 +98,24 @@ void ReferencePathImpl::setLength(double s) {
     max_s_ = s;
 }
 
-const std::vector<State>& ReferencePathImpl::getReferenceStates() const {
+const std::vector<State> &ReferencePathImpl::getReferenceStates() const {
     return reference_states_;
 }
 
-const std::vector<CoveringCircleBounds>& ReferencePathImpl::getBounds() const {
+const std::vector<CoveringCircleBounds> &ReferencePathImpl::getBounds() const {
     return bounds_;
 }
 
-const std::vector<double>& ReferencePathImpl::getMaxKList() const {
+const std::vector<double> &ReferencePathImpl::getMaxKList() const {
     return max_k_list_;
 }
 
-const std::vector<double>& ReferencePathImpl::getMaxKpList() const {
+const std::vector<double> &ReferencePathImpl::getMaxKpList() const {
     return max_kp_list_;
+}
+
+std::vector<std::tuple<State, double, double>> ReferencePathImpl::display_abnormal_bounds() const {
+    return display_set_;
 }
 
 void ReferencePathImpl::updateLimits(const Config &config) {
@@ -131,18 +156,26 @@ void ReferencePathImpl::updateBounds(const Map &map, const Config &config) {
         return;
     }
     bounds_.clear();
+    double d1{config.d1_ + config.rear_axle_to_center_distance_};
+    double d2{config.d2_ + config.rear_axle_to_center_distance_};
+    double d3{config.d3_ + config.rear_axle_to_center_distance_};
+    double d4{config.d4_ + config.rear_axle_to_center_distance_};
     for (const auto &state : reference_states_) {
-        double center_x = state.x + config.rear_axle_to_center_distance_ * cos(state.z);
-        double center_y = state.y + config.rear_axle_to_center_distance_ * sin(state.z);
+        // Circle centers.
         State
-            c0(center_x + config.d1_ * cos(state.z), center_y + config.d1_ * sin(state.z), state.z),
-            c1(center_x + config.d2_ * cos(state.z), center_y + config.d2_ * sin(state.z), state.z),
-            c2(center_x + config.d3_ * cos(state.z), center_y + config.d3_ * sin(state.z), state.z),
-            c3(center_x + config.d4_ * cos(state.z), center_y + config.d4_ * sin(state.z), state.z);
-        auto clearance_0 = getClearanceWithDirectionStrict(c0, map, config.circle_radius_);
-        auto clearance_1 = getClearanceWithDirectionStrict(c1, map, config.circle_radius_);
-        auto clearance_2 = getClearanceWithDirectionStrict(c2, map, config.circle_radius_);
-        auto clearance_3 = getClearanceWithDirectionStrict(c3, map, config.circle_radius_);
+            c0(state.x + d1 * cos(state.z),
+               state.y + d1 * sin(state.z), state.z),
+            c1(state.x + d2 * cos(state.z),
+               state.y + d2 * sin(state.z), state.z),
+            c2(state.x + d3 * cos(state.z),
+               state.y + d3 * sin(state.z), state.z),
+            c3(state.x + d4 * cos(state.z),
+               state.y + d4 * sin(state.z), state.z);
+        // Calculate boundaries.
+        auto clearance_0 = getClearanceWithDirectionStrict(c0, map, config.circle_radius_, config.simple_boundary_decider_);
+        auto clearance_1 = getClearanceWithDirectionStrict(c1, map, config.circle_radius_, config.simple_boundary_decider_);
+        auto clearance_2 = getClearanceWithDirectionStrict(c2, map, config.circle_radius_, config.simple_boundary_decider_);
+        auto clearance_3 = getClearanceWithDirectionStrict(c3, map, config.circle_radius_, config.simple_boundary_decider_);
         if (clearance_0[0] == clearance_0[1] ||
             clearance_1[0] == clearance_1[1] ||
             clearance_2[0] == clearance_2[1] ||
@@ -164,7 +197,9 @@ void ReferencePathImpl::updateBounds(const Map &map, const Config &config) {
 
 std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const PathOptimizationNS::State &state,
                                                                        const PathOptimizationNS::Map &map,
-                                                                       double radius) const {
+                                                                       double radius,
+                                                                       bool use_simple_decider) {
+    // TODO: too much repeated code!
     double left_bound = 0;
     double right_bound = 0;
     double delta_s = 0.5;
@@ -201,8 +236,74 @@ std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const Pat
         }
         right_bound = -(right_s - delta_s);
         left_bound = left_s - delta_s;
+    } else if (is_original_spline_set && use_spline_ && !use_simple_decider) {
+        DLOG(INFO) << "Using relative position to determine the direction to expand.";
+        // Use position to determine the direction.
+        auto closest_point{findClosestPoint(*original_x_s_,
+                                            *original_y_s_,
+                                            original_max_s_,
+                                            state,
+                                            0.5)};
+        auto local_view{global2Local(state, closest_point)};
+        DLOG(INFO) << "closest point: " << closest_point.x << ", " << closest_point.y << "\n"
+                   << "state: " << state.x << ", " << state.y;
+        if (local_view.y < 0) {
+            DLOG(INFO) << "Choose right.";
+            // Expand to the right:
+            double right_s = 0;
+            for (int j = 0; j != n; ++j) {
+                right_s += delta_s;
+                double x = state.x + right_s * cos(right_angle);
+                double y = state.y + right_s * sin(right_angle);
+                grid_map::Position new_position(x, y);
+                double clearance = map.getObstacleDistance(new_position);
+                if (clearance > radius) {
+                    break;
+                }
+            }
+            left_bound = -right_s;
+            for (int j = 0; j != n; ++j) {
+                right_s += delta_s;
+                double x = state.x + right_s * cos(right_angle);
+                double y = state.y + right_s * sin(right_angle);
+                grid_map::Position new_position(x, y);
+                double clearance = map.getObstacleDistance(new_position);
+                if (clearance < radius) {
+                    break;
+                }
+            }
+            right_bound = -right_s + delta_s;
+        } else {
+            DLOG(INFO) << "Choose left.";
+            // Expand to the left:
+            double left_s = 0;
+            for (int j = 0; j != n; ++j) {
+                left_s += delta_s;
+                double x = state.x + left_s * cos(left_angle);
+                double y = state.y + left_s * sin(left_angle);
+                grid_map::Position new_position(x, y);
+                double clearance = map.getObstacleDistance(new_position);
+                if (clearance > radius) {
+                    break;
+                }
+            }
+            right_bound = left_s;
+            for (int j = 0; j != n; ++j) {
+                left_s += delta_s;
+                double x = state.x + left_s * cos(left_angle);
+                double y = state.y + left_s * sin(left_angle);
+                grid_map::Position new_position(x, y);
+                double clearance = map.getObstacleDistance(new_position);
+                if (clearance < radius) {
+                    break;
+                }
+            }
+            left_bound = left_s - delta_s;
+        }
+        DLOG(INFO) << left_bound << ", " << right_bound;
     } else {
         // Collision already; pick one side to expand:
+        DLOG(INFO) << "Using simple sampling to determine the direction to expand.";
         double right_s = 0;
         for (size_t j = 0; j != n; ++j) {
             right_s += delta_s;
@@ -256,7 +357,7 @@ std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const Pat
             right_bound = -(right_s - delta_s);
         }
     }
-    // Search backward.
+    // Search backward more precisely.
     double smaller_ds = 0.1;
     for (int i = 1; i != static_cast<int>(delta_s / smaller_ds); ++i) {
         left_bound += smaller_ds;
@@ -279,6 +380,10 @@ std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const Pat
             right_bound += smaller_ds;
             break;
         }
+    }
+    // Only one direction:
+    if (left_bound * right_bound >= 0) {
+        display_set_.emplace_back(std::make_tuple(state, left_bound, right_bound));
     }
     return {left_bound, right_bound};
 }

@@ -6,6 +6,7 @@
 #define PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_DATA_STRUCT_REFERENCE_PATH_HPP_
 #include <memory>
 #include <vector>
+#include <tuple>
 
 namespace PathOptimizationNS {
 class Map;
@@ -24,15 +25,16 @@ class ReferencePath {
     double getXS(double s) const;
     double getYS(double s) const;
     void setSpline(const tk::spline &x_s, const tk::spline &y_s, double max_s);
+    void setOriginalSpline(const tk::spline &x_s, const tk::spline &y_s, double max_s);
     void clear();
     std::size_t getSize() const;
-    bool trimStates();
     double getLength() const;
     void setLength(double s);
     const std::vector<State> &getReferenceStates() const;
     const std::vector<CoveringCircleBounds> &getBounds() const;
     const std::vector<double> &getMaxKList() const;
     const std::vector<double> &getMaxKpList() const;
+    std::vector<std::tuple<State, double, double>> display_abnormal_bounds() const;
     // Set reference_states_ directly, only used in solveWithoutSmoothing.
     void setReference(const std::vector<State> &reference);
     void setReference(const std::vector<State> &&reference);

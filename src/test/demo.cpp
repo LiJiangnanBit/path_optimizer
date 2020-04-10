@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <vector>
+#include <tuple>
 #include <ros/ros.h>
 #include <ros/package.h>
 #include <nav_msgs/OccupancyGrid.h>
@@ -27,6 +28,7 @@
 
 PathOptimizationNS::State start_state, end_state;
 std::vector<PathOptimizationNS::State> reference_path;
+std::vector<std::tuple<PathOptimizationNS::State, double, double>> abnormal_bounds;
 bool start_state_rcv = false, end_state_rcv = false, reference_rcv = false;
 PathOptimizationNS::Config config;
 
@@ -168,7 +170,7 @@ int main(int argc, char **argv) {
         std::vector<std::vector<double>> a_star_display(3);
         if (reference_rcv && start_state_rcv && end_state_rcv) {
             PathOptimizationNS::Config config1;
-            config1.frenet_deviation_w_ = 15;
+//            config1.frenet_deviation_w_ = 15;
             PathOptimizationNS::PathOptimizer path_optimizer(start_state, end_state, grid_map, config1);
             config = path_optimizer.getConfig();
             if (path_optimizer.solve(reference_path, &result_path)) {
@@ -177,7 +179,8 @@ int main(int argc, char **argv) {
 //                path_optimizer.solveWithoutSmoothing(result_path, &result_path);
             }
             smoothed_reference_path = path_optimizer.getSmoothedPath();
-            a_star_display = path_optimizer.a_star_display_;
+            abnormal_bounds = path_optimizer.display_abnormal_bounds();
+            a_star_display = path_optimizer.getSearchResult();
         }
 
         // Visualize a-star.
@@ -191,6 +194,27 @@ int main(int argc, char **argv) {
             a_star_marker.points.push_back(p);
         }
         markers.append(a_star_marker);
+
+        // Visualize abnormal bounds.
+        visualization_msgs::Marker abnormal_bounds_marker =
+            markers.newSphereList(0.1, "abnormal bounds", id++, ros_viz_tools::MAGENTA, marker_frame_id);
+        for (size_t i = 0; i != abnormal_bounds.size(); ++i) {
+            auto &ele = abnormal_bounds[i];
+            geometry_msgs::Point state, left_bound, rignt_bound;
+            state.x = std::get<0>(ele).x;
+            state.y = std::get<0>(ele).y;
+            abnormal_bounds_marker.points.push_back(state);
+            abnormal_bounds_marker.colors.push_back(ros_viz_tools::MAGENTA);
+            left_bound.x = state.x + std::get<1>(ele) * cos(std::get<0>(ele).z + M_PI_2);
+            left_bound.y = state.y + std::get<1>(ele) * sin(std::get<0>(ele).z + M_PI_2);
+            rignt_bound.x = state.x + std::get<2>(ele) * cos(std::get<0>(ele).z + M_PI_2);
+            rignt_bound.y = state.y + std::get<2>(ele) * sin(std::get<0>(ele).z + M_PI_2);
+            abnormal_bounds_marker.points.push_back(left_bound);
+            abnormal_bounds_marker.colors.push_back(ros_viz_tools::PURPLE);
+            abnormal_bounds_marker.points.push_back(rignt_bound);
+            abnormal_bounds_marker.colors.push_back(ros_viz_tools::PURPLE);
+        }
+        markers.append(abnormal_bounds_marker);
 
         // Visualize result path.
         visualization_msgs::Marker result_marker =
