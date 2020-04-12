@@ -1,9 +1,9 @@
 # path_optimizer
-**This ROS package generates feasible paths for non-holonomic vehicles according to reference paths (discrete points).**  
+**This ROS package generates feasible paths for non-holonomic vehicles according to some given reference paths (discrete points).**  
 ![2020-03-19 19-24-35屏幕截图.png](https://i.loli.net/2020/03/19/ZQyMPqFIxnK6Eif.png)    
 
 ## Run demos 
-### 0. Install dependencies 
+### 0. Install dependencies and build  
 - ROS kinetic on Ubuntu 16.04 
 - OpenCV 3    
 ~~~
@@ -15,9 +15,18 @@ catkin build path_optimizer
 source devel/setup.bash
 ~~~   
 *install_deps.sh* will install other dependencies (Those already installed will be skipped).
-These dependencies include ipopt, google benchmark, [osqp-eigen](https://github.com/robotology/osqp-eigen), [grid_map](https://github.com/ANYbotics/grid_map), [ros_viz_tools](https://github.com/Magic-wei/ros_viz_tools) and [tinyspline_ros](https://github.com/qutas/tinyspline_ros)).  
+These dependencies include:
+- [ipopt 3.12.4](https://coding.net/u/aRagdoll/p/Ipopt-3.12.4/git)
+- [cppad 20180000.0](https://www.coin-or.org/download/source/CppAD/cppad-20180000.0.gpl.tgz)
+- [google benchmark](https://github.com/google/benchmark)
+- [glog](https://github.com/google/glog)
+- [osqp-eigen](https://github.com/robotology/osqp-eigen)
+- [grid_map](https://github.com/ANYbotics/grid_map)
+- [ros_viz_tools](https://github.com/Magic-wei/ros_viz_tools)
+- [tinyspline_ros](https://github.com/qutas/tinyspline_ros).  
 
-### 1. Pick reference points manually
+### 1. Demo
+A png image is loaded as the grid map. You can click to choose the global reference path and the start/goal state of the vehicle.
 ~~~
 roslaunch path_optimizer demo.launch
 ~~~
@@ -27,18 +36,22 @@ roslaunch path_optimizer demo.launch
 - If you want to abandon the chosen points, just double click anywhere when using the "Publish Point" tool.  
 - In application, the reference path is given by a global path or by a search algorithm like A*.  
 
-![ref.gif](https://i.loli.net/2020/02/13/EXB8Qh9MdUOlm1R.gif)  
+![选点.gif](https://i.loli.net/2020/04/12/kRItwQTh5GJWHxV.gif)  
 #### (2) Pick start state using "2D Pose Estimate" tool and pick goal state using "2D Nav Goal" tool.  
 Currently, it's not strictly required to reach the goal state. But this can be changed.    
-![calsulate.gif](https://i.loli.net/2020/02/13/mLxIkj4Kvirg7eO.gif)
+![规划.gif](https://i.loli.net/2020/04/12/XmxgwTGRI1MtoVK.gif)  
 
 ### 2. Benchmark test  
+This is a computation time test.
 
 ```
 rosrun path_optimizer path_optimizer_benchmark
 ```   
 ### 3. Simulation video
 [![simulation](https://i.loli.net/2020/02/14/cIdRVs7GUhuTayv.png)](https://vimeo.com/391392050)
+
+## Usage
+Follow [demo.cpp](https://github.com/LiJiangnanBit/path_optimizer/blob/master/src/test/demo.cpp)
 
 ## How it works
 1. Take inputs (red dots):
