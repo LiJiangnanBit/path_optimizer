@@ -5,6 +5,8 @@
 #include <iostream>
 #include <vector>
 #include <tuple>
+#include <unistd.h>
+#include <sys/stat.h>
 #include <ros/ros.h>
 #include <ros/package.h>
 #include <nav_msgs/OccupancyGrid.h>
@@ -17,6 +19,7 @@
 #include <grid_map_core/grid_map_core.hpp>
 #include <grid_map_cv/grid_map_cv.hpp>
 #include <grid_map_ros/grid_map_ros.hpp>
+#include "glog/logging.h"
 #include "eigen3/Eigen/Dense"
 #include "opencv2/core/core.hpp"
 #include "opencv2/core/eigen.hpp"
@@ -69,9 +72,23 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "path_optimization");
     ros::NodeHandle nh("~");
 
+    std::string base_dir = ros::package::getPath("path_optimizer");
+    auto log_dir = base_dir + "/log";
+    if (0 != access(log_dir.c_str(), 0)) {
+        // if this folder not exist, create a new one.
+        mkdir(log_dir.c_str(), 0777);
+    }
+
+    google::InitGoogleLogging(argv[0]);
+    FLAGS_colorlogtostderr=true;
+    FLAGS_log_dir = log_dir;
+    google::SetStderrLogging(google::INFO);//设置级别高于google::INFO的日志同时输出到屏幕
+    FLAGS_logbufsecs = 0;//缓冲日志输出，默认为30秒，此处改为立刻
+    FLAGS_max_log_size = 100;//最大日志大小为100M
+    FLAGS_stop_logging_if_full_disk = true;//当磁盘被写满时，停止日志输出
+
     // Initialize grid map from image.
     std::string image_dir = ros::package::getPath("path_optimizer");
-    std::string base_dir = image_dir;
     std::string image_file = "gridmap.png";
     image_dir.append("/" + image_file);
     cv::Mat img_src = cv::imread(image_dir, CV_8UC1);
@@ -170,7 +187,10 @@ int main(int argc, char **argv) {
         std::vector<std::vector<double>> a_star_display(3);
         if (reference_rcv && start_state_rcv && end_state_rcv) {
             PathOptimizationNS::Config config1;
+            config1.info_output_ = true;
 //            config1.frenet_deviation_w_ = 15;
+            // If you just use default config, run:
+            // PathOptimizationNS::PathOptimizer path_optimizer(start_state, end_state, grid_map);
             PathOptimizationNS::PathOptimizer path_optimizer(start_state, end_state, grid_map, config1);
             config = path_optimizer.getConfig();
             if (path_optimizer.solve(reference_path, &result_path)) {
@@ -300,11 +320,13 @@ int main(int argc, char **argv) {
 
         // Publish markers.
         markers.publish();
-        ROS_INFO("map published");
+        LOG_EVERY_N(INFO, 20) << "map published.";
 
         // Wait for next cycle.
         ros::spinOnce();
         rate.sleep();
     }
+
+    google::ShutdownGoogleLogging();
     return 0;
 }

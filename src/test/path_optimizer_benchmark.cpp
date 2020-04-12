@@ -14,6 +14,7 @@
 #include "opencv2/opencv.hpp"
 #include <vector>
 #include <opencv/cv.hpp>
+#include "glog/logging.h"
 #include <path_optimizer/path_optimizer.hpp>
 #include "path_optimizer/tools/eigen2cv.hpp"
 #include "path_optimizer/data_struct/data_struct.hpp"
@@ -80,7 +81,9 @@ static void BM_optimizePath(benchmark::State &state) {
     goal_state.z = -1.30825;
     goal_state.k = 0;
     for (auto _:state) {
-        PathOptimizationNS::PathOptimizer path_optimizer(start_state, goal_state, grid_map);
+        PathOptimizationNS::Config config;
+        config.info_output_ = false;
+        PathOptimizationNS::PathOptimizer path_optimizer(start_state, goal_state, grid_map, config);
         path_optimizer.solve(points, &final_path);
     }
 }
@@ -147,9 +150,11 @@ static void BM_optimizePathWithoutSmoothing(benchmark::State &state) {
     goal_state.y = -2.52501;
     goal_state.z = -1.30825;
     goal_state.k = 0;
-    PathOptimizationNS::PathOptimizer path_optimizer(start_state, goal_state, grid_map);
-    path_optimizer.solve(points, &optimized_path);
 
+    PathOptimizationNS::Config config;
+    config.info_output_ = false;
+    PathOptimizationNS::PathOptimizer path_optimizer(start_state, goal_state, grid_map, config);
+    path_optimizer.solve(points, &optimized_path);
     for (auto _:state) {
         path_optimizer.solveWithoutSmoothing(optimized_path, &final_path);
     }

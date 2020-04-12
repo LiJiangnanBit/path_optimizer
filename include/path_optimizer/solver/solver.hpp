@@ -7,6 +7,7 @@
 
 #include <Eigen/Dense>
 #include <OsqpEigen/OsqpEigen.h>
+#include "glog/logging.h"
 
 namespace PathOptimizationNS {
 
@@ -27,7 +28,9 @@ class OsqpSolver {
       config_(config),
       horizon_(horizon),
       reference_path_(reference_path),
-      vehicle_state_(vehicle_state) {}
+      vehicle_state_(vehicle_state) {
+      LOG(INFO) << "Optimization horizon: " << horizon;
+  }
 
   virtual ~OsqpSolver() = default;
 

@@ -20,6 +20,7 @@ SolverKpAsInput::SolverKpAsInput(const Config &config,
     state_size_(3 * horizon_),
     control_size_(control_horizon_),
     slack_size_(horizon_) {
+    LOG(INFO) << "KP: control horizon is " << control_horizon_;
 }
 
 void SolverKpAsInput::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const {

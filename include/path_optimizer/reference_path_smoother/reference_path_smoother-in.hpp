@@ -22,7 +22,10 @@ bool ReferencePathSmoother::solve(PathOptimizationNS::ReferencePath *reference_p
         }
     }
     Smoother smoother(x_list_, y_list_, s_list_, start_state_, grid_map_, config_);
-    return smoother.smooth(reference_path, smoothed_path_display);
+    bool ok = smoother.smooth(reference_path, smoothed_path_display);
+    if (ok) LOG(INFO) << "Reference smoothing succeeded.";
+    else LOG(WARNING) << "Reference smoothing failed!";
+    return ok;
 }
 }
 

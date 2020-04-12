@@ -104,7 +104,7 @@ bool ReferencePathSmoother::modifyInputPoints() {
     // Search.
     while (true) {
         if (open_set_.empty()) {
-            LOG(WARNING) << "A* fail!";
+            LOG(WARNING) << "Lattice search failed!";
             return false;
         }
         auto tmp_point_ptr = open_set_.top();

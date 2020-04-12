@@ -120,16 +120,18 @@ std::vector<std::tuple<State, double, double>> ReferencePathImpl::display_abnorm
 
 void ReferencePathImpl::updateLimits(const Config &config) {
     if (reference_states_.empty()) {
-        LOG(WARNING) << "[SolverInput] Empty reference, updateLimits fail!";
+        LOG(WARNING) << "Empty reference, updateLimits() fail!";
         return;
     }
     if (config.optimization_method_ != KPC) {
         // curvature and curvature rate can only be limited in KPC method.
+        LOG(INFO) << "Solver is K or KP; skip updateLimits().";
         return;
     }
     max_k_list_.clear();
     max_kp_list_.clear();
     if (use_spline_) {
+        LOG(ERROR) << "Reference states must be given directly!";
         // If reference_states_ are built from spline, then no speed and acc info can be used.
         for (size_t i = 0; i != reference_states_.size(); ++i) {
             max_k_list_.emplace_back(tan(config.max_steer_angle_) / config.wheel_base_);
@@ -148,11 +150,12 @@ void ReferencePathImpl::updateLimits(const Config &config) {
         if (ref_v > 0.0001) max_kp_list_.emplace_back(config.max_curvature_rate_ / ref_v);
         else max_kp_list_.emplace_back(DBL_MAX);
     }
+    LOG(INFO) << "K and KP constraints are updated according to v and a.";
 }
 
 void ReferencePathImpl::updateBounds(const Map &map, const Config &config) {
     if (reference_states_.empty()) {
-        LOG(WARNING) << "[SolverInput] Empty reference, updateBounds fail!";
+        LOG(WARNING) << "Empty reference, updateBounds fail!";
         return;
     }
     bounds_.clear();
@@ -180,7 +183,7 @@ void ReferencePathImpl::updateBounds(const Map &map, const Config &config) {
             clearance_1[0] == clearance_1[1] ||
             clearance_2[0] == clearance_2[1] ||
             clearance_3[0] == clearance_3[1]) {
-            LOG(INFO) << "Path is blocked!";
+            LOG(INFO) << "Path is blocked at s: " << state.s;
             return;
         }
         CoveringCircleBounds covering_circle_bounds;
@@ -193,6 +196,7 @@ void ReferencePathImpl::updateBounds(const Map &map, const Config &config) {
     if (reference_states_.size() != bounds_.size()) {
         reference_states_.resize(bounds_.size());
     }
+    LOG(INFO) << "Boundary updated.";
 }
 
 std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const PathOptimizationNS::State &state,
@@ -405,6 +409,7 @@ bool ReferencePathImpl::buildReferenceFromSpline(double delta_s_smaller, double 
         else tmp_s += delta_s_larger;
     }
     use_spline_ = true;
+    LOG(INFO) << "Reference states are built from spline.";
     return true;
 }
 

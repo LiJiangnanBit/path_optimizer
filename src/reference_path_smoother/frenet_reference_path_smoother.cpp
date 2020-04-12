@@ -127,13 +127,7 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
                                                      constraints_lowerbound, constraints_upperbound,
                                                      fg_eval_frenet, solution);
     // Check if it works
-    bool ok = true;
-    ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
-    if (!ok) {
-        LOG(WARNING) << "smoothing solver failed!";
-        return false;
-    }
-    LOG(INFO) << "smoothing solver succeeded!";
+    if (solution.status != CppAD::ipopt::solve_result<Dvector>::success) return false;
     // output
     std::vector<double> result_x_list, result_y_list, result_s_list;
     double tmp_s = 0;

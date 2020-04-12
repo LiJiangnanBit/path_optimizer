@@ -58,12 +58,12 @@ const Config& PathOptimizer::getConfig() const  {
 }
 
 bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vector<State> *final_path) {
-    std::cout << "------" << std::endl;
+    if (config_->info_output_) std::cout << "------" << std::endl;
     CHECK_NOTNULL(final_path);
 
     auto t1 = std::clock();
     if (reference_points.empty()) {
-        LOG(WARNING) << "[PathOptimizer] empty input, quit path optimization";
+        LOG(WARNING) << "Empty input, quit path optimization";
         return false;
     }
     reference_path_->clear();
@@ -80,14 +80,12 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
     }
     a_star_display_ = reference_path_smoother.display();
     if (!smoothing_ok) {
-        LOG(WARNING) << "[PathOptimizer] Reference Smoothing failed!";
         return false;
     }
 
     auto t2 = std::clock();
     // Divide reference path into segments;
     if (!segmentSmoothedPath()) {
-        LOG(WARNING) << "[PathOptimizer] Reference path segmentation failed!";
         return false;
     }
 
@@ -101,10 +99,10 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
             time_ms_out(t3, t4, "Optimization phase");
             time_ms_out(t1, t4, "All");
         }
-        LOG(INFO) << "[PathOptimizer] Solved!";
+        LOG(INFO) << "Path optimization SUCCEEDED! Total time cost: " << double(t4 - t1) / CLOCKS_PER_SEC << " s";
         return true;
     } else {
-        LOG(WARNING) << "[PathOptimizer] Failed!";
+        LOG(WARNING) << "Path optimization FAILED!";
         return false;
     }
 }
@@ -112,11 +110,11 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
 bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::State> &reference_points,
                                           std::vector<PathOptimizationNS::State> *final_path) {
     // This function is used to calculate once more based on the previous result.
-    std::cout << "------" << std::endl;
+    if (config_->info_output_) std::cout << "------" << std::endl;
     CHECK_NOTNULL(final_path);
     auto t1 = std::clock();
     if (reference_points.empty()) {
-        LOG(WARNING) << "[PathOptimizer] Empty input, quit path optimization!";
+        LOG(WARNING) << "Empty input, quit path optimization!";
         return false;
     }
     vehicle_state_->setInitError(0, 0);
@@ -132,17 +130,18 @@ bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::
         if (config_->info_output_) {
             time_ms_out(t1, t2, "Solve without smoothing");
         }
-        LOG(INFO) << "[PathOptimizer] Solved without smoothing!";
+        LOG(INFO) << "Path optimization without smoothing SUCCEEDED! Total time cost: "
+                  << double(t2 - t1) / CLOCKS_PER_SEC << " s";
         return true;
     } else {
-        LOG(WARNING) << "[PathOptimizer] Solving without smoothing failed!";
+        LOG(WARNING) << "Path optimization without smoothing FAILED!";
         return false;
     }
 }
 
 bool PathOptimizer::segmentSmoothedPath() {
     if (reference_path_->getLength() == 0) {
-        LOG(INFO) << "[PathOptimizer] Smoothed path is empty!";
+        LOG(WARNING) << "Smoothed path is empty!";
         return false;
     }
 
@@ -160,7 +159,7 @@ bool PathOptimizer::segmentSmoothedPath() {
     vehicle_state_->setInitError(initial_offset, initial_heading_error);
     // If the start heading differs a lot with the ref path, quit.
     if (fabs(initial_heading_error) > 75 * M_PI / 180) {
-        LOG(WARNING) << "[PathOptimizer] Initial epsi is larger than 90°, quit path optimization!";
+        LOG(WARNING) << "Initial epsi is larger than 75°, quit path optimization!";
         return false;
     }
 
@@ -203,15 +202,18 @@ bool PathOptimizer::segmentSmoothedPath() {
     reference_path_->updateBounds(*grid_map_, *config_);
     reference_path_->updateLimits(*config_);
     size_ = reference_path_->getSize();
+    LOG(INFO) << "Reference path segmentation succeeded. Size: " << size_;
     return true;
 }
 
 bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
     // Solve problem.
     std::shared_ptr<OsqpSolver> solver{SolverFactory::create(*config_, *reference_path_, *vehicle_state_, size_)};
-    if (!solver->solve(final_path)) {
+    if (solver && !solver->solve(final_path)) {
+        LOG(WARNING) << "QP failed.";
         return false;
     }
+    LOG(INFO) << "QP succeeded.";
 
     // Output. Choose from:
     // 1. set the interval smaller and output the result directly.
@@ -223,10 +225,11 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
             iter->s = s;
             if (config_->check_collision_ && !collision_checker_->isSingleStateCollisionFreeImproved(*iter)) {
                 final_path->erase(iter, final_path->end());
-                LOG(INFO) << "collision check failed at " << final_path->back().s << "m.";
+                LOG(WARNING) << "collision check failed at " << final_path->back().s << "m.";
                 return final_path->back().s >= 20;
             }
         }
+        LOG(INFO) << "Output raw result.";
         return true;
     } else {
         std::vector<double> result_x, result_y, result_s;
@@ -248,13 +251,14 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
                             getCurvature(x_s, y_s, tmp_s),
                             tmp_s};
             if (config_->check_collision_ && !collision_checker_->isSingleStateCollisionFreeImproved(tmp_state)) {
-                LOG(INFO) << "[PathOptimizer] collision check failed at " << final_path->back().s << "m.";
+                LOG(WARNING) << "[PathOptimizer] collision check failed at " << final_path->back().s << "m.";
                 return final_path->back().s >= 20;
             }
             final_path->emplace_back(tmp_state);
         }
+        LOG(INFO) << "Output densified result.";
+        return true;
     }
-    return true;
 }
 
 const std::vector<State> &PathOptimizer::getSmoothedPath() const {

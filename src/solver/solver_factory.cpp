@@ -14,13 +14,16 @@ std::shared_ptr<OsqpSolver> SolverFactory::create(const PathOptimizationNS::Conf
                                                   const PathOptimizationNS::VehicleState &vehicle_state,
                                                   const size_t &horizon) {
     if (config.optimization_method_ == K) {
+        LOG(INFO) << "Creating solver type " << "K.";
         return std::make_shared<SolverKAsInput>(config, reference_path, vehicle_state, horizon);
     } else if (config.optimization_method_ == KP) {
+        LOG(INFO) << "Creating solver type " << "KP.";
         return std::make_shared<SolverKpAsInput>(config, reference_path, vehicle_state, horizon);
     } else if (config.optimization_method_ == KPC) {
+        LOG(INFO) << "Creating solver type " << "KPC.";
         return std::make_shared<SolverKpAsInputConstrained>(config, reference_path, vehicle_state, horizon);
     } else {
-        LOG(WARNING) << "No such solver!";
+        LOG(ERROR) << "No such solver!";
         return nullptr;
     }
 }

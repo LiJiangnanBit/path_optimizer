@@ -20,6 +20,7 @@ SolverKpAsInputConstrained::SolverKpAsInputConstrained(const Config &config,
     state_size_(3 * horizon_),
     control_size_(control_horizon_),
     slack_size_(3 * horizon_) {
+    LOG(INFO) << "KPC: control horizon is " << control_horizon_;
 }
 
 void SolverKpAsInputConstrained::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const {
