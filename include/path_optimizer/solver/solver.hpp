@@ -21,11 +21,9 @@ class OsqpSolver {
  public:
   OsqpSolver() = delete;
 
-  OsqpSolver(const Config &config,
-             const ReferencePath &reference_path,
+  OsqpSolver(const ReferencePath &reference_path,
              const VehicleState &vehicle_state,
              const size_t &horizon) :
-      config_(config),
       horizon_(horizon),
       reference_path_(reference_path),
       vehicle_state_(vehicle_state) {
@@ -44,7 +42,6 @@ class OsqpSolver {
                                    Eigen::VectorXd *lower_bound,
                                    Eigen::VectorXd *upper_bound) const = 0;
 
-  const Config &config_;
   const size_t horizon_{};
   const ReferencePath &reference_path_;
   const VehicleState &vehicle_state_;

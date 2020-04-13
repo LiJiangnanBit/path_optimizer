@@ -13,8 +13,7 @@ class SolverKpAsInputConstrained : public OsqpSolver {
  public:
   SolverKpAsInputConstrained() = delete;
 
-  SolverKpAsInputConstrained(const Config &config,
-                             const ReferencePath &reference_path,
+  SolverKpAsInputConstrained(const ReferencePath &reference_path,
                              const VehicleState &vehicle_state,
                              const size_t &horizon);
 

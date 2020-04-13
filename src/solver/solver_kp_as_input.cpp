@@ -6,15 +6,14 @@
 #include "path_optimizer/data_struct/data_struct.hpp"
 #include "path_optimizer/data_struct/reference_path.hpp"
 #include "path_optimizer/data_struct/vehicle_state_frenet.hpp"
-#include "path_optimizer/config/config.hpp"
 #include "path_optimizer/tools/tools.hpp"
+#include "path_optimizer/config/planning_flags.hpp"
 
 namespace PathOptimizationNS {
-SolverKpAsInput::SolverKpAsInput(const Config &config,
-                                 const ReferencePath &reference_path,
+SolverKpAsInput::SolverKpAsInput(const ReferencePath &reference_path,
                                  const VehicleState &vehicle_state,
                                  const size_t &horizon) :
-    OsqpSolver(config, reference_path, vehicle_state, horizon),
+    OsqpSolver(reference_path, vehicle_state, horizon),
     keep_control_steps_(4), // TODO: adjust this.
     control_horizon_((horizon_ + keep_control_steps_ - 2) / keep_control_steps_),
     state_size_(3 * horizon_),
@@ -26,14 +25,14 @@ SolverKpAsInput::SolverKpAsInput(const Config &config,
 void SolverKpAsInput::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const {
     const size_t matrix_size = state_size_ + control_size_ + slack_size_;
     Eigen::MatrixXd hessian{Eigen::MatrixXd::Constant(matrix_size, matrix_size, 0)};
-    double w_c = config_.opt_curvature_w_;
-    double w_cr = config_.opt_curvature_rate_w_;
-    double w_pq = config_.opt_deviation_w_;
-    double w_e = config_.opt_bound_slack_w_;
+    double w_c = FLAGS_KP_curvature_weight;
+    double w_cr = FLAGS_KP_curvature_rate_weight;
+    double w_pq = FLAGS_KP_deviation_weight;
+    double w_collision_slack = FLAGS_KP_slack_weight;
     for (size_t i = 0; i != horizon_; ++i) {
         hessian(3 * i, 3 * i) += w_pq;
         hessian(3 * i + 2, 3 * i + 2) += w_c;
-        hessian(state_size_ + control_size_ + i, state_size_ + control_size_ + i) += w_e;
+        hessian(state_size_ + control_size_ + i, state_size_ + control_size_ + i) += w_collision_slack;
     }
     for (size_t i = 0; i != control_horizon_; ++i) {
         hessian(state_size_ + i, state_size_ + i) += keep_control_steps_ * w_cr;
@@ -87,15 +86,15 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
 
     // Set collision part.
     Eigen::Matrix<double, 3, 2> collision;
-    collision << 1, config_.d1_ + config_.rear_axle_to_center_distance_,
-        1, config_.d2_ + config_.rear_axle_to_center_distance_,
-//        1, config_.d3_ + config_.rear_axle_to_center_distance_,
-        1, config_.d4_ + config_.rear_axle_to_center_distance_;
+    collision << 1, FLAGS_d1,
+        1, FLAGS_d2,
+//        1, FLAGS_d3,
+        1, FLAGS_d4;
     for (size_t i = 0; i != horizon_; ++i) {
         cons.block(collision_range_begin + 3 * i, 3 * i, 3, 2) = collision;
     }
     Eigen::Matrix<double, 1, 2> collision1;
-    collision1 << 1, config_.d3_ + config_.rear_axle_to_center_distance_;
+    collision1 << 1, FLAGS_d3;
     for (size_t i = 0; i != horizon_; ++i) {
         cons.block(collision_range_begin + 3 * horizon_ + i, 3 * i, 1, 2) = collision1;
         cons(collision_range_begin + 3 * horizon_ + i, state_size_ + control_size_ + i) = -1;
@@ -123,10 +122,10 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
 
     // Vars bound.
     for (size_t i = 0; i != horizon_; ++i) {
-        (*lower_bound)(vars_range_begin + i) = -tan(config_.max_steer_angle_) / config_.wheel_base_;
-        (*upper_bound)(vars_range_begin + i) = tan(config_.max_steer_angle_) / config_.wheel_base_;
+        (*lower_bound)(vars_range_begin + i) = -tan(FLAGS_max_steering_angle) / FLAGS_wheel_base;
+        (*upper_bound)(vars_range_begin + i) = tan(FLAGS_max_steering_angle) / FLAGS_wheel_base;
         (*lower_bound)(vars_range_begin + horizon_ + control_horizon_ + i) = 0;
-        (*upper_bound)(vars_range_begin + horizon_ + control_horizon_ + i) = config_.expected_safety_margin_;
+        (*upper_bound)(vars_range_begin + horizon_ + control_horizon_ + i) = FLAGS_expected_safety_margin;
     }
     for (size_t i = 0; i != control_horizon_; ++i) {
         (*lower_bound)(vars_range_begin + horizon_ + i) = -OsqpEigen::INFTY;
@@ -143,8 +142,8 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
             << bounds[i].c0.lb, bounds[i].c1.lb, bounds[i].c3.lb;
         lower_bound->block(collision_range_begin + 3 * i, 0, 3, 1) = ld;
         upper_bound->block(collision_range_begin + 3 * i, 0, 3, 1) = ud;
-        double uds = bounds[i].c2.ub - config_.expected_safety_margin_;
-        double lds = bounds[i].c2.lb + config_.expected_safety_margin_;
+        double uds = bounds[i].c2.ub - FLAGS_expected_safety_margin;
+        double lds = bounds[i].c2.lb + FLAGS_expected_safety_margin;
         (*upper_bound)(collision_range_begin + 3 * horizon_ + i, 0) = uds;
         (*lower_bound)(collision_range_begin + 3 * horizon_ + i, 0) = -OsqpEigen::INFTY;
         (*lower_bound)(collision_range_begin + 4 * horizon_ + i, 0) = lds;
@@ -157,7 +156,7 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
     (*upper_bound)(end_state_range_begin) = OsqpEigen::INFTY;
     (*lower_bound)(end_state_range_begin + 1) = -OsqpEigen::INFTY;
     (*upper_bound)(end_state_range_begin + 1) = OsqpEigen::INFTY;
-    if (config_.constraint_end_heading_) {
+    if (FLAGS_constraint_end_heading) {
         double end_psi = constraintAngle(vehicle_state_.getEndState().z - ref_states.back().z);
         if (end_psi < 70 * M_PI / 180) {
             (*lower_bound)(end_state_range_begin + 1) = end_psi - 5 * M_PI / 180;

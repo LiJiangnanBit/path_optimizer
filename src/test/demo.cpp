@@ -33,7 +33,6 @@ PathOptimizationNS::State start_state, end_state;
 std::vector<PathOptimizationNS::State> reference_path;
 std::vector<std::tuple<PathOptimizationNS::State, double, double>> abnormal_bounds;
 bool start_state_rcv = false, end_state_rcv = false, reference_rcv = false;
-PathOptimizationNS::Config config;
 
 void referenceCb(const geometry_msgs::PointStampedConstPtr &p) {
     if (start_state_rcv && end_state_rcv) {
@@ -81,11 +80,11 @@ int main(int argc, char **argv) {
 
     google::InitGoogleLogging(argv[0]);
     FLAGS_colorlogtostderr=true;
+    FLAGS_stderrthreshold = google::INFO;
     FLAGS_log_dir = log_dir;
-    google::SetStderrLogging(google::INFO);//设置级别高于google::INFO的日志同时输出到屏幕
-    FLAGS_logbufsecs = 0;//缓冲日志输出，默认为30秒，此处改为立刻
-    FLAGS_max_log_size = 100;//最大日志大小为100M
-    FLAGS_stop_logging_if_full_disk = true;//当磁盘被写满时，停止日志输出
+    FLAGS_logbufsecs = 0;
+    FLAGS_max_log_size = 100;
+    FLAGS_stop_logging_if_full_disk = true;
 
     // Initialize grid map from image.
     std::string image_dir = ros::package::getPath("path_optimizer");
@@ -186,13 +185,9 @@ int main(int argc, char **argv) {
         std::vector<PathOptimizationNS::State> result_path, smoothed_reference_path;
         std::vector<std::vector<double>> a_star_display(3);
         if (reference_rcv && start_state_rcv && end_state_rcv) {
-            PathOptimizationNS::Config config1;
-            config1.info_output_ = true;
-//            config1.frenet_deviation_w_ = 15;
-            // If you just use default config, run:
-            // PathOptimizationNS::PathOptimizer path_optimizer(start_state, end_state, grid_map);
-            PathOptimizationNS::PathOptimizer path_optimizer(start_state, end_state, grid_map, config1);
-            config = path_optimizer.getConfig();
+            FLAGS_enable_searching = true;
+            FLAGS_optimization_method = "KP";
+            PathOptimizationNS::PathOptimizer path_optimizer(start_state, end_state, grid_map);
             if (path_optimizer.solve(reference_path, &result_path)) {
                 std::cout << "ok!" << std::endl;
                 // Test solveWithoutSmoothing:
@@ -265,11 +260,11 @@ int main(int argc, char **argv) {
         visualization_msgs::Marker vehicle_geometry_marker =
             markers.newLineList(0.05, "vehicle", id++, ros_viz_tools::GRAY, marker_frame_id);
         // Visualize vehicle geometry.
-        double length{config.car_length_};
-        double width{config.car_width_};
-        double rtc{config.rear_axle_to_center_distance_};
-        double rear_d{length / 2 - rtc};
-        double front_d{length - rear_d};
+        static const double length{FLAGS_car_length};
+        static const double width{FLAGS_car_width};
+        static const double rtc{FLAGS_rear_axle_to_center};
+        static const double rear_d{length / 2 - rtc};
+        static const double front_d{length - rear_d};
         for (size_t i = 0; i != result_path.size(); ++i) {
             double heading = result_path[i].z;
             PathOptimizationNS::State p1, p2, p3, p4;

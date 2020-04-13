@@ -132,6 +132,16 @@ install_grid_map() {
     echo "grid_map is installed successfully!"
 }
 
+install_glog() {
+    sudo apt-get install libgoogle-glog-dev
+    echo "glog is installed successfully!"
+}
+
+install_gflags() {
+    sudo apt-get install libgflags-dev
+    echo "gflags is installed successfully!"
+}
+
 clone_other_ros_pkgs() {
     cd $REPO_DIR/..
     if (ls $REPO_DIR/.. | grep ros_viz_tools); then
@@ -151,6 +161,8 @@ main() {
     install_ipopt
     install_cppad
     install_benchmark
+    install_glog
+    install_gflags
     install_grid_map
     install_osqp_eigen
     clone_other_ros_pkgs

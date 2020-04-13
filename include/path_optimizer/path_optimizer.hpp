@@ -11,7 +11,7 @@
 #include <tuple>
 #include <glog/logging.h>
 #include "grid_map_core/grid_map_core.hpp"
-#include "path_optimizer/config/config.hpp"
+#include "path_optimizer/config/planning_flags.hpp"
 
 namespace PathOptimizationNS {
 
@@ -27,18 +27,13 @@ public:
     PathOptimizer(const State &start_state,
                   const State &end_state,
                   const grid_map::GridMap &map);
-    PathOptimizer(const State &start_state,
-                  const State &end_state,
-                  const grid_map::GridMap &map,
-                  const Config &config);
     ~PathOptimizer();
+    PathOptimizer(const PathOptimizer &optimizer) = delete;
+    PathOptimizer &operator=(const PathOptimizer &optimizer) = delete;
 
     // Call this to get the optimized path.
     bool solve(const std::vector<State> &reference_points, std::vector<State> *final_path);
     bool solveWithoutSmoothing(const std::vector<State> &reference_points, std::vector<State> *final_path);
-
-    // Get config:
-    const Config &getConfig() const;
 
     // Only for visualization purpose.
     const std::vector<State> &getSmoothedPath() const;
@@ -54,15 +49,11 @@ private:
 
     const Map *grid_map_;
     CollisionChecker *collision_checker_;
-    Config *config_;
     ReferencePath *reference_path_;
     VehicleState *vehicle_state_;
     size_t size_{};
 
     // For visualization purpose.
-    std::vector<State> rear_bounds_;
-    std::vector<State> center_bounds_;
-    std::vector<State> front_bounds_;
     std::vector<State> smoothed_path_;
     std::vector<std::vector<double>> a_star_display_;
 };

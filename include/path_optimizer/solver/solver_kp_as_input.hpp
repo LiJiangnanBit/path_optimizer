@@ -13,8 +13,7 @@ class SolverKpAsInput : public OsqpSolver{
  public:
   SolverKpAsInput() = delete;
 
-  SolverKpAsInput(const Config &config,
-                  const ReferencePath &reference_path,
+  SolverKpAsInput(const ReferencePath &reference_path,
                   const VehicleState &vehicle_state,
                   const size_t &horizon);
 

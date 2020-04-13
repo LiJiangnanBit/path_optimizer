@@ -6,16 +6,15 @@
 #include "path_optimizer/data_struct/data_struct.hpp"
 #include "path_optimizer/data_struct/reference_path.hpp"
 #include "path_optimizer/data_struct/vehicle_state_frenet.hpp"
-#include "path_optimizer/config/config.hpp"
 #include "path_optimizer/tools/tools.hpp"
+#include "path_optimizer/config/planning_flags.hpp"
 
 namespace PathOptimizationNS {
 
-SolverKAsInput::SolverKAsInput(const Config &config,
-                                 const ReferencePath &reference_path,
-                                 const VehicleState &vehicle_state,
-                                 const size_t &horizon) :
-    OsqpSolver(config, reference_path, vehicle_state, horizon){
+SolverKAsInput::SolverKAsInput(const ReferencePath &reference_path,
+                               const VehicleState &vehicle_state,
+                               const size_t &horizon) :
+    OsqpSolver(reference_path, vehicle_state, horizon) {
 }
 
 bool SolverKAsInput::solve(std::vector<State> *optimized_path) {
@@ -73,10 +72,10 @@ void SolverKAsInput::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) con
     const size_t control_size = horizon_ - 1;
     const size_t slack_size = horizon_;
     const size_t matrix_size = state_size + control_size + slack_size;
-    double w_c = config_.opt_curvature_w_;
-    double w_cr = config_.opt_curvature_rate_w_;
-    double w_pq = config_.opt_deviation_w_;
-    double w_e = config_.opt_bound_slack_w_;
+    double w_c = FLAGS_K_curvature_weight;
+    double w_cr = FLAGS_K_curvature_rate_weight;
+    double w_pq = FLAGS_K_deviation_weight;
+    double w_e = FLAGS_KP_slack_weight;
     Eigen::MatrixXd hessian = Eigen::MatrixXd::Constant(matrix_size, matrix_size, 0);
     // Populate hessian matrix
     // Matrix Q is for state variables, only related to e_y.
@@ -117,19 +116,19 @@ void SolverKAsInput::setDynamicMatrix(size_t i,
     const auto &ref_states = reference_path_.getReferenceStates();
     double ref_k = ref_states[i].k;
     double ref_s = ref_states[i + 1].s - ref_states[i].s;
-    double ref_delta = atan(ref_k * config_.wheel_base_);
+    double ref_delta = atan(ref_k * FLAGS_wheel_base);
     Eigen::Matrix2d a;
     a << 1, -ref_s * pow(ref_k, 2),
         ref_s, 1;
     Eigen::Matrix<double, 2, 1> b;
-    b << ref_s / config_.wheel_base_ / pow(cos(ref_delta), 2), 0;
+    b << ref_s / FLAGS_wheel_base / pow(cos(ref_delta), 2), 0;
     *matrix_a = a;
     *matrix_b = b;
 }
 
 void SolverKAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_constraints,
-                                          Eigen::VectorXd *lower_bound,
-                                          Eigen::VectorXd *upper_bound) const {
+                                         Eigen::VectorXd *lower_bound,
+                                         Eigen::VectorXd *upper_bound) const {
     const auto &ref_states = reference_path_.getReferenceStates();
     Eigen::MatrixXd cons = Eigen::MatrixXd::Zero(11 * horizon_ - 1, 4 * horizon_ - 1);
 
@@ -152,10 +151,10 @@ void SolverKAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_con
 
     // Set collision avoidance part 1. This part does not include the second circle.
     Eigen::Matrix<double, 3, 2> collision;
-    collision << config_.d1_ + config_.rear_axle_to_center_distance_, 1,
-//        config_.d2_ + config_.rear_axle_to_center_distance_, 1,
-        config_.d3_ + config_.rear_axle_to_center_distance_, 1,
-        config_.d4_ + config_.rear_axle_to_center_distance_, 1;
+    collision << FLAGS_d1, 1,
+//        FLAGS_d2, 1,
+        FLAGS_d3, 1,
+        FLAGS_d4, 1;
     for (size_t i = 0; i != horizon_; ++i) {
         cons.block(6 * horizon_ - 1 + 3 * i, 2 * i, 3, 2) = collision;
     }
@@ -163,7 +162,7 @@ void SolverKAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_con
     // Set collison avoidance part 2, This part contains the second circle only.
     // The purpose for this is to shrink the drivable corridor and then add a slack variable on it.
     Eigen::Matrix<double, 1, 2> collision1;
-    collision1 << config_.d2_ + config_.rear_axle_to_center_distance_, 1;
+    collision1 << FLAGS_d2, 1;
     for (size_t i = 0; i != horizon_; ++i) {
         cons.block(9 * horizon_ - 1 + i, 2 * i, 1, 2) = collision1;
         cons.block(10 * horizon_ - 1 + i, 2 * i, 1, 2) = collision1;
@@ -183,9 +182,9 @@ void SolverKAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_con
     upper_bound->block(0, 0, 2, 1) = -x0;
     for (size_t i = 0; i != horizon_ - 1; ++i) {
         double ds = ref_states[i + 1].s - ref_states[i].s;
-        double steer = atan(ref_states[i].k * config_.wheel_base_);
+        double steer = atan(ref_states[i].k * FLAGS_wheel_base);
         Eigen::Vector2d c;
-        c << ds * steer / config_.wheel_base_ / pow(cos(steer), 2), 0;
+        c << ds * steer / FLAGS_wheel_base / pow(cos(steer), 2), 0;
         lower_bound->block(2 + 2 * i, 0, 2, 1) = c;
         upper_bound->block(2 + 2 * i, 0, 2, 1) = c;
     }
@@ -193,7 +192,7 @@ void SolverKAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_con
     lower_bound->block(2 * horizon_, 0, 2 * horizon_, 1) = Eigen::VectorXd::Constant(2 * horizon_, -OsqpEigen::INFTY);
     upper_bound->block(2 * horizon_, 0, 2 * horizon_, 1) = Eigen::VectorXd::Constant(2 * horizon_, OsqpEigen::INFTY);
     // Add end state bounds.
-    if (config_.constraint_end_heading_) {
+    if (FLAGS_constraint_end_heading) {
         double end_psi = constraintAngle(vehicle_state_.getEndState().z - ref_states.back().z);
         if (end_psi < 70 * M_PI / 180) {
             (*lower_bound)(2 * horizon_ + 2 * horizon_ - 2) = end_psi - 5 * M_PI / 180;
@@ -201,12 +200,14 @@ void SolverKAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_con
         }
     }
     // Control variables bounds.
-    lower_bound->block(4 * horizon_, 0, horizon_ - 1, 1) = Eigen::VectorXd::Constant(horizon_ - 1, -config_.max_steer_angle_);
-    upper_bound->block(4 * horizon_, 0, horizon_ - 1, 1) = Eigen::VectorXd::Constant(horizon_ - 1, config_.max_steer_angle_);
+    lower_bound->block(4 * horizon_, 0, horizon_ - 1, 1) =
+        Eigen::VectorXd::Constant(horizon_ - 1, -FLAGS_max_steering_angle);
+    upper_bound->block(4 * horizon_, 0, horizon_ - 1, 1) =
+        Eigen::VectorXd::Constant(horizon_ - 1, FLAGS_max_steering_angle);
     // Slack variables bounds.
     lower_bound->block(5 * horizon_ - 1, 0, horizon_, 1) = Eigen::VectorXd::Constant(horizon_, 0);
     upper_bound->block(5 * horizon_ - 1, 0, horizon_, 1) =
-        Eigen::VectorXd::Constant(horizon_, config_.expected_safety_margin_);
+        Eigen::VectorXd::Constant(horizon_, FLAGS_expected_safety_margin);
     // Set collision bound part 1.
     const auto &bounds = reference_path_.getBounds();
     for (size_t i = 0; i != horizon_; ++i) {
@@ -222,8 +223,8 @@ void SolverKAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_con
     upper_bound->block(10 * horizon_ - 1, 0, horizon_, 1) = Eigen::VectorXd::Constant(horizon_, OsqpEigen::INFTY);
     lower_bound->block(9 * horizon_ - 1, 0, horizon_, 1) = Eigen::VectorXd::Constant(horizon_, -OsqpEigen::INFTY);
     for (size_t i = 0; i != horizon_; ++i) {
-        double ud = bounds[i].c1.ub - config_.expected_safety_margin_;
-        double ld = bounds[i].c1.lb + config_.expected_safety_margin_;
+        double ud = bounds[i].c1.ub - FLAGS_expected_safety_margin;
+        double ld = bounds[i].c1.lb + FLAGS_expected_safety_margin;
         (*upper_bound)(9 * horizon_ - 1 + i, 0) = ud;
         (*lower_bound)(10 * horizon_ - 1 + i, 0) = ld;
     }

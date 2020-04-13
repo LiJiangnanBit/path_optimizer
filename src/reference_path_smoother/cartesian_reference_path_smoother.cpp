@@ -4,11 +4,11 @@
 
 #include <glog/logging.h>
 #include "path_optimizer/reference_path_smoother/cartesian_reference_path_smoother.hpp"
-#include "path_optimizer/config/config.hpp"
 #include "path_optimizer/tools/tools.hpp"
 #include "path_optimizer/tools/Map.hpp"
 #include "path_optimizer/tools/spline.h"
 #include "path_optimizer/data_struct/reference_path.hpp"
+#include "path_optimizer/config/planning_flags.hpp"
 
 namespace PathOptimizationNS {
 
@@ -16,14 +16,12 @@ CartesianReferencePathSmoother::CartesianReferencePathSmoother(const std::vector
                                                                const std::vector<double> &y_list,
                                                                const std::vector<double> &s_list,
                                                                const State &start_state,
-                                                               const Map &grid_map,
-                                                               const Config &config) :
+                                                               const Map &grid_map) :
     x_list_(x_list),
     y_list_(y_list),
     s_list_(s_list),
     start_state_(start_state),
-    grid_map_(grid_map),
-    config_(config) {}
+    grid_map_(grid_map) {}
 
 bool CartesianReferencePathSmoother::smooth(ReferencePath *reference_path,
                                             std::vector<State> *smoothed_path_display) const {
@@ -134,7 +132,6 @@ bool CartesianReferencePathSmoother::smoothPathCartesian(tk::spline *x_s_out,
     // place to return solution
     CppAD::ipopt::solve_result<Dvector> solution;
     // weights of the cost function
-    // TODO: use a config file
     FgEvalReferenceSmoothing fg_eval_reference_smoothing(x_list,
                                                          y_list,
                                                          s_list,

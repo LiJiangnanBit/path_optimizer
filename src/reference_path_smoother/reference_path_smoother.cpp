@@ -17,10 +17,10 @@ double ReferencePathSmoother::getG(const PathOptimizationNS::APoint &point,
     double distance_to_obs = grid_map_.getObstacleDistance(position);
     double safety_distance = 5;
     if (distance_to_obs < safety_distance) {
-        obstacle_cost = (safety_distance - distance_to_obs) / safety_distance * OBSTACLE_COST;
+        obstacle_cost = (safety_distance - distance_to_obs) / safety_distance * FLAGS_search_obstacle_cost;
     }
     // Deviation cost.
-    double offset_cost = fabs(point.offset) / config_.a_star_lateral_range_ * OFFSET_COST;
+    double offset_cost = fabs(point.offset) / FLAGS_search_lateral_range * FLAGS_search_deviation_cost;
     // Smoothness cost.
 //    double smoothness_cost = 0;
 //    if (parent.parent) {
@@ -46,7 +46,7 @@ bool ReferencePathSmoother::modifyInputPoints() {
     std::vector<double> layers_s_list;
     while (tmp_s <= s_list_.back()) {
         layers_s_list.emplace_back(tmp_s);
-        tmp_s += config_.a_star_longitudinal_interval_;
+        tmp_s += FLAGS_search_longitudial_spacing;
     }
     if (s_list_.back() - layers_s_list.back() > 0.3) layers_s_list.emplace_back(s_list_.back());
     target_s_ = layers_s_list.back();
@@ -67,7 +67,7 @@ bool ReferencePathSmoother::modifyInputPoints() {
         double yr = y_s(sr);
         double hr = getHeading(x_s, y_s, sr);
         double rr = 1.0 / (getCurvature(x_s, y_s, sr) + 0.001);
-        double left_range = config_.a_star_lateral_range_, right_range = -config_.a_star_lateral_range_;
+        double left_range = FLAGS_search_lateral_range, right_range = -FLAGS_search_lateral_range;
         if (rr > 0) {
             // Left turn
             left_range = std::min(left_range, rr);
@@ -87,12 +87,12 @@ bool ReferencePathSmoother::modifyInputPoints() {
             point.offset = offset;
             grid_map::Position position(point.x, point.y);
             if (!grid_map_.isInside(position)
-                || grid_map_.getObstacleDistance(position) < config_.circle_radius_) {
-                offset += config_.a_star_lateral_interval_;
+                || grid_map_.getObstacleDistance(position) < FLAGS_circle_radius) {
+                offset += FLAGS_search_lateral_spacing;
                 continue;
             }
             point_set.emplace_back(point);
-            offset += config_.a_star_lateral_interval_;
+            offset += FLAGS_search_lateral_spacing;
         }
         sampled_points_.emplace_back(point_set);
     }
@@ -150,7 +150,7 @@ bool ReferencePathSmoother::modifyInputPoints() {
     std::reverse(a_y_list.begin(), a_y_list.end());
 
     // Choose a control point every n points, interval being 4.5m.
-    auto n = std::max(static_cast<int>(4.5 / config_.a_star_longitudinal_interval_), 1);
+    auto n = std::max(static_cast<int>(4.5 / FLAGS_search_longitudial_spacing), 1);
     int control_points_num = (a_x_list.size() - 1) / n + 1;
     int degree = 3;
     if (control_points_num <= degree) {
@@ -182,7 +182,7 @@ bool ReferencePathSmoother::modifyInputPoints() {
         s_list_.emplace_back(s_list_.back() + dis);
     }
     auto t2 = std::clock();
-    if (config_.info_output_) {
+    if (FLAGS_enable_computation_time_output) {
         time_ms_out(t1, t2, "A* search");
     }
     return true;
@@ -238,12 +238,10 @@ void ReferencePathSmoother::bSpline() {
 
 ReferencePathSmoother::ReferencePathSmoother(const std::vector<State> &input_points,
                                              const State &start_state,
-                                             const Map &grid_map,
-                                             const Config &config) :
+                                             const Map &grid_map) :
     input_points_(input_points),
     start_state_(start_state),
-    grid_map_(grid_map),
-    config_(config) {}
+    grid_map_(grid_map) {}
 
 
 inline double ReferencePathSmoother::getH(const APoint &p) const {

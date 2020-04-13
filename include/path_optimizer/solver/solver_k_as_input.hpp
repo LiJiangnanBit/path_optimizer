@@ -14,10 +14,9 @@ class SolverKAsInput : public OsqpSolver {
 public:
     SolverKAsInput() = delete;
 
-    SolverKAsInput(const Config &config,
-                    const ReferencePath &reference_path,
-                    const VehicleState &vehicle_state,
-                    const size_t &horizon);
+    SolverKAsInput(const ReferencePath &reference_path,
+                   const VehicleState &vehicle_state,
+                   const size_t &horizon);
 
     ~SolverKAsInput() override = default;
     // Core function.

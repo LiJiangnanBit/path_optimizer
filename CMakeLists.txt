@@ -25,7 +25,8 @@ find_package(IPOPT REQUIRED)
 find_package(benchmark REQUIRED)
 find_package(OsqpEigen REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(OpenCV REQUIRED)
+find_package(OpenCV 3 REQUIRED)
+find_package(gflags REQUIRED)
 
 catkin_package(
         INCLUDE_DIRS include
@@ -59,8 +60,11 @@ add_library(${PROJECT_NAME}
         src/data_struct/reference_path_impl.cpp
         src/data_struct/reference_path.cpp
         src/solver/solver_factory.cpp
-        src/data_struct/vehicle_state_frenet.cpp include/path_optimizer/reference_path_smoother/reference_path_smoother-in.hpp)
-target_link_libraries(${PROJECT_NAME} glog ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
+        src/data_struct/vehicle_state_frenet.cpp
+        include/path_optimizer/reference_path_smoother/reference_path_smoother-in.hpp
+        src/config/planning_flags.cpp
+        include/path_optimizer/config/planning_flags.hpp)
+target_link_libraries(${PROJECT_NAME} glog gflags ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
         )
 
 add_executable(${PROJECT_NAME}_benchmark

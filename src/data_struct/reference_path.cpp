@@ -7,7 +7,6 @@
 #include "path_optimizer/tools/spline.h"
 #include "path_optimizer/tools/tools.hpp"
 #include "path_optimizer/tools/Map.hpp"
-#include "path_optimizer/config/config.hpp"
 
 namespace PathOptimizationNS {
 
@@ -75,12 +74,12 @@ void ReferencePath::setReference(const std::vector<PathOptimizationNS::State> &&
     reference_path_impl_->setReference(reference);
 }
 
-void ReferencePath::updateBounds(const PathOptimizationNS::Map &map, const PathOptimizationNS::Config &config) {
-    reference_path_impl_->updateBounds(map, config);
+void ReferencePath::updateBounds(const Map &map) {
+    reference_path_impl_->updateBounds(map);
 }
 
-void ReferencePath::updateLimits(const PathOptimizationNS::Config &config) {
-    reference_path_impl_->updateLimits(config);
+void ReferencePath::updateLimits() {
+    reference_path_impl_->updateLimits();
 }
 
 bool ReferencePath::buildReferenceFromSpline(double delta_s_smaller, double delta_s_larger) {

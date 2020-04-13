@@ -11,10 +11,10 @@
 #include <cfloat>
 #include <tinyspline_ros/tinysplinecpp.h>
 #include "../data_struct/data_struct.hpp"
+#include "path_optimizer/config/planning_flags.hpp"
 
 namespace PathOptimizationNS {
 
-class Config;
 class Map;
 namespace tk {
 class spline;
@@ -32,8 +32,8 @@ public:
         seg_s_list_(seg_s_list),
         seg_x_list_(seg_x_list),
         seg_y_list_(seg_y_list),
-        curvature_weight_(10.0),
-        deviation_weight_(0.001) {}
+        curvature_weight_(FLAGS_cartesian_curvature_weight),
+        deviation_weight_(FLAGS_cartesian_deviation_weight) {}
 public:
     size_t N{};
     const std::vector<double> &seg_s_list_;
@@ -82,8 +82,7 @@ public:
                                    const std::vector<double> &y_list,
                                    const std::vector<double> &s_list,
                                    const State &start_state,
-                                   const Map &grid_map,
-                                   const Config &config);
+                                   const Map &grid_map);
 
     // Core function.
     bool smooth(ReferencePath *reference_path, std::vector<State> *smoothed_path_display = nullptr) const;
@@ -99,7 +98,6 @@ private:
     const std::vector<double> &x_list_, &y_list_, &s_list_;
     const State &start_state_;
     const Map &grid_map_;
-    const Config &config_;
 };
 }
 

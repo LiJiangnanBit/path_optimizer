@@ -26,39 +26,20 @@ PathOptimizer::PathOptimizer(const State &start_state,
                              const grid_map::GridMap &map) :
     grid_map_(new Map{map}),
     collision_checker_(new CollisionChecker{map}),
-    config_(new Config),
     reference_path_(new ReferencePath),
     vehicle_state_(new VehicleState{start_state, end_state, 0, 0}) {
-    collision_checker_->init(*config_);
-}
-
-PathOptimizer::PathOptimizer(const PathOptimizationNS::State &start_state,
-                             const PathOptimizationNS::State &end_state,
-                             const grid_map::GridMap &map,
-                             const PathOptimizationNS::Config &config) :
-    grid_map_(new Map{map}),
-    collision_checker_(new CollisionChecker{map}),
-    config_(new Config{config}),
-    reference_path_(new ReferencePath),
-    vehicle_state_(new VehicleState{start_state, end_state, 0, 0}) {
-    config_->update();
-    collision_checker_->init(*config_);
+    updateConfig();
 }
 
 PathOptimizer::~PathOptimizer() {
     delete grid_map_;
     delete collision_checker_;
-    delete config_;
     delete reference_path_;
     delete vehicle_state_;
 }
 
-const Config& PathOptimizer::getConfig() const  {
-    return *config_;
-}
-
 bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vector<State> *final_path) {
-    if (config_->info_output_) std::cout << "------" << std::endl;
+    if (FLAGS_enable_computation_time_output) std::cout << "------" << std::endl;
     CHECK_NOTNULL(final_path);
 
     auto t1 = std::clock();
@@ -71,21 +52,26 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
     // Smooth reference path.
     // TODO: refactor this part!
     ReferencePathSmoother
-        reference_path_smoother(reference_points, vehicle_state_->getStartState(), *grid_map_, *config_);
+        reference_path_smoother(reference_points, vehicle_state_->getStartState(), *grid_map_);
     bool smoothing_ok = false;
-    if (config_->smoothing_method_ == FRENET) {
+    if (FLAGS_smoothing_method == "FRENET") {
         smoothing_ok = reference_path_smoother.solve<FrenetReferencePathSmoother>(reference_path_, &smoothed_path_);
-    } else if (config_->smoothing_method_ == CARTESIAN) { // Abandoned
+    } else if (FLAGS_smoothing_method == "CARTESIAN") { // Abandoned
         smoothing_ok = reference_path_smoother.solve<CartesianReferencePathSmoother>(reference_path_, &smoothed_path_);
+    } else {
+        LOG(ERROR) << "No such smoothing method!";
+        return false;
     }
     a_star_display_ = reference_path_smoother.display();
     if (!smoothing_ok) {
+        LOG(WARNING) << "Path optimization FAILED!";
         return false;
     }
 
     auto t2 = std::clock();
     // Divide reference path into segments;
     if (!segmentSmoothedPath()) {
+        LOG(WARNING) << "Path optimization FAILED!";
         return false;
     }
 
@@ -93,13 +79,13 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
     // Optimize.
     if (optimizePath(final_path)) {
         auto t4 = std::clock();
-        if (config_->info_output_) {
+        if (FLAGS_enable_computation_time_output) {
             time_ms_out(t1, t2, "Reference smoothing");
             time_ms_out(t2, t3, "Reference segmentation");
             time_ms_out(t3, t4, "Optimization phase");
             time_ms_out(t1, t4, "All");
         }
-        LOG(INFO) << "Path optimization SUCCEEDED! Total time cost: " << double(t4 - t1) / CLOCKS_PER_SEC << " s";
+        LOG(INFO) << "Path optimization SUCCEEDED! Total time cost: " << time_s(t1, t4) << " s";
         return true;
     } else {
         LOG(WARNING) << "Path optimization FAILED!";
@@ -110,7 +96,7 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
 bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::State> &reference_points,
                                           std::vector<PathOptimizationNS::State> *final_path) {
     // This function is used to calculate once more based on the previous result.
-    if (config_->info_output_) std::cout << "------" << std::endl;
+    if (FLAGS_enable_computation_time_output) std::cout << "------" << std::endl;
     CHECK_NOTNULL(final_path);
     auto t1 = std::clock();
     if (reference_points.empty()) {
@@ -121,17 +107,17 @@ bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::
     // Set reference path.
     reference_path_->clear();
     reference_path_->setReference(reference_points);
-    reference_path_->updateBounds(*grid_map_, *config_);
-    reference_path_->updateLimits(*config_);
+    reference_path_->updateBounds(*grid_map_);
+    reference_path_->updateLimits();
     size_ = reference_path_->getSize();
 
     if (optimizePath(final_path)) {
         auto t2 = std::clock();
-        if (config_->info_output_) {
+        if (FLAGS_enable_computation_time_output) {
             time_ms_out(t1, t2, "Solve without smoothing");
         }
         LOG(INFO) << "Path optimization without smoothing SUCCEEDED! Total time cost: "
-                  << double(t2 - t1) / CLOCKS_PER_SEC << " s";
+                  << time_s(t1, t2) << " s";
         return true;
     } else {
         LOG(WARNING) << "Path optimization without smoothing FAILED!";
@@ -170,7 +156,7 @@ bool PathOptimizer::segmentSmoothedPath() {
         // If the goal position is not the same as the end position of the reference line,
         // then find the closest point to the goal and change max_s of the reference line.
         double search_delta_s = 0;
-        if (config_->exact_end_position_) {
+        if (FLAGS_enable_exact_position) {
             search_delta_s = 0.1;
         } else {
             search_delta_s = 0.3;
@@ -195,12 +181,12 @@ bool PathOptimizer::segmentSmoothedPath() {
     double delta_s_smaller = 0.3;
     // If we want to make the result path dense later, the interval here is 1.0m. This makes computation faster;
     // If we want to output the result directly, the interval is controlled by config_->output_interval..
-    double delta_s_larger = config_->raw_result_ ? config_->output_interval_ : 1.0;
+    double delta_s_larger = FLAGS_enable_raw_output ? FLAGS_output_spacing : 1.0;
     // If the initial heading error with the reference path is small, then set intervals equal.
     if (fabs(initial_heading_error) < 20 * M_PI / 180) delta_s_smaller = delta_s_larger;
     reference_path_->buildReferenceFromSpline(delta_s_smaller, delta_s_larger);
-    reference_path_->updateBounds(*grid_map_, *config_);
-    reference_path_->updateLimits(*config_);
+    reference_path_->updateBounds(*grid_map_);
+    reference_path_->updateLimits();
     size_ = reference_path_->getSize();
     LOG(INFO) << "Reference path segmentation succeeded. Size: " << size_;
     return true;
@@ -208,7 +194,7 @@ bool PathOptimizer::segmentSmoothedPath() {
 
 bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
     // Solve problem.
-    std::shared_ptr<OsqpSolver> solver{SolverFactory::create(*config_, *reference_path_, *vehicle_state_, size_)};
+    std::shared_ptr<OsqpSolver> solver{SolverFactory::create(*reference_path_, *vehicle_state_, size_)};
     if (solver && !solver->solve(final_path)) {
         LOG(WARNING) << "QP failed.";
         return false;
@@ -218,12 +204,12 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
     // Output. Choose from:
     // 1. set the interval smaller and output the result directly.
     // 2. set the interval larger and use interpolation to make the result dense.
-    if (config_->raw_result_) {
+    if (FLAGS_enable_raw_output) {
         double s{0};
         for (auto iter = final_path->begin(); iter != final_path->end(); ++iter) {
             if (iter != final_path->begin()) s += distance(*(iter - 1), *iter);
             iter->s = s;
-            if (config_->check_collision_ && !collision_checker_->isSingleStateCollisionFreeImproved(*iter)) {
+            if (FLAGS_enable_collision_check && !collision_checker_->isSingleStateCollisionFreeImproved(*iter)) {
                 final_path->erase(iter, final_path->end());
                 LOG(WARNING) << "collision check failed at " << final_path->back().s << "m.";
                 return final_path->back().s >= 20;
@@ -242,7 +228,7 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
         x_s.set_points(result_s, result_x);
         y_s.set_points(result_s, result_y);
         final_path->clear();
-        double delta_s = config_->output_interval_;
+        double delta_s = FLAGS_output_spacing;
         for (int i = 0; i * delta_s <= result_s.back(); ++i) {
             double tmp_s = i * delta_s;
             State tmp_state{x_s(tmp_s),
@@ -250,7 +236,7 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
                             getHeading(x_s, y_s, tmp_s),
                             getCurvature(x_s, y_s, tmp_s),
                             tmp_s};
-            if (config_->check_collision_ && !collision_checker_->isSingleStateCollisionFreeImproved(tmp_state)) {
+            if (FLAGS_enable_collision_check && !collision_checker_->isSingleStateCollisionFreeImproved(tmp_state)) {
                 LOG(WARNING) << "[PathOptimizer] collision check failed at " << final_path->back().s << "m.";
                 return final_path->back().s >= 20;
             }

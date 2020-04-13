@@ -6,13 +6,15 @@
 #define PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_REFERENCE_PATH_SMOOTHER_REFERENCE_PATH_SMOOTHER_IN_HPP_
 
 #include "path_optimizer/data_struct/reference_path.hpp"
+#include "path_optimizer/config/planning_flags.hpp"
 
 namespace PathOptimizationNS {
 template<typename Smoother>
 bool ReferencePathSmoother::solve(PathOptimizationNS::ReferencePath *reference_path,
                                   std::vector<State> *smoothed_path_display) {
     bSpline();
-    if (config_.modify_input_points_) {
+//    if (config_.modify_input_points_) {
+    if (FLAGS_enable_searching) {
         if (modifyInputPoints()) {
             // If searching process succeeded, add the searched result into reference_path.
             tk::spline searched_xs, searched_ys;
@@ -21,7 +23,7 @@ bool ReferencePathSmoother::solve(PathOptimizationNS::ReferencePath *reference_p
             reference_path->setOriginalSpline(searched_xs, searched_ys, s_list_.back());
         }
     }
-    Smoother smoother(x_list_, y_list_, s_list_, start_state_, grid_map_, config_);
+    Smoother smoother(x_list_, y_list_, s_list_, start_state_, grid_map_);
     bool ok = smoother.smooth(reference_path, smoothed_path_display);
     if (ok) LOG(INFO) << "Reference smoothing succeeded.";
     else LOG(WARNING) << "Reference smoothing failed!";

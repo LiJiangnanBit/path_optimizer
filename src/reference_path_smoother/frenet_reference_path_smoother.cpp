@@ -3,11 +3,11 @@
 //
 #include <glog/logging.h>
 #include "path_optimizer/reference_path_smoother/frenet_reference_path_smoother.hpp"
-#include "path_optimizer/config/config.hpp"
 #include "path_optimizer/tools/tools.hpp"
 #include "path_optimizer/tools/Map.hpp"
 #include "path_optimizer/data_struct/reference_path.hpp"
 #include "path_optimizer/tools/spline.h"
+#include "path_optimizer/config/planning_flags.hpp"
 
 namespace PathOptimizationNS {
 
@@ -15,14 +15,12 @@ FrenetReferencePathSmoother::FrenetReferencePathSmoother(const std::vector<doubl
                                                          const std::vector<double> &y_list,
                                                          const std::vector<double> &s_list,
                                                          const State &start_state,
-                                                         const Map &grid_map,
-                                                         const Config &config) :
+                                                         const Map &grid_map) :
     x_list_(x_list),
     y_list_(y_list),
     s_list_(s_list),
     start_state_(start_state),
-    grid_map_(grid_map),
-    config_(config) {}
+    grid_map_(grid_map) {}
 
 bool FrenetReferencePathSmoother::smooth(ReferencePath *reference_path,
                                          std::vector<State> *smoothed_path_display) const {
@@ -48,7 +46,7 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
     x_spline.set_points(s_list_, x_list_);
     y_spline.set_points(s_list_, y_list_);
     double max_s = s_list_.back();
-    if (config_.info_output_) std::cout << "ref path length: " << max_s << std::endl;
+    LOG(INFO) << "Ref path length: " << max_s;
     x_list.clear();
     y_list.clear();
     s_list.clear();
@@ -109,12 +107,11 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
     // place to return solution
     CppAD::ipopt::solve_result<Dvector> solution;
     // weights of the cost function
-    // TODO: use a config file
     std::vector<double> weights;
-    weights.push_back(config_.frenet_curvature_w_); //curvature weight
-    weights.push_back(config_.frenet_curvature_rate_w_); //curvature rate weight
+    weights.push_back(FLAGS_frenet_angle_diff_weight); //curvature weight
+    weights.push_back(FLAGS_frenet_angle_diff_diff_weight); //curvature rate weight
     weights.push_back(0.01); //distance to boundary weight
-    weights.push_back(config_.frenet_deviation_w_); //deviation weight
+    weights.push_back(FLAGS_frenet_deviation_weight); //deviation weight
     FgEvalFrenetSmooth fg_eval_frenet(x_list,
                                       y_list,
                                       angle_list,

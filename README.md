@@ -20,6 +20,7 @@ These dependencies include:
 - [cppad 20180000.0](https://www.coin-or.org/download/source/CppAD/cppad-20180000.0.gpl.tgz)
 - [google benchmark](https://github.com/google/benchmark)
 - [glog](https://github.com/google/glog)
+- [gflags](https://github.com/gflags/gflags)
 - [osqp-eigen](https://github.com/robotology/osqp-eigen)
 - [grid_map](https://github.com/ANYbotics/grid_map)
 - [ros_viz_tools](https://github.com/Magic-wei/ros_viz_tools)
@@ -51,7 +52,8 @@ rosrun path_optimizer path_optimizer_benchmark
 [![simulation](https://i.loli.net/2020/02/14/cIdRVs7GUhuTayv.png)](https://vimeo.com/391392050)
 
 ## Usage
-Follow [demo.cpp](https://github.com/LiJiangnanBit/path_optimizer/blob/master/src/test/demo.cpp)
+Refer to [demo.cpp](https://github.com/LiJiangnanBit/path_optimizer/blob/master/src/test/demo.cpp)  
+The parameters that you can change can be found in `planning_flags.cpp`.  
 
 ## How it works
 1. Take inputs (red dots):

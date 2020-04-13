@@ -39,10 +39,10 @@ class ReferencePath {
     void setReference(const std::vector<State> &reference);
     void setReference(const std::vector<State> &&reference);
     // Calculate upper and lower bounds for each covering circle.
-    void updateBounds(const Map &map, const Config &config);
+    void updateBounds(const Map &map);
     // If the reference_states_ have speed and acceleration information, call this func to calculate
     // curvature and curvature rate bounds.
-    void updateLimits(const Config &config);
+    void updateLimits();
     // Calculate reference_states_ from x_s_ and y_s_, given delta s.
     bool buildReferenceFromSpline(double delta_s_smaller, double delta_s_larger);
  private:

@@ -14,7 +14,6 @@
 
 namespace PathOptimizationNS {
 
-class Config;
 class Map;
 class ReferencePath;
 namespace tk {
@@ -123,8 +122,7 @@ public:
                                 const std::vector<double> &y_list,
                                 const std::vector<double> &s_list,
                                 const State &start_state,
-                                const Map &grid_map,
-                                const Config &config);
+                                const Map &grid_map);
 
     // Core function.
     bool smooth(ReferencePath *reference_path, std::vector<State> *smoothed_path_display = nullptr) const;
@@ -140,7 +138,6 @@ private:
     const std::vector<double> &x_list_, &y_list_, &s_list_;
     const State &start_state_;
     const Map &grid_map_;
-    const Config &config_;
 };
 }
 #endif //PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_REFERENCE_PATH_SMOOTHER_REFERENCE_PATH_SMOOTHER_HPP_

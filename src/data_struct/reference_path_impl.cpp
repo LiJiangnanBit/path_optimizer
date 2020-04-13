@@ -5,10 +5,10 @@
 #include <glog/logging.h>
 #include "path_optimizer/data_struct/reference_path_impl.hpp"
 #include <path_optimizer/tools/Map.hpp>
-#include <path_optimizer/config/config.hpp>
 #include "path_optimizer/tools/tools.hpp"
 #include "path_optimizer/tools/spline.h"
 #include "path_optimizer/data_struct/data_struct.hpp"
+#include "path_optimizer/config/planning_flags.hpp"
 
 namespace PathOptimizationNS {
 
@@ -118,12 +118,12 @@ std::vector<std::tuple<State, double, double>> ReferencePathImpl::display_abnorm
     return display_set_;
 }
 
-void ReferencePathImpl::updateLimits(const Config &config) {
+void ReferencePathImpl::updateLimits() {
     if (reference_states_.empty()) {
         LOG(WARNING) << "Empty reference, updateLimits() fail!";
         return;
     }
-    if (config.optimization_method_ != KPC) {
+    if (FLAGS_optimization_method != "KPC") {
         // curvature and curvature rate can only be limited in KPC method.
         LOG(INFO) << "Solver is K or KP; skip updateLimits().";
         return;
@@ -134,7 +134,7 @@ void ReferencePathImpl::updateLimits(const Config &config) {
         LOG(ERROR) << "Reference states must be given directly!";
         // If reference_states_ are built from spline, then no speed and acc info can be used.
         for (size_t i = 0; i != reference_states_.size(); ++i) {
-            max_k_list_.emplace_back(tan(config.max_steer_angle_) / config.wheel_base_);
+            max_k_list_.emplace_back(tan(FLAGS_max_steering_angle) / FLAGS_wheel_base);
             max_kp_list_.emplace_back(DBL_MAX);
         }
         return;
@@ -143,42 +143,42 @@ void ReferencePathImpl::updateLimits(const Config &config) {
         // Friction circle limit.
         double ref_v = reference_states_.at(i).v;
         double ref_ax = reference_states_.at(i).a;
-        double ay_allowed = sqrt(pow(config.mu_ * 9.8, 2) - pow(ref_ax, 2));
+        double ay_allowed = sqrt(pow(FLAGS_mu * 9.8, 2) - pow(ref_ax, 2));
         if (ref_v > 0.0001) max_k_list_.emplace_back(ay_allowed / pow(ref_v, 2));
         else max_k_list_.emplace_back(DBL_MAX);
         // Control rate limit.
-        if (ref_v > 0.0001) max_kp_list_.emplace_back(config.max_curvature_rate_ / ref_v);
+        if (ref_v > 0.0001) max_kp_list_.emplace_back(FLAGS_max_curvature_rate / ref_v);
         else max_kp_list_.emplace_back(DBL_MAX);
     }
     LOG(INFO) << "K and KP constraints are updated according to v and a.";
 }
 
-void ReferencePathImpl::updateBounds(const Map &map, const Config &config) {
+void ReferencePathImpl::updateBounds(const Map &map) {
     if (reference_states_.empty()) {
         LOG(WARNING) << "Empty reference, updateBounds fail!";
         return;
     }
     bounds_.clear();
-    double d1{config.d1_ + config.rear_axle_to_center_distance_};
-    double d2{config.d2_ + config.rear_axle_to_center_distance_};
-    double d3{config.d3_ + config.rear_axle_to_center_distance_};
-    double d4{config.d4_ + config.rear_axle_to_center_distance_};
     for (const auto &state : reference_states_) {
         // Circle centers.
         State
-            c0(state.x + d1 * cos(state.z),
-               state.y + d1 * sin(state.z), state.z),
-            c1(state.x + d2 * cos(state.z),
-               state.y + d2 * sin(state.z), state.z),
-            c2(state.x + d3 * cos(state.z),
-               state.y + d3 * sin(state.z), state.z),
-            c3(state.x + d4 * cos(state.z),
-               state.y + d4 * sin(state.z), state.z);
+            c0(state.x + FLAGS_d1 * cos(state.z),
+               state.y + FLAGS_d1 * sin(state.z),
+               state.z),
+            c1(state.x + FLAGS_d2 * cos(state.z),
+               state.y + FLAGS_d2 * sin(state.z),
+               state.z),
+            c2(state.x + FLAGS_d3 * cos(state.z),
+               state.y + FLAGS_d3 * sin(state.z),
+               state.z),
+            c3(state.x + FLAGS_d4 * cos(state.z),
+               state.y + FLAGS_d4 * sin(state.z),
+               state.z);
         // Calculate boundaries.
-        auto clearance_0 = getClearanceWithDirectionStrict(c0, map, config.circle_radius_, config.simple_boundary_decider_);
-        auto clearance_1 = getClearanceWithDirectionStrict(c1, map, config.circle_radius_, config.simple_boundary_decider_);
-        auto clearance_2 = getClearanceWithDirectionStrict(c2, map, config.circle_radius_, config.simple_boundary_decider_);
-        auto clearance_3 = getClearanceWithDirectionStrict(c3, map, config.circle_radius_, config.simple_boundary_decider_);
+        auto clearance_0 = getClearanceWithDirectionStrict(c0, map);
+        auto clearance_1 = getClearanceWithDirectionStrict(c1, map);
+        auto clearance_2 = getClearanceWithDirectionStrict(c2, map);
+        auto clearance_3 = getClearanceWithDirectionStrict(c3, map);
         if (clearance_0[0] == clearance_0[1] ||
             clearance_1[0] == clearance_1[1] ||
             clearance_2[0] == clearance_2[1] ||
@@ -200,9 +200,7 @@ void ReferencePathImpl::updateBounds(const Map &map, const Config &config) {
 }
 
 std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const PathOptimizationNS::State &state,
-                                                                       const PathOptimizationNS::Map &map,
-                                                                       double radius,
-                                                                       bool use_simple_decider) {
+                                                                       const PathOptimizationNS::Map &map) {
     // TODO: too much repeated code!
     double left_bound = 0;
     double right_bound = 0;
@@ -214,7 +212,7 @@ std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const Pat
     // Check if the original position is collision free.
     grid_map::Position original_position(state.x, state.y);
     auto original_clearance = map.getObstacleDistance(original_position);
-    if (original_clearance > radius) {
+    if (original_clearance > FLAGS_circle_radius) {
         // Normal case:
         double right_s = 0;
         for (size_t j = 0; j != n; ++j) {
@@ -223,7 +221,7 @@ std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const Pat
             double y = state.y + right_s * sin(right_angle);
             grid_map::Position new_position(x, y);
             double clearance = map.getObstacleDistance(new_position);
-            if (clearance < radius) {
+            if (clearance < FLAGS_circle_radius) {
                 break;
             }
         }
@@ -234,13 +232,13 @@ std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const Pat
             double y = state.y + left_s * sin(left_angle);
             grid_map::Position new_position(x, y);
             double clearance = map.getObstacleDistance(new_position);
-            if (clearance < radius) {
+            if (clearance < FLAGS_circle_radius) {
                 break;
             }
         }
         right_bound = -(right_s - delta_s);
         left_bound = left_s - delta_s;
-    } else if (is_original_spline_set && use_spline_ && !use_simple_decider) {
+    } else if (is_original_spline_set && use_spline_ && !FLAGS_enable_simple_boundary_decision) {
         DLOG(INFO) << "Using relative position to determine the direction to expand.";
         // Use position to determine the direction.
         auto closest_point{findClosestPoint(*original_x_s_,
@@ -261,7 +259,7 @@ std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const Pat
                 double y = state.y + right_s * sin(right_angle);
                 grid_map::Position new_position(x, y);
                 double clearance = map.getObstacleDistance(new_position);
-                if (clearance > radius) {
+                if (clearance > FLAGS_circle_radius) {
                     break;
                 }
             }
@@ -272,7 +270,7 @@ std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const Pat
                 double y = state.y + right_s * sin(right_angle);
                 grid_map::Position new_position(x, y);
                 double clearance = map.getObstacleDistance(new_position);
-                if (clearance < radius) {
+                if (clearance < FLAGS_circle_radius) {
                     break;
                 }
             }
@@ -287,7 +285,7 @@ std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const Pat
                 double y = state.y + left_s * sin(left_angle);
                 grid_map::Position new_position(x, y);
                 double clearance = map.getObstacleDistance(new_position);
-                if (clearance > radius) {
+                if (clearance > FLAGS_circle_radius) {
                     break;
                 }
             }
@@ -298,7 +296,7 @@ std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const Pat
                 double y = state.y + left_s * sin(left_angle);
                 grid_map::Position new_position(x, y);
                 double clearance = map.getObstacleDistance(new_position);
-                if (clearance < radius) {
+                if (clearance < FLAGS_circle_radius) {
                     break;
                 }
             }
@@ -315,7 +313,7 @@ std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const Pat
             double y = state.y + right_s * sin(right_angle);
             grid_map::Position new_position(x, y);
             double clearance = map.getObstacleDistance(new_position);
-            if (clearance > radius) {
+            if (clearance > FLAGS_circle_radius) {
                 break;
             }
         }
@@ -326,7 +324,7 @@ std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const Pat
             double y = state.y + left_s * sin(left_angle);
             grid_map::Position new_position(x, y);
             double clearance = map.getObstacleDistance(new_position);
-            if (clearance > radius) {
+            if (clearance > FLAGS_circle_radius) {
                 break;
             }
         }
@@ -340,7 +338,7 @@ std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const Pat
                 double y = state.y + left_s * sin(left_angle);
                 grid_map::Position new_position(x, y);
                 double clearance = map.getObstacleDistance(new_position);
-                if (clearance < radius) {
+                if (clearance < FLAGS_circle_radius) {
                     break;
                 }
             }
@@ -354,7 +352,7 @@ std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const Pat
                 double y = state.y + right_s * sin(right_angle);
                 grid_map::Position new_position(x, y);
                 double clearance = map.getObstacleDistance(new_position);
-                if (clearance < radius) {
+                if (clearance < FLAGS_circle_radius) {
                     break;
                 }
             }
@@ -369,7 +367,7 @@ std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const Pat
             state.x + left_bound * cos(left_angle),
             state.y + left_bound * sin(left_angle)
         );
-        if (map.getObstacleDistance(position) < radius) {
+        if (map.getObstacleDistance(position) < FLAGS_circle_radius) {
             left_bound -= smaller_ds;
             break;
         }
@@ -380,7 +378,7 @@ std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const Pat
             state.x + right_bound * cos(right_angle),
             state.y + right_bound * sin(right_angle)
         );
-        if (map.getObstacleDistance(position) < radius) {
+        if (map.getObstacleDistance(position) < FLAGS_circle_radius) {
             right_bound += smaller_ds;
             break;
         }

@@ -15,8 +15,7 @@ class VehicleState;
 
 class SolverFactory {
  public:
-    static std::shared_ptr<OsqpSolver> create(const Config &config,
-                                              const ReferencePath &reference_path,
+    static std::shared_ptr<OsqpSolver> create(const ReferencePath &reference_path,
                                               const VehicleState &vehicle_state,
                                               const size_t &horizon);
 };

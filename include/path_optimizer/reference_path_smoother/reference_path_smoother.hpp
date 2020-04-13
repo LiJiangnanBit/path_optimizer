@@ -11,13 +11,9 @@
 #include <ctime>
 #include <tinyspline_ros/tinysplinecpp.h>
 #include <path_optimizer/tools/spline.h>
-#include "../config/config.hpp"
 #include "../data_struct/data_struct.hpp"
 
 namespace PathOptimizationNS {
-#define OBSTACLE_COST 0.4
-#define OFFSET_COST 0.4
-#define SMOOTHNESS_COST 10
 
 class Map;
 class ReferencePath;
@@ -29,8 +25,7 @@ public:
     ReferencePathSmoother() = delete;
     ReferencePathSmoother(const std::vector<State> &input_points,
                           const State &start_state,
-                          const Map &grid_map,
-                          const Config &config);
+                          const Map &grid_map);
 
     template<typename Smoother>
     bool solve(ReferencePath *reference_path, std::vector<State> *smoothed_path_display = nullptr);
@@ -49,7 +44,6 @@ private:
     const std::vector<State> &input_points_;
     const State &start_state_;
     const Map &grid_map_;
-    const Config &config_;
     // Data to be passed into solvers.
     std::vector<double> x_list_, y_list_, s_list_;
     // Sampled points.
