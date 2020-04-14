@@ -87,6 +87,8 @@ bool FrenetReferencePathSmoother::smoothPathFrenet(tk::spline *x_s_out,
     }
     vars_lowerbound[0] = 0;
     vars_upperbound[0] = 0;
+    vars_lowerbound[n_vars - 1] = 0;
+    vars_upperbound[n_vars - 1] = 0;
     size_t n_constraints = 0;
     Dvector constraints_lowerbound(n_constraints);
     Dvector constraints_upperbound(n_constraints);

@@ -27,7 +27,9 @@ These dependencies include:
 - [tinyspline_ros](https://github.com/qutas/tinyspline_ros).  
 
 ### 1. Demo
-A png image is loaded as the grid map. You can click to choose the global reference path and the start/goal state of the vehicle.
+A png image is loaded as the grid map. You can click to choose the global reference path and the start/goal state of the vehicle. 
+You can replace `gridmap.png` with other black and white images. Note that the resolution in `demo.cpp` is set to 0.2m, whick means that 
+the length of one pixel is 0.2m on the map.
 ~~~
 roslaunch path_optimizer demo.launch
 ~~~

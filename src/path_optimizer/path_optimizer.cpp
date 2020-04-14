@@ -62,7 +62,7 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
         LOG(ERROR) << "No such smoothing method!";
         return false;
     }
-    a_star_display_ = reference_path_smoother.display();
+    reference_searching_display_ = reference_path_smoother.display();
     if (!smoothing_ok) {
         LOG(WARNING) << "Path optimization FAILED!";
         return false;
@@ -256,7 +256,7 @@ std::vector<std::tuple<State, double, double>> PathOptimizer::display_abnormal_b
 }
 
 const std::vector<std::vector<double>>& PathOptimizer::getSearchResult() const {
-    return this->a_star_display_;
+    return this->reference_searching_display_;
 }
 
 }

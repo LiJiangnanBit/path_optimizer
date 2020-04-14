@@ -55,7 +55,7 @@ private:
 
     // For visualization purpose.
     std::vector<State> smoothed_path_;
-    std::vector<std::vector<double>> a_star_display_;
+    std::vector<std::vector<double>> reference_searching_display_;
 };
 }
 
