@@ -34,7 +34,7 @@ class OsqpSolver {
 
   virtual bool solve(std::vector<State> *optimized_path) = 0;
 
- protected:
+ private:
   // Set Matrices for osqp solver.
   virtual void setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const = 0;
 
@@ -42,6 +42,7 @@ class OsqpSolver {
                                    Eigen::VectorXd *lower_bound,
                                    Eigen::VectorXd *upper_bound) const = 0;
 
+ protected:
   const size_t horizon_{};
   const ReferencePath &reference_path_;
   const VehicleState &vehicle_state_;

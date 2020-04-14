@@ -46,7 +46,6 @@ add_library(${PROJECT_NAME}
         src/tools/tools.cpp
         src/tools/spline.cpp
         src/path_optimizer/path_optimizer.cpp
-        src/reference_path_smoother/frenet_reference_path_smoother.cpp
         src/tools/collision_checker.cpp
         src/solver/solver_k_as_input.cpp
         src/reference_path_smoother/cartesian_reference_path_smoother.cpp
@@ -61,9 +60,9 @@ add_library(${PROJECT_NAME}
         src/data_struct/reference_path.cpp
         src/solver/solver_factory.cpp
         src/data_struct/vehicle_state_frenet.cpp
-        include/path_optimizer/reference_path_smoother/reference_path_smoother-in.hpp
         src/config/planning_flags.cpp
-        include/path_optimizer/config/planning_flags.hpp)
+        include/path_optimizer/config/planning_flags.hpp
+        src/reference_path_smoother/angle_diff_smoother.cpp)
 target_link_libraries(${PROJECT_NAME} glog gflags ${IPOPT_LIBRARIES} ${catkin_LIBRARIES} OsqpEigen::OsqpEigen osqp::osqp
         )
 

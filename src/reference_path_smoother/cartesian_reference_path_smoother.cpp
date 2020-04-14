@@ -42,6 +42,9 @@ bool CartesianReferencePathSmoother::smoothPathCartesian(tk::spline *x_s_out,
                                                          tk::spline *y_s_out,
                                                          double *max_s_out,
                                                          std::vector<State> *smoothed_path_display) const {
+    CHECK_GT(s_list_.size(), 2);
+    CHECK_EQ(x_list_.size(), s_list_.size());
+    CHECK_EQ(y_list_.size(), s_list_.size());
     std::vector<double> x_list, y_list, s_list, angle_list;
     tk::spline x_spline, y_spline;
     double max_s = s_list_.back();

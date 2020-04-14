@@ -22,7 +22,7 @@ public:
     // Core function.
     bool solve(std::vector<State> *optimized_path) override ;
 
- protected:
+ private:
     // Set Matrices for osqp solver.
     void setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const override ;
 

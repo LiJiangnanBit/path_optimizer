@@ -18,6 +18,7 @@
 #include "path_optimizer/solver/solver_factory.hpp"
 #include "path_optimizer/solver/solver.hpp"
 #include "tinyspline_ros/tinysplinecpp.h"
+#include "path_optimizer/reference_path_smoother/angle_diff_smoother.hpp"
 
 namespace PathOptimizationNS {
 
@@ -51,17 +52,9 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
 
     // Smooth reference path.
     // TODO: refactor this part!
-    ReferencePathSmoother
+    AngleDiffSmoother
         reference_path_smoother(reference_points, vehicle_state_->getStartState(), *grid_map_);
-    bool smoothing_ok = false;
-    if (FLAGS_smoothing_method == "FRENET") {
-        smoothing_ok = reference_path_smoother.solve<FrenetReferencePathSmoother>(reference_path_, &smoothed_path_);
-    } else if (FLAGS_smoothing_method == "CARTESIAN") { // Abandoned
-        smoothing_ok = reference_path_smoother.solve<CartesianReferencePathSmoother>(reference_path_, &smoothed_path_);
-    } else {
-        LOG(ERROR) << "No such smoothing method!";
-        return false;
-    }
+    bool smoothing_ok = reference_path_smoother.solve(reference_path_, &smoothed_path_);
     reference_searching_display_ = reference_path_smoother.display();
     if (!smoothing_ok) {
         LOG(WARNING) << "Path optimization FAILED!";

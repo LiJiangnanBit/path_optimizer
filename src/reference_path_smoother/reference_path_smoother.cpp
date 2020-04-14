@@ -6,8 +6,27 @@
 #include "path_optimizer/tools/spline.h"
 #include "path_optimizer/tools/tools.hpp"
 #include "path_optimizer/tools/Map.hpp"
+#include "path_optimizer/config/planning_flags.hpp"
+#include "path_optimizer/data_struct/reference_path.hpp"
 
 namespace PathOptimizationNS {
+
+bool ReferencePathSmoother::solve(PathOptimizationNS::ReferencePath *reference_path,
+                                  std::vector<PathOptimizationNS::State> *smoothed_path_display) {
+    bSpline();
+    if (FLAGS_enable_searching && modifyInputPoints()) {
+        // If searching process succeeded, add the searched result into reference_path.
+        tk::spline searched_xs, searched_ys;
+        searched_xs.set_points(s_list_, x_list_);
+        searched_ys.set_points(s_list_, y_list_);
+        reference_path->setOriginalSpline(searched_xs, searched_ys, s_list_.back());
+    }
+    return smooth(reference_path, smoothed_path_display);
+}
+
+std::vector<std::vector<double>> ReferencePathSmoother::display() const {
+    return std::vector<std::vector<double>>{x_list_, y_list_, s_list_};
+}
 
 double ReferencePathSmoother::getG(const PathOptimizationNS::APoint &point,
                                    const PathOptimizationNS::APoint &parent) const {
@@ -188,7 +207,7 @@ bool ReferencePathSmoother::modifyInputPoints() {
     return true;
 }
 
-bool ReferencePathSmoother::checkExistenceInClosedSet(const APoint &point) const{
+bool ReferencePathSmoother::checkExistenceInClosedSet(const APoint &point) const {
     for (const auto &iter : closed_set_) {
         if (iter == &point) {
             return true;
@@ -242,7 +261,6 @@ ReferencePathSmoother::ReferencePathSmoother(const std::vector<State> &input_poi
     input_points_(input_points),
     start_state_(start_state),
     grid_map_(grid_map) {}
-
 
 inline double ReferencePathSmoother::getH(const APoint &p) const {
     // Note that this h is neither admissible nor consistent, so the result is not optimal.

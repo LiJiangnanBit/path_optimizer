@@ -21,15 +21,13 @@ class SolverKpAsInputConstrained : public OsqpSolver {
 
   bool solve(std::vector<State> *optimized_path) override;
 
- protected:
-
+ private:
   void setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const override;
 
   void setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_constraints,
                            Eigen::VectorXd *lower_bound,
                            Eigen::VectorXd *upper_bound) const override;
 
- private:
   const int keep_control_steps_{};
   const size_t control_horizon_{};
   const size_t state_size_{};
