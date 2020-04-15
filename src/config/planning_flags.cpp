@@ -110,3 +110,5 @@ DEFINE_bool(enable_collision_check, true, "perform collision check before output
 DEFINE_double(search_obstacle_cost, 0.4, "searching cost");
 
 DEFINE_double(search_deviation_cost, 0.4, "offset from the original ref cost");
+
+DEFINE_double(epsilon, 1e-6, "use this when comparing double");

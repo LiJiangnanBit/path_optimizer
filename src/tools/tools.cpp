@@ -5,6 +5,7 @@
 #include "path_optimizer/tools/tools.hpp"
 #include "path_optimizer/tools/spline.h"
 #include "path_optimizer/data_struct/data_struct.hpp"
+#include "path_optimizer/config/planning_flags.hpp"
 
 namespace PathOptimizationNS {
 
@@ -25,7 +26,7 @@ void time_ms_out(const clock_t &begin, const clock_t &end, const std::string &te
 }
 
 bool isEqual(double a, double b) {
-    return fabs(a - b) < 0.000001;
+    return fabs(a - b) < FLAGS_epsilon;
 }
 
 double getHeading(const tk::spline &xs, const tk::spline &ys, double s) {

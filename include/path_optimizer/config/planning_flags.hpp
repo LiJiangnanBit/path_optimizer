@@ -91,4 +91,5 @@ DECLARE_double(search_obstacle_cost);
 
 DECLARE_double(search_deviation_cost);
 
+DECLARE_double(epsilon);
 #endif //PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_CONFIG_PLANNING_FLAGS_HPP_

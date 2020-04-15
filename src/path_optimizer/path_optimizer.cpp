@@ -6,8 +6,6 @@
 #include <ctime>
 #include "path_optimizer/path_optimizer.hpp"
 #include "path_optimizer/reference_path_smoother/reference_path_smoother.hpp"
-#include "path_optimizer/reference_path_smoother/frenet_reference_path_smoother.hpp"
-#include "path_optimizer/reference_path_smoother/cartesian_reference_path_smoother.hpp"
 #include "path_optimizer/tools/tools.hpp"
 #include "path_optimizer/data_struct/reference_path.hpp"
 #include "path_optimizer/data_struct/data_struct.hpp"
@@ -19,6 +17,7 @@
 #include "path_optimizer/solver/solver.hpp"
 #include "tinyspline_ros/tinysplinecpp.h"
 #include "path_optimizer/reference_path_smoother/angle_diff_smoother.hpp"
+#include "path_optimizer/reference_path_smoother/tension_smoother.hpp"
 
 namespace PathOptimizationNS {
 
@@ -52,7 +51,7 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
 
     // Smooth reference path.
     // TODO: refactor this part!
-    AngleDiffSmoother
+    TensionSmoother
         reference_path_smoother(reference_points, vehicle_state_->getStartState(), *grid_map_);
     bool smoothing_ok = reference_path_smoother.solve(reference_path_, &smoothed_path_);
     reference_searching_display_ = reference_path_smoother.display();
