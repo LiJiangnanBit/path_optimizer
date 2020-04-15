@@ -57,7 +57,6 @@ add_library(${PROJECT_NAME}
         src/data_struct/date_struct.cpp
         src/data_struct/reference_path_impl.cpp
         src/data_struct/reference_path.cpp
-        src/solver/solver_factory.cpp
         src/data_struct/vehicle_state_frenet.cpp
         src/config/planning_flags.cpp
         include/path_optimizer/config/planning_flags.hpp

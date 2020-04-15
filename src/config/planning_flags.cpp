@@ -40,10 +40,10 @@ DEFINE_double(mu, 0.4, "friction param");
 
 DEFINE_double(max_curvature_rate, 0.1, "max derivative of curvature");
 
-DEFINE_string(smoothing_method, "FRENET", "rReference smoothing method");
+DEFINE_string(smoothing_method, "TENSION", "rReference smoothing method");
 bool ValidateSmoothingnMethod(const char *flagname, const std::string &value)
 {
-    return value == "FRENET" || value == "CARTESIAN";
+    return value == "ANGLE_DIFF" || value == "TENSION";
 }
 bool isSmoothingMethodValid = google::RegisterFlagValidator(&FLAGS_smoothing_method, ValidateSmoothingnMethod);
 
@@ -64,9 +64,9 @@ DEFINE_double(frenet_deviation_weight, 15, "frenet smoothing deviation from the 
 
 DEFINE_double(cartesian_curvature_weight, 10, "");
 
-DEFINE_double(cartesian_deviation_weight, 0.001, "");
+DEFINE_double(cartesian_deviation_weight, 0.0, "");
 
-DEFINE_bool(enable_simple_boundary_decision, false, "faster, but may go wrong sometimes");
+DEFINE_bool(enable_simple_boundary_decision, true, "faster, but may go wrong sometimes");
 
 DEFINE_string(optimization_method, "KP", "optimization method, named by input: "
                                          "K uses curvature as input, KP uses curvature' as input, and"

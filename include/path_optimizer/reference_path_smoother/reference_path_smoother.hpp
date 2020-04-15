@@ -5,6 +5,7 @@
 #ifndef PATH_OPTIMIZER_INCLUDE_REFERENCE_PATH_SMOOTHER_REFERENCE_PATH_SMOOTHER_HPP_
 #define PATH_OPTIMIZER_INCLUDE_REFERENCE_PATH_SMOOTHER_REFERENCE_PATH_SMOOTHER_HPP_
 #include <iostream>
+#include <memory>
 #include <vector>
 #include <string>
 #include <queue>
@@ -27,6 +28,11 @@ public:
                           const State &start_state,
                           const Map &grid_map);
     virtual ~ReferencePathSmoother() = default;
+
+    static std::unique_ptr<ReferencePathSmoother> create(std::string type,
+                                                  const std::vector<State> &input_points,
+                                                  const State &start_state,
+                                                  const Map &grid_map);
 
     bool solve(ReferencePath *reference_path, std::vector<State> *smoothed_path_display = nullptr);
     std::vector<std::vector<double>> display() const;

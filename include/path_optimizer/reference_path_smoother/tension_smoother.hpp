@@ -40,19 +40,20 @@ class FgEvalReferenceSmoothing {
     typedef AD<double> ad;
 
     void operator()(ADvector &fg, const ADvector &vars) {
-        const auto x_range_begin = 0;
-        const auto y_range_begin = x_range_begin + N;
         for (size_t i = 1; i != N - 1; ++i) {
-            ad last_x = vars[x_range_begin + i - 1];
-            ad last_y = vars[y_range_begin + i - 1];
-            ad current_x = vars[x_range_begin + i];
-            ad current_y = vars[y_range_begin + i];
-            ad next_x = vars[x_range_begin + i + 1];
-            ad next_y = vars[y_range_begin + i + 1];
+            ad last_offset = vars[i - 1];
+            ad current_offset = vars[i];
+            ad next_offset = vars[i + 1];
+            ad last_x = seg_x_list_[i - 1] + last_offset * cos(seg_angle_list_[i - 1] + M_PI_2);
+            ad last_y = seg_y_list_[i - 1] + last_offset * sin(seg_angle_list_[i - 1] + M_PI_2);
+            ad current_x = seg_x_list_[i] + current_offset * cos(seg_angle_list_[i] + M_PI_2);
+            ad current_y = seg_y_list_[i] + current_offset * sin(seg_angle_list_[i] + M_PI_2);
+            ad next_x = seg_x_list_[i + 1] + next_offset * cos(seg_angle_list_[i + 1] + M_PI_2);
+            ad next_y = seg_y_list_[i + 1] + next_offset * sin(seg_angle_list_[i + 1] + M_PI_2);
             ad ref_x = seg_x_list_[i];
             ad ref_y = seg_y_list_[i];
             // Deviation cost:
-            fg[0] += FLAGS_cartesian_deviation_weight * (pow(current_x - ref_x, 2) + pow(current_y - ref_y, 2));
+            fg[0] += FLAGS_cartesian_deviation_weight * (pow(current_offset, 2));
             // Curvature cost:
             fg[0] += FLAGS_cartesian_curvature_weight
                 * (pow(next_x + last_x - 2 * current_x, 2) + pow(next_y + last_y - 2 * current_y, 2));
@@ -65,9 +66,6 @@ class FgEvalReferenceSmoothing {
                 fg[1 + i - 1] = -(current_x - ref_x) / sin(seg_angle_list_[i]);
             }
         }
-        // The last point:
-        fg[0] += FLAGS_cartesian_deviation_weight * (pow(vars[x_range_begin + N - 1] - seg_x_list_.back(), 2)
-            + pow(vars[y_range_begin + N - 1] - seg_y_list_.back(), 2));
     }
 };
 

@@ -6,6 +6,7 @@
 #define PATH_OPTIMIZER_SOLVER_HPP
 
 #include <Eigen/Dense>
+#include <memory>
 #include <OsqpEigen/OsqpEigen.h>
 #include "glog/logging.h"
 
@@ -31,6 +32,11 @@ class OsqpSolver {
   }
 
   virtual ~OsqpSolver() = default;
+
+  static std::unique_ptr<OsqpSolver> create(std::string &type,
+                                            const ReferencePath &reference_path,
+                                            const VehicleState &vehicle_state,
+                                            const size_t &horizon);
 
   virtual bool solve(std::vector<State> *optimized_path) = 0;
 

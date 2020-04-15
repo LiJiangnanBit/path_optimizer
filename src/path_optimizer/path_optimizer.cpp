@@ -13,7 +13,6 @@
 #include "path_optimizer/tools/collosion_checker.hpp"
 #include "path_optimizer/tools/Map.hpp"
 #include "path_optimizer/tools/spline.h"
-#include "path_optimizer/solver/solver_factory.hpp"
 #include "path_optimizer/solver/solver.hpp"
 #include "tinyspline_ros/tinysplinecpp.h"
 #include "path_optimizer/reference_path_smoother/angle_diff_smoother.hpp"
@@ -50,11 +49,12 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
     reference_path_->clear();
 
     // Smooth reference path.
-    // TODO: refactor this part!
-    TensionSmoother
-        reference_path_smoother(reference_points, vehicle_state_->getStartState(), *grid_map_);
-    bool smoothing_ok = reference_path_smoother.solve(reference_path_, &smoothed_path_);
-    reference_searching_display_ = reference_path_smoother.display();
+    auto reference_path_smoother = ReferencePathSmoother::create(FLAGS_smoothing_method,
+                                                                 reference_points,
+                                                                 vehicle_state_->getStartState(),
+                                                                 *grid_map_);
+    bool smoothing_ok = reference_path_smoother->solve(reference_path_, &smoothed_path_);
+    reference_searching_display_ = reference_path_smoother->display();
     if (!smoothing_ok) {
         LOG(WARNING) << "Path optimization FAILED!";
         return false;
@@ -159,7 +159,8 @@ bool PathOptimizer::segmentSmoothedPath() {
         while (tmp_s > 0) {
             double x = reference_path_->getXS(tmp_s);
             double y = reference_path_->getYS(tmp_s);
-            double tmp_dis = sqrt(pow(x - vehicle_state_->getEndState().x, 2) + pow(y - vehicle_state_->getEndState().y, 2));
+            double tmp_dis =
+                sqrt(pow(x - vehicle_state_->getEndState().x, 2) + pow(y - vehicle_state_->getEndState().y, 2));
             if (tmp_dis < min_dis_to_goal) {
                 min_dis_to_goal = tmp_dis;
                 min_dis_s = tmp_s;
@@ -186,7 +187,7 @@ bool PathOptimizer::segmentSmoothedPath() {
 
 bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
     // Solve problem.
-    std::shared_ptr<OsqpSolver> solver{SolverFactory::create(*reference_path_, *vehicle_state_, size_)};
+    auto solver = OsqpSolver::create(FLAGS_optimization_method, *reference_path_, *vehicle_state_, size_);
     if (solver && !solver->solve(final_path)) {
         LOG(WARNING) << "QP failed.";
         return false;
@@ -247,7 +248,7 @@ std::vector<std::tuple<State, double, double>> PathOptimizer::display_abnormal_b
     return this->reference_path_->display_abnormal_bounds();
 }
 
-const std::vector<std::vector<double>>& PathOptimizer::getSearchResult() const {
+const std::vector<std::vector<double>> &PathOptimizer::getSearchResult() const {
     return this->reference_searching_display_;
 }
 

@@ -47,13 +47,10 @@ bool TensionSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path,
         y_list.emplace_back(y_spline(length_on_ref_path));
     }
     typedef CPPAD_TESTVECTOR(double) Dvector;
-    size_t n_vars = 2 * point_num;
-    const auto x_range_begin = 0;
-    const auto y_range_begin = x_range_begin + point_num;
+    size_t n_vars = point_num;
     Dvector vars(n_vars);
     for (size_t i = 0; i < point_num; i++) {
-        vars[i + x_range_begin] = x_list[i];
-        vars[i + y_range_begin] = y_list[i];
+        vars[i] = 0;
     }
     // bounds of variables
     Dvector vars_lowerbound(n_vars);
@@ -63,15 +60,11 @@ bool TensionSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path,
         vars_upperbound[i] = DBL_MAX;
     }
     // Start point is the start position of the vehicle.
-    vars_lowerbound[x_range_begin] = x_list.front();
-    vars_upperbound[x_range_begin] = x_list.front();
-    vars_lowerbound[y_range_begin] = y_list.front();
-    vars_upperbound[y_range_begin] = y_list.front();
+    vars_lowerbound[0] = 0;
+    vars_upperbound[0] = 0;
     // Constraint the last point.
-    vars_lowerbound[x_range_begin + point_num - 1] = x_list.back();
-    vars_upperbound[x_range_begin + point_num - 1] = x_list.back();
-    vars_lowerbound[y_range_begin + point_num - 1] = y_list.back();
-    vars_upperbound[y_range_begin + point_num - 1] = y_list.back();
+    vars_lowerbound[n_vars - 1] = -0.5;
+    vars_upperbound[n_vars - 1] = 0.5;
     // Set constraints.
     // Note that the constraint number should be point_num - 2
     // because the first and the last point is fixed.
@@ -133,8 +126,11 @@ bool TensionSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path,
     std::vector<double> result_x_list, result_y_list, result_s_list;
     double tmp_s = 0;
     for (size_t i = 0; i != point_num; ++i) {
-        result_x_list.emplace_back(solution.x[x_range_begin + i]);
-        result_y_list.emplace_back(solution.x[y_range_begin + i]);
+        double new_angle = constraintAngle(angle_list[i] + M_PI_2);
+        double tmp_x = x_list[i] + solution.x[i] * cos(new_angle);
+        double tmp_y = y_list[i] + solution.x[i] * sin(new_angle);
+        result_x_list.emplace_back(tmp_x);
+        result_y_list.emplace_back(tmp_y);
         if (i != 0) tmp_s += sqrt(pow(result_x_list[i] - result_x_list[i - 1], 2)
                 + pow(result_y_list[i] - result_y_list[i - 1], 2));
         result_s_list.emplace_back(tmp_s);
