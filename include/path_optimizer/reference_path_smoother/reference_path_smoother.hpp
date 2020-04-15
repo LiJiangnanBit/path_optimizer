@@ -29,7 +29,7 @@ public:
                           const Map &grid_map);
     virtual ~ReferencePathSmoother() = default;
 
-    static std::unique_ptr<ReferencePathSmoother> create(std::string type,
+    static std::unique_ptr<ReferencePathSmoother> create(std::string &type,
                                                   const std::vector<State> &input_points,
                                                   const State &start_state,
                                                   const Map &grid_map);

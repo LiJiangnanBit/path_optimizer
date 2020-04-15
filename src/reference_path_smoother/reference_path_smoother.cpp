@@ -13,7 +13,7 @@
 
 namespace PathOptimizationNS {
 
-std::unique_ptr<ReferencePathSmoother> ReferencePathSmoother::create(std::string type,
+std::unique_ptr<ReferencePathSmoother> ReferencePathSmoother::create(std::string &type,
                                                                      const std::vector<State> &input_points,
                                                                      const State &start_state,
                                                                      const Map &grid_map) {
