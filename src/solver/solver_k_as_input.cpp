@@ -25,7 +25,7 @@ bool SolverKAsInput::solve(std::vector<State> *optimized_path) {
     solver_.data()->setNumberOfConstraints(11 * horizon_ - 1);
     // Allocate QP problem matrices and vectors.
     Eigen::SparseMatrix<double> hessian;
-    Eigen::VectorXd gradient = Eigen::VectorXd::Zero(4 * horizon_ - 1); // TODO: check this.
+    Eigen::VectorXd gradient = Eigen::VectorXd::Zero(4 * horizon_ - 1);
     Eigen::SparseMatrix<double> linearMatrix;
     Eigen::VectorXd lowerBound;
     Eigen::VectorXd upperBound;

@@ -81,6 +81,7 @@ static void BM_optimizePath(benchmark::State &state) {
     goal_state.z = -1.30825;
     goal_state.k = 0;
     for (auto _:state) {
+        FLAGS_enable_computation_time_output = false;
         PathOptimizationNS::PathOptimizer path_optimizer(start_state, goal_state, grid_map);
         path_optimizer.solve(points, &final_path);
     }
@@ -152,6 +153,7 @@ static void BM_optimizePathWithoutSmoothing(benchmark::State &state) {
     PathOptimizationNS::PathOptimizer path_optimizer(start_state, goal_state, grid_map);
     path_optimizer.solve(points, &optimized_path);
     for (auto _:state) {
+        FLAGS_enable_computation_time_output = false;
         path_optimizer.solveWithoutSmoothing(optimized_path, &final_path);
     }
 }

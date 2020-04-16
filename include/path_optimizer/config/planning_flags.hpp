@@ -37,6 +37,8 @@ DECLARE_double(max_curvature_rate);
 
 DECLARE_string(smoothing_method);
 
+DECLARE_string(tension_solver);
+
 DECLARE_bool(enable_searching);
 
 DECLARE_double(search_lateral_range);

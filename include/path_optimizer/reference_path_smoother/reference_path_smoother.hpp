@@ -22,7 +22,7 @@ class ReferencePath;
 // then uses a smoother to obtain a smoothed reference path.
 class ReferencePathSmoother {
 
-public:
+ public:
     ReferencePathSmoother() = delete;
     ReferencePathSmoother(const std::vector<State> &input_points,
                           const State &start_state,
@@ -30,9 +30,9 @@ public:
     virtual ~ReferencePathSmoother() = default;
 
     static std::unique_ptr<ReferencePathSmoother> create(std::string &type,
-                                                  const std::vector<State> &input_points,
-                                                  const State &start_state,
-                                                  const Map &grid_map);
+                                                         const std::vector<State> &input_points,
+                                                         const State &start_state,
+                                                         const Map &grid_map);
 
     bool solve(ReferencePath *reference_path, std::vector<State> *smoothed_path_display = nullptr);
     std::vector<std::vector<double>> display() const;
@@ -56,8 +56,8 @@ public:
     // Sampled points in searching process.
     std::vector<std::vector<APoint>> sampled_points_;
     double target_s_{};
-    std::priority_queue<APoint*, std::vector<APoint*>, PointComparator> open_set_;
-    std::vector<APoint*> closed_set_;
+    std::priority_queue<APoint *, std::vector<APoint *>, PointComparator> open_set_;
+    std::vector<APoint *> closed_set_;
 
 };
 }
