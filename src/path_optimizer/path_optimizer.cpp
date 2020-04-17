@@ -144,7 +144,7 @@ bool PathOptimizer::segmentSmoothedPath() {
     double end_distance =
         sqrt(pow(vehicle_state_->getEndState().x - reference_path_->getXS(reference_path_->getLength()), 2) +
             pow(vehicle_state_->getEndState().y - reference_path_->getYS(reference_path_->getLength()), 2));
-    if (end_distance > 0.001) {
+    if (!isEqual(end_distance, 0)) {
         // If the goal position is not the same as the end position of the reference line,
         // then find the closest point to the goal and change max_s of the reference line.
         double search_delta_s = 0;
@@ -165,6 +165,7 @@ bool PathOptimizer::segmentSmoothedPath() {
                 min_dis_to_goal = tmp_dis;
                 min_dis_s = tmp_s;
             }
+            if (tmp_dis > 8 && min_dis_to_goal < 8) break;
             tmp_s -= search_delta_s;
         }
         reference_path_->setLength(min_dis_s);

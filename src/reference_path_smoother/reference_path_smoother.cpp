@@ -170,7 +170,7 @@ bool ReferencePathSmoother::modifyInputPoints() {
                 child.is_in_open_set = true;
             }
         }
-        closed_set_.emplace_back(tmp_point_ptr);
+        closed_set_.insert(tmp_point_ptr);
     }
 
     // Retrieve optimal path.
@@ -218,21 +218,13 @@ bool ReferencePathSmoother::modifyInputPoints() {
     }
     auto t2 = std::clock();
     if (FLAGS_enable_computation_time_output) {
-        time_ms_out(t1, t2, "A* search");
+        time_ms_out(t1, t2, "Search");
     }
     return true;
 }
 
 bool ReferencePathSmoother::checkExistenceInClosedSet(const APoint &point) const {
-    for (const auto &iter : closed_set_) {
-        if (iter == &point) {
-            return true;
-        }
-//        if (isEqual(iter->s, point.s) && isEqual(iter->l, point.l)) {
-//            return true;
-//        }
-    }
-    return false;
+    return closed_set_.find(&point) != closed_set_.end();
 }
 
 void ReferencePathSmoother::bSpline() {

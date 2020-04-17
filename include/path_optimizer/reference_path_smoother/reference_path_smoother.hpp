@@ -7,6 +7,7 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include <set>
 #include <string>
 #include <queue>
 #include <ctime>
@@ -57,7 +58,7 @@ class ReferencePathSmoother {
     std::vector<std::vector<APoint>> sampled_points_;
     double target_s_{};
     std::priority_queue<APoint *, std::vector<APoint *>, PointComparator> open_set_;
-    std::vector<APoint *> closed_set_;
+    std::set<const APoint *> closed_set_;
 
 };
 }

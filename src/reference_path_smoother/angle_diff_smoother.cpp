@@ -223,29 +223,21 @@ bool AngleDiffSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path
             tmp_s_1 += 0.1;
         }
     }
-    // Output. Start from the closest point from the vehicle.
-    result_x_list.clear();
-    result_y_list.clear();
-    result_s_list.clear();
-    double tmp_s_2 = min_dis_s;
-    if (smoothed_path_display) smoothed_path_display->clear();
-    while (tmp_s_2 <= max_s) {
-        double x = x_spline(tmp_s_2);
-        double y = y_spline(tmp_s_2);
-        result_x_list.emplace_back(x);
-        result_y_list.emplace_back(y);
-        result_s_list.emplace_back(tmp_s_2 - min_dis_s);
-        if (smoothed_path_display) {
-            smoothed_path_display->emplace_back(x, y);
-        }
-        tmp_s_2 += 0.3;
-    }
-    tk::spline x_s_result, y_s_result;
-    x_s_result.set_points(result_s_list, result_x_list);
-    y_s_result.set_points(result_s_list, result_y_list);
+    // Output. Take the closest point as s = 0.
+    std::for_each(result_s_list.begin(), result_s_list.end(), [min_dis_s](double &s) {
+      s -= min_dis_s;
+    });
+    x_spline.set_points(result_s_list, result_x_list);
+    y_spline.set_points(result_s_list, result_y_list);
     double max_s_result{result_s_list.back() + 3};
-    reference_path->setSpline(x_s_result, y_s_result, max_s_result);
+    reference_path->setSpline(x_spline, y_spline, max_s_result);
     LOG(INFO) << "Angle diff smoother succeeded!";
+    if (smoothed_path_display) {
+        smoothed_path_display->clear();
+        for (int i = 0; i != result_x_list.size(); ++i) {
+            smoothed_path_display->emplace_back(result_x_list[i], result_y_list[i]);
+        }
+    }
     return true;
 }
 
