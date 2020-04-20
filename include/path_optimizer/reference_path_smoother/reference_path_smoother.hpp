@@ -39,6 +39,11 @@ class ReferencePathSmoother {
     std::vector<std::vector<double>> display() const;
 
  protected:
+    bool segmentRawReference(std::vector<double> *x_list,
+                             std::vector<double> *y_list,
+                             std::vector<double> *s_list,
+                             std::vector<double> *angle_list) const;
+    double getClosestPointOnSpline(const tk::spline &x_s, const tk::spline &y_s, const double max_s) const;
     const State &start_state_;
     const Map &grid_map_;
     // Data to be passed into solvers.

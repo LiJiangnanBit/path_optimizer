@@ -93,36 +93,9 @@ AngleDiffSmoother::AngleDiffSmoother(const std::vector<PathOptimizationNS::State
 
 bool AngleDiffSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path,
                                std::vector<PathOptimizationNS::State> *smoothed_path_display) {
-    CHECK_GT(s_list_.size(), 2);
-    CHECK_EQ(x_list_.size(), s_list_.size());
-    CHECK_EQ(y_list_.size(), s_list_.size());
-    tk::spline x_spline, y_spline;
-    x_spline.set_points(s_list_, x_list_);
-    y_spline.set_points(s_list_, y_list_);
-    double max_s = s_list_.back();
-    LOG(INFO) << "Ref path length: " << max_s;
-    // Divide the reference path.
-    double delta_beginning_s = 4;
-    double delta_s = 3;
     std::vector<double> x_list, y_list, s_list, angle_list;
-    s_list.push_back(0);
-    s_list.push_back(delta_beginning_s);
-    while (s_list.back() < max_s) {
-        s_list.push_back(s_list.back() + delta_s);
-    }
-    if (max_s - s_list.back() > 1) {
-        s_list.push_back(max_s);
-    }
-    auto N = s_list.size();
-    // Store reference states in vectors. They will be used later.
-    for (size_t i = 0; i != N; ++i) {
-        double length_on_ref_path = s_list[i];
-        double angle;
-        angle = atan2(y_spline.deriv(1, length_on_ref_path), x_spline.deriv(1, length_on_ref_path));
-        angle_list.push_back(angle);
-        x_list.push_back(x_spline(length_on_ref_path));
-        y_list.push_back(y_spline(length_on_ref_path));
-    }
+    if (!segmentRawReference(&x_list, &y_list, &s_list, &angle_list)) return false;
+    size_t N = s_list.size();
 
     typedef CPPAD_TESTVECTOR(double) Dvector;
     size_t n_vars = N;
@@ -183,14 +156,16 @@ bool AngleDiffSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path
         return false;
     }
     // output
+    tk::spline raw_x_s, raw_y_s;
+    raw_x_s.set_points(s_list_, x_list_);
+    raw_y_s.set_points(s_list_, y_list_);
     std::vector<double> result_x_list, result_y_list, result_s_list;
     double tmp_s = 0;
     for (size_t i = 0; i != N; i++) {
         double length_on_ref_path = s_list[i];
-        double angle = angle_list[i];
-        double new_angle = constraintAngle(angle + M_PI_2);
-        double tmp_x = x_spline(length_on_ref_path) + solution.x[i] * cos(new_angle);
-        double tmp_y = y_spline(length_on_ref_path) + solution.x[i] * sin(new_angle);
+        double new_angle = constraintAngle(angle_list[i] + M_PI_2);
+        double tmp_x = raw_x_s(length_on_ref_path) + solution.x[i] * cos(new_angle);
+        double tmp_y = raw_y_s(length_on_ref_path) + solution.x[i] * sin(new_angle);
         result_x_list.emplace_back(tmp_x);
         result_y_list.emplace_back(tmp_y);
         if (i != 0) {
@@ -199,30 +174,13 @@ bool AngleDiffSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path
         }
         result_s_list.emplace_back(tmp_s);
     }
-    max_s = result_s_list.back();
+
+    tk::spline x_spline, y_spline;
+    double max_s = result_s_list.back();
     x_spline.set_points(result_s_list, result_x_list);
     y_spline.set_points(result_s_list, result_y_list);
     // Find the closest point to the vehicle.
-    double min_dis_s = 0;
-    double start_distance =
-        sqrt(pow(start_state_.x - x_spline(0), 2) +
-            pow(start_state_.y - y_spline(0), 2));
-    if (start_distance > 0.001) {
-        auto min_dis_to_vehicle = start_distance;
-        double tmp_s_1 = 0.1;
-        while (tmp_s_1 <= max_s) {
-            double x = x_spline(tmp_s_1);
-            double y = y_spline(tmp_s_1);
-            double dis = sqrt(pow(x - start_state_.x, 2) + pow(y - start_state_.y, 2));
-            if (dis <= min_dis_to_vehicle) {
-                min_dis_to_vehicle = dis;
-                min_dis_s = tmp_s_1;
-            } else if (dis > 8 && min_dis_to_vehicle < 8) {
-                break;
-            }
-            tmp_s_1 += 0.1;
-        }
-    }
+    double min_dis_s = getClosestPointOnSpline(x_spline, y_spline, max_s);
     // Output. Take the closest point as s = 0.
     std::for_each(result_s_list.begin(), result_s_list.end(), [min_dis_s](double &s) {
       s -= min_dis_s;

@@ -40,6 +40,67 @@ bool ReferencePathSmoother::solve(PathOptimizationNS::ReferencePath *reference_p
     return smooth(reference_path, smoothed_path_display);
 }
 
+bool ReferencePathSmoother::segmentRawReference(std::vector<double> *x_list,
+                                                std::vector<double> *y_list,
+                                                std::vector<double> *s_list,
+                                                std::vector<double> *angle_list) const {
+    if (s_list_.size() != x_list_.size() || s_list_.size() != y_list_.size()) {
+        LOG(ERROR) << "Raw path x y and s size not equal!";
+        return false;
+    }
+    double max_s = s_list_.back();
+    std::cout << "ref path length: " << max_s << std::endl;
+    tk::spline x_spline, y_spline;
+    x_spline.set_points(s_list_, x_list_);
+    y_spline.set_points(s_list_, y_list_);
+    // Divide the raw path.
+    double delta_s = 1.0;
+    s_list->emplace_back(0);
+    while (s_list->back() < max_s) {
+        s_list->emplace_back(s_list->back() + delta_s);
+    }
+    if (max_s - s_list->back() > 1) {
+        s_list->emplace_back(max_s);
+    }
+    auto point_num = s_list->size();
+    // Store reference states in vectors. They will be used later.
+    for (size_t i = 0; i != point_num; ++i) {
+        double length_on_ref_path = s_list->at(i);
+        double angle = atan2(y_spline.deriv(1, length_on_ref_path), x_spline.deriv(1, length_on_ref_path));
+        angle_list->emplace_back(angle);
+        x_list->emplace_back(x_spline(length_on_ref_path));
+        y_list->emplace_back(y_spline(length_on_ref_path));
+    }
+    return true;
+}
+
+double ReferencePathSmoother::getClosestPointOnSpline(const PathOptimizationNS::tk::spline &x_s,
+                                                      const PathOptimizationNS::tk::spline &y_s,
+                                                      const double max_s) const {
+    // Find the closest point to the vehicle.
+    double min_dis_s = 0;
+    double start_distance =
+        sqrt(pow(start_state_.x - x_s(0), 2) +
+            pow(start_state_.y - y_s(0), 2));
+    if (!isEqual(start_distance, 0)) {
+        auto min_dis_to_vehicle = start_distance;
+        double tmp_s_1 = 0 + 0.1;
+        while (tmp_s_1 <= max_s) {
+            double x = x_s(tmp_s_1);
+            double y = y_s(tmp_s_1);
+            double dis = sqrt(pow(x - start_state_.x, 2) + pow(y - start_state_.y, 2));
+            if (dis <= min_dis_to_vehicle) {
+                min_dis_to_vehicle = dis;
+                min_dis_s = tmp_s_1;
+            } else if (dis > 15 && min_dis_to_vehicle < 15) {
+                break;
+            }
+            tmp_s_1 += 0.1;
+        }
+    }
+    return min_dis_s;
+}
+
 std::vector<std::vector<double>> ReferencePathSmoother::display() const {
     return std::vector<std::vector<double>>{x_list_, y_list_, s_list_};
 }

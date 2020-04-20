@@ -26,16 +26,14 @@ class FgEvalReferenceSmoothing {
         seg_x_list_(seg_x_list),
         seg_y_list_(seg_y_list),
         seg_angle_list_(seg_angle_list) {}
- public:
+    typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
+    typedef AD<double> ad;
+    void operator()(ADvector &fg, const ADvector &vars);
+ private:
     const std::vector<double> &seg_s_list_;
     const std::vector<double> &seg_x_list_;
     const std::vector<double> &seg_y_list_;
     const std::vector<double> &seg_angle_list_;
-
-    typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
-    typedef AD<double> ad;
-
-    void operator()(ADvector &fg, const ADvector &vars);
 };
 
 class TensionSmoother final : public ReferencePathSmoother {

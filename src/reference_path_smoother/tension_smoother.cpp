@@ -43,33 +43,8 @@ TensionSmoother::TensionSmoother(const std::vector<PathOptimizationNS::State> &i
 
 bool TensionSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path,
                              std::vector<PathOptimizationNS::State> *smoothed_path_display) {
-    CHECK_GT(s_list_.size(), 2);
-    CHECK_EQ(x_list_.size(), s_list_.size());
-    CHECK_EQ(y_list_.size(), s_list_.size());
-    double max_s = s_list_.back();
-    std::cout << "ref path length: " << max_s << std::endl;
-    tk::spline x_spline, y_spline;
-    x_spline.set_points(s_list_, x_list_);
-    y_spline.set_points(s_list_, y_list_);
     std::vector<double> x_list, y_list, s_list, angle_list;
-    // Divide the raw path.
-    double delta_s = 1.0;
-    s_list.emplace_back(0);
-    while (s_list.back() < max_s) {
-        s_list.emplace_back(s_list.back() + delta_s);
-    }
-    if (max_s - s_list.back() > 1) {
-        s_list.emplace_back(max_s);
-    }
-    auto point_num = s_list.size();
-    // Store reference states in vectors. They will be used later.
-    for (size_t i = 0; i != point_num; ++i) {
-        double length_on_ref_path = s_list[i];
-        double angle = atan2(y_spline.deriv(1, length_on_ref_path), x_spline.deriv(1, length_on_ref_path));
-        angle_list.emplace_back(angle);
-        x_list.emplace_back(x_spline(length_on_ref_path));
-        y_list.emplace_back(y_spline(length_on_ref_path));
-    }
+    if (!segmentRawReference(&x_list, &y_list, &s_list, &angle_list)) return false;
     std::vector<double> result_x_list, result_y_list, result_s_list;
     bool solver_ok{false};
     if (FLAGS_tension_solver == "IPOPT") {
@@ -84,37 +59,20 @@ bool TensionSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path,
         LOG(ERROR) << "Tension smoother failed!";
         return false;
     }
-    max_s = result_s_list.back();
+    tk::spline x_spline, y_spline;
+    double max_s = result_s_list.back();
     x_spline.set_points(result_s_list, result_x_list);
     y_spline.set_points(result_s_list, result_y_list);
     // Find the closest point to the vehicle.
-    double min_dis_s = 0;
-    double start_distance =
-        sqrt(pow(start_state_.x - x_spline(0), 2) +
-            pow(start_state_.y - y_spline(0), 2));
-    if (!isEqual(start_distance, 0)) {
-        auto min_dis_to_vehicle = start_distance;
-        double tmp_s_1 = 0 + 0.1;
-        while (tmp_s_1 <= max_s) {
-            double x = x_spline(tmp_s_1);
-            double y = y_spline(tmp_s_1);
-            double dis = sqrt(pow(x - start_state_.x, 2) + pow(y - start_state_.y, 2));
-            if (dis <= min_dis_to_vehicle) {
-                min_dis_to_vehicle = dis;
-                min_dis_s = tmp_s_1;
-            } else if (dis > 15 && min_dis_to_vehicle < 15) {
-                break;
-            }
-            tmp_s_1 += 0.1;
-        }
-    }
+    double min_dis_s = getClosestPointOnSpline(x_spline, y_spline, max_s);
+    std::cout << min_dis_s << "?" << std::endl;
     // Output. Take the closest point as s = 0.
     std::for_each(result_s_list.begin(), result_s_list.end(), [min_dis_s](double &s) {
         s -= min_dis_s;
     });
     x_spline.set_points(result_s_list, result_x_list);
     y_spline.set_points(result_s_list, result_y_list);
-    double max_s_result{result_s_list.back() + 3};
+    double max_s_result = result_s_list.back() + 3;
     reference_path->setSpline(x_spline, y_spline, max_s_result);
     LOG(INFO) << "Tension smoother succeeded!";
     if (smoothed_path_display) {
