@@ -65,7 +65,6 @@ bool TensionSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path,
     y_spline.set_points(result_s_list, result_y_list);
     // Find the closest point to the vehicle.
     double min_dis_s = getClosestPointOnSpline(x_spline, y_spline, max_s);
-    std::cout << min_dis_s << "?" << std::endl;
     // Output. Take the closest point as s = 0.
     std::for_each(result_s_list.begin(), result_s_list.end(), [min_dis_s](double &s) {
         s -= min_dis_s;
@@ -110,17 +109,14 @@ bool TensionSmoother::ipoptSmooth(const std::vector<double> &x_list,
     vars_lowerbound[n_vars - 1] = -0.5;
     vars_upperbound[n_vars - 1] = 0.5;
     // Get clearance for each point:
-    const double default_clearance{2};
+    const double default_clearance{1};
     for (size_t i = 1; i != n_vars - 1; ++i) {
         double x = x_list[i];
         double y = y_list[i];
         double clearance = grid_map_.getObstacleDistance(grid_map::Position(x, y));
         // Adjust clearance.
-        if (isEqual(clearance, 0)) {
-            clearance = default_clearance;
-        } else if (clearance > FLAGS_circle_radius) {
-            clearance -= FLAGS_circle_radius;
-        }
+        clearance = isEqual(clearance, 0) ? default_clearance :
+                    clearance > FLAGS_circle_radius ? clearance - FLAGS_circle_radius : clearance;
         vars_lowerbound[i] = -clearance;
         vars_upperbound[i] = clearance;
     }
@@ -132,17 +128,9 @@ bool TensionSmoother::ipoptSmooth(const std::vector<double> &x_list,
     Dvector constraints_upperbound(n_constraints);
     // options for IPOPT solver
     std::string options;
-    // Uncomment this if you'd like more print information
     options += "Integer print_level  0\n";
-    // NOTE: Setting sparse to true allows the solver to take advantage
-    // of sparse routines, this makes the computation MUCH FASTER. If you
-    // can uncomment 1 of these and see if it makes a difference or not but
-    // if you uncomment both the computation time should go up in orders of
-    // magnitude.
     options += "Sparse  true        forward\n";
     options += "Sparse  true        reverse\n";
-    // NOTE: Currently the solver has a maximum time limit of 0.1 seconds.
-    // Change this as you see fit.
     options += "Numeric max_cpu_time          0.05\n";
 
     // place to return solution
@@ -293,11 +281,8 @@ void TensionSmoother::setConstraintMatrix(const std::vector<double> &x_list,
         double y = y_list[i];
         double clearance = grid_map_.getObstacleDistance(grid_map::Position(x, y));
         // Adjust clearance.
-        if (isEqual(clearance, 0)) {
-            clearance = default_clearance;
-        } else if (clearance > FLAGS_circle_radius) {
-            clearance -= FLAGS_circle_radius;
-        }
+        clearance = isEqual(clearance, 0) ? default_clearance :
+                   clearance > FLAGS_circle_radius ? clearance - FLAGS_circle_radius : clearance;
         (*lower_bound)(d_start_index + i) = -clearance;
         (*upper_bound)(d_start_index + i) = clearance;
     }

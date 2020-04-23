@@ -63,7 +63,7 @@ DEFINE_double(frenet_angle_diff_diff_weight, 200, "frenet smoothing angle diff d
 
 DEFINE_double(frenet_deviation_weight, 15, "frenet smoothing deviation from the orignal path");
 
-DEFINE_double(cartesian_curvature_weight, 10, "");
+DEFINE_double(cartesian_curvature_weight, 1, "");
 
 DEFINE_double(cartesian_deviation_weight, 0.0, "");
 

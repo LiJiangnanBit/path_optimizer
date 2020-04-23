@@ -140,11 +140,11 @@ bool ReferencePathSmoother::modifyInputPoints() {
     // Sampling interval.
     double tmp_s = 0;
     std::vector<double> layers_s_list;
-    while (tmp_s <= s_list_.back()) {
+    while (tmp_s < s_list_.back()) {
         layers_s_list.emplace_back(tmp_s);
         tmp_s += FLAGS_search_longitudial_spacing;
     }
-    if (s_list_.back() - layers_s_list.back() > 0.3) layers_s_list.emplace_back(s_list_.back());
+    layers_s_list.emplace_back(s_list_.back());
     target_s_ = layers_s_list.back();
 
     // Sample points.
@@ -162,7 +162,7 @@ bool ReferencePathSmoother::modifyInputPoints() {
         double xr = x_s(sr);
         double yr = y_s(sr);
         double hr = getHeading(x_s, y_s, sr);
-        double rr = 1.0 / (getCurvature(x_s, y_s, sr) + 0.001);
+        double rr = 1.0 / (getCurvature(x_s, y_s, sr));
         double left_range = FLAGS_search_lateral_range, right_range = -FLAGS_search_lateral_range;
         if (rr > 0) {
             // Left turn
@@ -182,12 +182,10 @@ bool ReferencePathSmoother::modifyInputPoints() {
             point.layer = i;
             point.offset = offset;
             grid_map::Position position(point.x, point.y);
-            if (!grid_map_.isInside(position)
-                || grid_map_.getObstacleDistance(position) < FLAGS_circle_radius) {
-                offset += FLAGS_search_lateral_spacing;
-                continue;
+            if (grid_map_.isInside(position)
+                && grid_map_.getObstacleDistance(position) > FLAGS_circle_radius) {
+                point_set.emplace_back(point);
             }
-            point_set.emplace_back(point);
             offset += FLAGS_search_lateral_spacing;
         }
         sampled_points_.emplace_back(point_set);
@@ -245,6 +243,7 @@ bool ReferencePathSmoother::modifyInputPoints() {
     std::reverse(a_x_list.begin(), a_x_list.end());
     std::reverse(a_y_list.begin(), a_y_list.end());
 
+    // B spline fitting.
     // Choose a control point every n points, interval being 4.5m.
     auto n = std::max(static_cast<int>(4.5 / FLAGS_search_longitudial_spacing), 1);
     int control_points_num = (a_x_list.size() - 1) / n + 1;
@@ -253,25 +252,35 @@ bool ReferencePathSmoother::modifyInputPoints() {
         LOG(WARNING) << "Reference path is too short for BSpline!";
         return false;
     }
-    // Modify.
+    // Fit.
     tinyspline::BSpline b_spline(control_points_num, 2, degree);
     std::vector<tinyspline::real> ctrlp = b_spline.controlPoints();
-    for (size_t i = 0; i != control_points_num; ++i) {
+    for (size_t i = 0; i != control_points_num - 1; ++i) {
         ctrlp[2 * (i)] = a_x_list[i * n];
         ctrlp[2 * (i) + 1] = a_y_list[i * n];
     }
+    // The last point.
+    ctrlp[2 * (control_points_num - 1)] = a_x_list.back();
+    ctrlp[2 * (control_points_num - 1) + 1] = a_y_list.back();
     b_spline.setControlPoints(ctrlp);
+
+    // Store the results for further smoothing.
     x_list_.clear();
     y_list_.clear();
     s_list_.clear();
     double delta_t = 1.0 / target_s_;
     double tmp_t = 0;
-    while (tmp_t <= 1) {
+    while (tmp_t < 1) {
         auto result = b_spline.eval(tmp_t).result();
         x_list_.emplace_back(result[0]);
         y_list_.emplace_back(result[1]);
         tmp_t += delta_t;
     }
+    // The last point.
+    auto result = b_spline.eval(1).result();
+    x_list_.emplace_back(result[0]);
+    y_list_.emplace_back(result[1]);
+    // Get s.
     s_list_.emplace_back(0);
     for (size_t i = 1; i != x_list_.size(); ++i) {
         double dis = sqrt(pow(x_list_[i] - x_list_[i - 1], 2) + pow(y_list_[i] - y_list_[i - 1], 2));
@@ -295,7 +304,7 @@ void ReferencePathSmoother::bSpline() {
         length += distance(input_points_[i], input_points_[i + 1]);
     }
     int degree = 3;
-    double average_length = length / input_points_.size();
+    double average_length = length / (input_points_.size() - 1);
     if (average_length > 10) degree = 3;
     else if (average_length > 5) degree = 4;
     else degree = 5;
@@ -308,7 +317,7 @@ void ReferencePathSmoother::bSpline() {
     b_spline_raw.setControlPoints(ctrlp_raw);
     double delta_t = 1.0 / length;
     double tmp_t = 0;
-    while (tmp_t <= 1) {
+    while (tmp_t < 1) {
         auto result = b_spline_raw.eval(tmp_t).result();
         x_list_.emplace_back(result[0]);
         y_list_.emplace_back(result[1]);
