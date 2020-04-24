@@ -14,7 +14,7 @@ SolverKpAsInput::SolverKpAsInput(const ReferencePath &reference_path,
                                  const VehicleState &vehicle_state,
                                  const size_t &horizon) :
     OsqpSolver(reference_path, vehicle_state, horizon),
-    keep_control_steps_(4), // TODO: adjust this.
+    keep_control_steps_(std::max(static_cast<int>(1.2 / reference_interval_), 1)),
     control_horizon_((horizon_ + keep_control_steps_ - 2) / keep_control_steps_),
     state_size_(3 * horizon_),
     control_size_(control_horizon_),

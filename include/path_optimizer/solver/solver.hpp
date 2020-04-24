@@ -24,12 +24,7 @@ class OsqpSolver {
 
   OsqpSolver(const ReferencePath &reference_path,
              const VehicleState &vehicle_state,
-             const size_t &horizon) :
-      horizon_(horizon),
-      reference_path_(reference_path),
-      vehicle_state_(vehicle_state) {
-      LOG(INFO) << "Optimization horizon: " << horizon;
-  }
+             const size_t &horizon);
 
   virtual ~OsqpSolver() = default;
 
@@ -53,6 +48,7 @@ class OsqpSolver {
   const ReferencePath &reference_path_;
   const VehicleState &vehicle_state_;
   OsqpEigen::Solver solver_;
+  double reference_interval_;
 
 };
 

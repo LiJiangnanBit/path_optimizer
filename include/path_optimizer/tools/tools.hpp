@@ -20,10 +20,6 @@ namespace PathOptimizationNS {
 
 class State;
 
-// Output value.
-#define  varName(x) #x
-#define  printExp(exp) std::cout << #exp << " is:\t\t" <<(exp) << std::endl
-
 // Set angle to -pi ~ pi
 template<typename T>
 T constraintAngle(T angle) {

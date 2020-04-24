@@ -276,13 +276,14 @@ void TensionSmoother::setConstraintMatrix(const std::vector<double> &x_list,
     (*lower_bound)(d_start_index + size - 1) = -0.5;
     (*upper_bound)(d_start_index + size - 1) = 0.5;
     const double default_clearance = 2;
+    const double shrink_clearance = 0;
     for (size_t i = 1; i != size - 1; ++i) {
         double x = x_list[i];
         double y = y_list[i];
         double clearance = grid_map_.getObstacleDistance(grid_map::Position(x, y));
         // Adjust clearance.
         clearance = isEqual(clearance, 0) ? default_clearance :
-                   clearance > FLAGS_circle_radius ? clearance - FLAGS_circle_radius : clearance;
+                   clearance > shrink_clearance ? clearance - shrink_clearance : clearance;
         (*lower_bound)(d_start_index + i) = -clearance;
         (*upper_bound)(d_start_index + i) = clearance;
     }

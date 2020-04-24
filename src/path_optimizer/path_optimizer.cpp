@@ -123,23 +123,23 @@ bool PathOptimizer::segmentSmoothedPath() {
         return false;
     }
 
-    // Calculate the initial deviation and angle difference.
+    // Calculate the initial deviation and the angle difference.
     State first_point;
     first_point.x = reference_path_->getXS(0);
     first_point.y = reference_path_->getYS(0);
     first_point.z = getHeading(reference_path_->getXS(), reference_path_->getYS(), 0);
     auto first_point_local = global2Local(vehicle_state_->getStartState(), first_point);
-    // In reference smoothing, the closest point tu the vehicle is found and set as the
+    // In reference smoothing, the closest point to the vehicle is found and set as the
     // first point. So the distance here is simply the initial offset.
     double min_distance = distance(vehicle_state_->getStartState(), first_point);
     double initial_offset = first_point_local.y < 0 ? min_distance : -min_distance;
     double initial_heading_error = constraintAngle(vehicle_state_->getStartState().z - first_point.z);
-    vehicle_state_->setInitError(initial_offset, initial_heading_error);
     // If the start heading differs a lot with the ref path, quit.
     if (fabs(initial_heading_error) > 75 * M_PI / 180) {
-        LOG(WARNING) << "Initial epsi is larger than 75°, quit path optimization!";
+        LOG(WARNING) << "Initial psi error is larger than 75°, quit path optimization!";
         return false;
     }
+    vehicle_state_->setInitError(initial_offset, initial_heading_error);
 
     double end_distance =
         sqrt(pow(vehicle_state_->getEndState().x - reference_path_->getXS(reference_path_->getLength()), 2) +
@@ -147,12 +147,7 @@ bool PathOptimizer::segmentSmoothedPath() {
     if (!isEqual(end_distance, 0)) {
         // If the goal position is not the same as the end position of the reference line,
         // then find the closest point to the goal and change max_s of the reference line.
-        double search_delta_s = 0;
-        if (FLAGS_enable_exact_position) {
-            search_delta_s = 0.1;
-        } else {
-            search_delta_s = 0.3;
-        }
+        double search_delta_s = FLAGS_enable_exact_position ? 0.1 : 0.5;
         double tmp_s = reference_path_->getLength() - search_delta_s;
         auto min_dis_to_goal = end_distance;
         double min_dis_s = reference_path_->getLength();
@@ -171,13 +166,11 @@ bool PathOptimizer::segmentSmoothedPath() {
         reference_path_->setLength(min_dis_s);
     }
 
-    // Divide the reference path. Intervals are smaller at the beginning.
-    double delta_s_smaller = 0.3;
-    // If we want to make the result path dense later, the interval here is 1.0m. This makes computation faster;
-    // If we want to output the result directly, the interval is controlled by config_->output_interval..
-    double delta_s_larger = FLAGS_enable_raw_output ? FLAGS_output_spacing : 1.0;
-    // If the initial heading error with the reference path is small, then set intervals equal.
-    if (fabs(initial_heading_error) < 20 * M_PI / 180) delta_s_smaller = delta_s_larger;
+    // If we want to make the result path dense by interpolation later, the interval here is 1.0m. This makes computation faster, but
+    // may fail the collision check due to the large interval.
+    // If we want to output the result directly, the interval is controlled by FLAGS_output_spacing.
+    const double delta_s_smaller = FLAGS_enable_raw_output ? 0.15 : 0.5;
+    const double delta_s_larger = FLAGS_enable_raw_output ? FLAGS_output_spacing : 1.0;
     reference_path_->buildReferenceFromSpline(delta_s_smaller, delta_s_larger);
     reference_path_->updateBounds(*grid_map_);
     reference_path_->updateLimits();

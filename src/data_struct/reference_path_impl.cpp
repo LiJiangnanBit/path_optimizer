@@ -391,11 +391,14 @@ std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const Pat
 }
 
 bool ReferencePathImpl::buildReferenceFromSpline(double delta_s_smaller, double delta_s_larger) {
+    CHECK_LE(delta_s_smaller, delta_s_larger);
     if (!use_spline_ || max_s_ <= 0) {
         LOG(WARNING) << "Cannot build reference line from spline!";
         return false;
     }
     reference_states_.clear();
+    const double large_k = 0.2;
+    const double small_k = 0.08;
     double tmp_s = 0;
     while (tmp_s <= max_s_) {
         double x = (*x_s_)(tmp_s);
@@ -403,8 +406,12 @@ bool ReferencePathImpl::buildReferenceFromSpline(double delta_s_smaller, double 
         double h = getHeading(*x_s_, *y_s_, tmp_s);
         double k = getCurvature(*x_s_, *y_s_, tmp_s);
         reference_states_.emplace_back(x, y, h, k, tmp_s);
-        if (tmp_s <= 2) tmp_s += delta_s_smaller;
-        else tmp_s += delta_s_larger;
+        // Use k to decide delta s.
+        if (FLAGS_enable_dynamic_segmentation) {
+            double k_share = fabs(k) > large_k ? 1 :
+                             fabs(k) < small_k ? 0 : (fabs(k) - small_k) / (large_k - small_k);
+            tmp_s += delta_s_larger - k_share * (delta_s_larger - delta_s_smaller);
+        } else tmp_s += delta_s_larger;
     }
     use_spline_ = true;
     LOG(INFO) << "Reference states are built from spline.";

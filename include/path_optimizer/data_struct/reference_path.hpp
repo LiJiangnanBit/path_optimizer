@@ -12,6 +12,7 @@ namespace PathOptimizationNS {
 class Map;
 class Config;
 class State;
+class CoveringCircleBounds;
 namespace tk {
 class spline;
 }

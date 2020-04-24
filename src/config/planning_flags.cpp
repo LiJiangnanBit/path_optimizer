@@ -13,6 +13,8 @@ void updateConfig() {
     FLAGS_d4 = 3.0 / 8.0 * FLAGS_car_length + FLAGS_rear_axle_to_center;
 }
 
+///// Car params.
+/////
 DEFINE_double(car_width, 2.0, "");
 
 DEFINE_double(car_length, 4.9, "");
@@ -39,8 +41,11 @@ DEFINE_double(max_steering_angle, 30.0 * M_PI / 180.0, "");
 DEFINE_double(mu, 0.4, "friction param");
 
 DEFINE_double(max_curvature_rate, 0.1, "max derivative of curvature");
+/////
 
-DEFINE_string(smoothing_method, "TENSION", "rReference smoothing method");
+///// Smoothing related.
+/////
+DEFINE_string(smoothing_method, "ANGLE_DIFF", "rReference smoothing method");
 bool ValidateSmoothingnMethod(const char *flagname, const std::string &value)
 {
     return value == "ANGLE_DIFF" || value == "TENSION";
@@ -69,6 +74,13 @@ DEFINE_double(cartesian_deviation_weight, 0.0, "");
 
 DEFINE_bool(enable_simple_boundary_decision, true, "faster, but may go wrong sometimes");
 
+DEFINE_double(search_obstacle_cost, 0.4, "searching cost");
+
+DEFINE_double(search_deviation_cost, 0.4, "offset from the original ref cost");
+/////
+
+///// Optimization related
+/////
 DEFINE_string(optimization_method, "KP", "optimization method, named by input: "
                                          "K uses curvature as input, KP uses curvature' as input, and"
                                          "KCP uses curvarure' and apply some constraints on it");
@@ -99,7 +111,10 @@ DEFINE_bool(constraint_end_heading, true, "add constraints on end heading");
 
 // TODO: make this work.
 DEFINE_bool(enable_exact_position, false, "force the path to reach the exact goal state");
+/////
 
+///// Others.
+/////
 DEFINE_bool(enable_raw_output, true, "slower, better");
 
 DEFINE_double(output_spacing, 0.3, "output interval");
@@ -108,8 +123,7 @@ DEFINE_bool(enable_computation_time_output, true, "output details on screen");
 
 DEFINE_bool(enable_collision_check, true, "perform collision check before output");
 
-DEFINE_double(search_obstacle_cost, 0.4, "searching cost");
-
-DEFINE_double(search_deviation_cost, 0.4, "offset from the original ref cost");
-
 DEFINE_double(epsilon, 1e-6, "use this when comparing double");
+
+DEFINE_bool(enable_dynamic_segmentation, true, "dense segmentation when the curvature is large.");
+/////
