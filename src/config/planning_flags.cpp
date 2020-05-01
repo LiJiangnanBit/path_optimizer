@@ -45,14 +45,14 @@ DEFINE_double(max_curvature_rate, 0.1, "max derivative of curvature");
 
 ///// Smoothing related.
 /////
-DEFINE_string(smoothing_method, "ANGLE_DIFF", "rReference smoothing method");
+DEFINE_string(smoothing_method, "TENSION", "rReference smoothing method");
 bool ValidateSmoothingnMethod(const char *flagname, const std::string &value)
 {
     return value == "ANGLE_DIFF" || value == "TENSION";
 }
 bool isSmoothingMethodValid = google::RegisterFlagValidator(&FLAGS_smoothing_method, ValidateSmoothingnMethod);
 
-DEFINE_string(tension_solver, "OSQP", "solver used in tension smoothing method");
+DEFINE_string(tension_solver, "IPOPT", "solver used in tension smoothing method");
 
 DEFINE_bool(enable_searching, true, "search before optimization");
 

@@ -17,11 +17,11 @@ void FgEvalReferenceSmoothing::operator()(PathOptimizationNS::FgEvalReferenceSmo
                                           const PathOptimizationNS::FgEvalReferenceSmoothing::ADvector &vars) {
     size_t point_num = seg_s_list_.size();
     for (size_t i = 1; i != point_num - 1; ++i) {
-        ad last_offset = vars[i - 1];
+        ad pre_offset = vars[i - 1];
         ad current_offset = vars[i];
         ad next_offset = vars[i + 1];
-        ad last_x = seg_x_list_[i - 1] + last_offset * cos(seg_angle_list_[i - 1] + M_PI_2);
-        ad last_y = seg_y_list_[i - 1] + last_offset * sin(seg_angle_list_[i - 1] + M_PI_2);
+        ad pre_x = seg_x_list_[i - 1] + pre_offset * cos(seg_angle_list_[i - 1] + M_PI_2);
+        ad pre_y = seg_y_list_[i - 1] + pre_offset * sin(seg_angle_list_[i - 1] + M_PI_2);
         ad current_x = seg_x_list_[i] + current_offset * cos(seg_angle_list_[i] + M_PI_2);
         ad current_y = seg_y_list_[i] + current_offset * sin(seg_angle_list_[i] + M_PI_2);
         ad next_x = seg_x_list_[i + 1] + next_offset * cos(seg_angle_list_[i + 1] + M_PI_2);
@@ -32,7 +32,7 @@ void FgEvalReferenceSmoothing::operator()(PathOptimizationNS::FgEvalReferenceSmo
         fg[0] += FLAGS_cartesian_deviation_weight * (pow(current_offset, 2));
         // Curvature cost:
         fg[0] += FLAGS_cartesian_curvature_weight
-            * (pow(next_x + last_x - 2 * current_x, 2) + pow(next_y + last_y - 2 * current_y, 2));
+            * (pow(next_x + pre_x - 2 * current_x, 2) + pow(next_y + pre_y - 2 * current_y, 2));
     }
 }
 

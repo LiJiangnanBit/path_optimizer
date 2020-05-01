@@ -5,7 +5,7 @@ TMP_DIR="/tmp"
 
 install_ipopt() {
     echo "Prepare to install IPOPT ..."
-    IPOPT_URL="https://git.coding.net/aRagdoll/Ipopt-3.12.4.git"
+    IPOPT_URL="https://e.coding.net/tmp-code/ipopt-3.12.4.git"
     sudo apt-get -y install \
         gfortran \
         cmake  \
@@ -20,7 +20,7 @@ install_ipopt() {
         pwd
         cd $TMP_DIR
         pwd
-        rm -rf Ipopt-3.12.4 && git clone "$IPOPT_URL" && cd Ipopt-3.12.4
+        rm -rf ipopt-3.12.4 && git clone "$IPOPT_URL" && cd ipopt-3.12.4
         # configure,build and install the IPOPT
         echo "Configuring and building IPOPT ..."
         ./configure --prefix /usr/local

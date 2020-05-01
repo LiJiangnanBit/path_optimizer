@@ -188,6 +188,9 @@ int main(int argc, char **argv) {
             FLAGS_enable_searching = true;
             FLAGS_optimization_method = "KP";
             PathOptimizationNS::PathOptimizer path_optimizer(start_state, end_state, grid_map);
+//            FLAGS_enable_dynamic_segmentation = false;
+//            FLAGS_enable_raw_output = false;
+//            FLAGS_output_spacing = 0.3;
             if (path_optimizer.solve(reference_path, &result_path)) {
                 std::cout << "ok!" << std::endl;
                 // Test solveWithoutSmoothing:

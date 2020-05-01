@@ -53,10 +53,10 @@ class ReferencePathSmoother {
     virtual bool smooth(PathOptimizationNS::ReferencePath *reference_path,
                         std::vector<State> *smoothed_path_display) = 0;
     void bSpline();
-    // A* search.
+    // search.
     bool modifyInputPoints();
-    bool checkExistenceInClosedSet(const APoint &point) const;
-    double getG(const APoint &point, const APoint &parent) const;
+    inline bool checkExistenceInClosedSet(const APoint &point) const;
+    inline double getG(const APoint &point, const APoint &parent) const;
     inline double getH(const APoint &p) const;
     const std::vector<State> &input_points_;
     // Sampled points in searching process.
