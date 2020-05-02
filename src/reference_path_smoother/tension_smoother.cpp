@@ -33,6 +33,14 @@ void FgEvalReferenceSmoothing::operator()(PathOptimizationNS::FgEvalReferenceSmo
         // Curvature cost:
         fg[0] += FLAGS_cartesian_curvature_weight
             * (pow(next_x + pre_x - 2 * current_x, 2) + pow(next_y + pre_y - 2 * current_y, 2));
+        if (i > 1) {
+            ad pre_pre_offset = vars[i - 2];
+            ad pre_pre_x = seg_x_list_[i - 2] + pre_pre_offset * cos(seg_angle_list_[i - 2] + M_PI_2);
+            ad pre_pre_y = seg_y_list_[i - 2] + pre_pre_offset * sin(seg_angle_list_[i - 2] + M_PI_2);
+            fg[0] += FLAGS_cartesian_curvature_rate_weight *
+                (pow(3 * pre_x - 3 * current_x + next_x - pre_pre_x, 2) +
+                    pow(3 * pre_y - 3 * current_y + next_y - pre_pre_y, 2));
+        }
     }
 }
 
@@ -115,8 +123,10 @@ bool TensionSmoother::ipoptSmooth(const std::vector<double> &x_list,
         double y = y_list[i];
         double clearance = grid_map_.getObstacleDistance(grid_map::Position(x, y));
         // Adjust clearance.
-        clearance = isEqual(clearance, 0) ? default_clearance :
-                    clearance > FLAGS_circle_radius ? clearance - FLAGS_circle_radius : clearance;
+        clearance = std::max(clearance, default_clearance);
+//            isEqual(clearance, 0) ? default_clearance :
+//                        clearance > 0.5 ? clearance - 0.5 : clearance;
+//                    clearance > FLAGS_circle_radius ? clearance - FLAGS_circle_radius : clearance;
         vars_lowerbound[i] = -clearance;
         vars_upperbound[i] = clearance;
     }
@@ -228,11 +238,17 @@ void TensionSmoother::setHessianMatrix(size_t size, Eigen::SparseMatrix<double> 
     const size_t matrix_size = 3 * size;
     Eigen::MatrixXd hessian = Eigen::MatrixXd::Constant(matrix_size, matrix_size, 0);
     // Curvature part.
-    Eigen::Matrix<double, 3, 1> vec{1, -2, 1};
-    Eigen::Matrix3d element{vec * vec.transpose() * FLAGS_cartesian_curvature_weight};
+    Eigen::Matrix<double, 3, 1> dds_vec{1, -2, 1};
+    Eigen::Matrix3d dds_part{dds_vec * dds_vec.transpose() * FLAGS_cartesian_curvature_weight};
+    Eigen::Matrix<double, 4, 1> ddds_vec{-1, 3, -3, 1};
+    Eigen::Matrix4d ddds_part{ddds_vec * ddds_vec.transpose() * FLAGS_cartesian_curvature_rate_weight};
     for (int i = 0; i != size - 2; ++i) {
-        hessian.block(x_start_index + i, x_start_index + i, 3, 3) += element;
-        hessian.block(y_start_index + i, y_start_index + i, 3, 3) += element;
+        hessian.block(x_start_index + i, x_start_index + i, 3, 3) += dds_part;
+        hessian.block(y_start_index + i, y_start_index + i, 3, 3) += dds_part;
+        if (i != size - 3) {
+            hessian.block(x_start_index + i, x_start_index + i, 4, 4) += ddds_part;
+            hessian.block(y_start_index + i, y_start_index + i, 4, 4) += ddds_part;
+        }
     }
     // Deviation part.
     for (int i = 0; i != size; ++i) {
@@ -276,14 +292,15 @@ void TensionSmoother::setConstraintMatrix(const std::vector<double> &x_list,
     (*lower_bound)(d_start_index + size - 1) = -0.5;
     (*upper_bound)(d_start_index + size - 1) = 0.5;
     const double default_clearance = 2;
-    const double shrink_clearance = 0;
+//    const double shrink_clearance = 0;
     for (size_t i = 1; i != size - 1; ++i) {
         double x = x_list[i];
         double y = y_list[i];
         double clearance = grid_map_.getObstacleDistance(grid_map::Position(x, y));
         // Adjust clearance.
-        clearance = isEqual(clearance, 0) ? default_clearance :
-                   clearance > shrink_clearance ? clearance - shrink_clearance : clearance;
+        clearance = std::min(clearance, default_clearance);
+//            isEqual(clearance, 0) ? default_clearance :
+//                   clearance > shrink_clearance ? clearance - shrink_clearance : clearance;
         (*lower_bound)(d_start_index + i) = -clearance;
         (*upper_bound)(d_start_index + i) = clearance;
     }

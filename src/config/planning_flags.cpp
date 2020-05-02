@@ -52,7 +52,7 @@ bool ValidateSmoothingnMethod(const char *flagname, const std::string &value)
 }
 bool isSmoothingMethodValid = google::RegisterFlagValidator(&FLAGS_smoothing_method, ValidateSmoothingnMethod);
 
-DEFINE_string(tension_solver, "IPOPT", "solver used in tension smoothing method");
+DEFINE_string(tension_solver, "OSQP", "solver used in tension smoothing method");
 
 DEFINE_bool(enable_searching, true, "search before optimization");
 
@@ -69,6 +69,8 @@ DEFINE_double(frenet_angle_diff_diff_weight, 200, "frenet smoothing angle diff d
 DEFINE_double(frenet_deviation_weight, 15, "frenet smoothing deviation from the orignal path");
 
 DEFINE_double(cartesian_curvature_weight, 1, "");
+
+DEFINE_double(cartesian_curvature_rate_weight, 50, "");
 
 DEFINE_double(cartesian_deviation_weight, 0.0, "");
 

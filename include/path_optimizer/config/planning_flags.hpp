@@ -55,6 +55,8 @@ DECLARE_double(frenet_deviation_weight);
 
 DECLARE_double(cartesian_curvature_weight);
 
+DECLARE_double(cartesian_curvature_rate_weight);
+
 DECLARE_double(cartesian_deviation_weight);
 
 DECLARE_bool(enable_simple_boundary_decision);
