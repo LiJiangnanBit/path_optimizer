@@ -10,6 +10,7 @@
 #include "path_optimizer/data_struct/reference_path.hpp"
 #include "path_optimizer/reference_path_smoother/angle_diff_smoother.hpp"
 #include "path_optimizer/reference_path_smoother/tension_smoother.hpp"
+#include "path_optimizer/reference_path_smoother/qp_smoother.hpp"
 
 namespace PathOptimizationNS {
 
@@ -20,7 +21,7 @@ std::unique_ptr<ReferencePathSmoother> ReferencePathSmoother::create(std::string
     if (type == "ANGLE_DIFF") {
         return std::unique_ptr<ReferencePathSmoother>{new AngleDiffSmoother(input_points, start_state, grid_map)};
     } else if (type == "TENSION") {
-        return std::unique_ptr<ReferencePathSmoother>{new TensionSmoother(input_points, start_state, grid_map)};
+        return std::unique_ptr<ReferencePathSmoother>{new QPSmoother(input_points, start_state, grid_map)};
     } else {
         LOG(ERROR) << "No such smoother!";
         return nullptr;
@@ -232,7 +233,7 @@ bool ReferencePathSmoother::modifyInputPoints() {
         closed_set_.insert(tmp_point_ptr);
     }
 
-    // Retrieve optimal path.
+    // Retrieve the optimal path.
     std::vector<double> a_x_list, a_y_list;
     auto ptr = open_set_.top();
     while (ptr) {

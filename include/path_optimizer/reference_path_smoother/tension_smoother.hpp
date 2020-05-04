@@ -12,7 +12,6 @@
 #include "Eigen/Sparse"
 #include "path_optimizer/reference_path_smoother/reference_path_smoother.hpp"
 
-
 namespace PathOptimizationNS {
 
 using CppAD::AD;
@@ -26,17 +25,18 @@ class FgEvalReferenceSmoothing {
         seg_x_list_(seg_x_list),
         seg_y_list_(seg_y_list),
         seg_angle_list_(seg_angle_list) {}
+    virtual ~FgEvalReferenceSmoothing() = default;
     typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
     typedef AD<double> ad;
-    void operator()(ADvector &fg, const ADvector &vars);
- private:
+    virtual void operator()(ADvector &fg, const ADvector &vars);
+ protected:
     const std::vector<double> &seg_s_list_;
     const std::vector<double> &seg_x_list_;
     const std::vector<double> &seg_y_list_;
     const std::vector<double> &seg_angle_list_;
 };
 
-class TensionSmoother final : public ReferencePathSmoother {
+class TensionSmoother : public ReferencePathSmoother {
  public:
     TensionSmoother() = delete;
     TensionSmoother(const std::vector<State> &input_points,
@@ -47,28 +47,28 @@ class TensionSmoother final : public ReferencePathSmoother {
  private:
     bool smooth(PathOptimizationNS::ReferencePath *reference_path,
                 std::vector<State> *smoothed_path_display) override;
-    bool ipoptSmooth(const std::vector<double> &x_list,
-                     const std::vector<double> &y_list,
-                     const std::vector<double> &angle_list,
-                     const std::vector<double> &s_list,
-                     std::vector<double> *result_x_list,
-                     std::vector<double> *result_y_list,
-                     std::vector<double> *result_s_list);
-    bool osqpSmooth(const std::vector<double> &x_list,
-                    const std::vector<double> &y_list,
-                    const std::vector<double> &angle_list,
-                    const std::vector<double> &s_list,
-                    std::vector<double> *result_x_list,
-                    std::vector<double> *result_y_list,
-                    std::vector<double> *result_s_list);
-    void setHessianMatrix(size_t size, Eigen::SparseMatrix<double> *matrix_h) const;
-    void setConstraintMatrix(const std::vector<double> &x_list,
+    virtual bool ipoptSmooth(const std::vector<double> &x_list,
                              const std::vector<double> &y_list,
                              const std::vector<double> &angle_list,
                              const std::vector<double> &s_list,
-                             Eigen::SparseMatrix<double> *matrix_constraints,
-                             Eigen::VectorXd *lower_bound,
-                             Eigen::VectorXd *upper_bound) const;
+                             std::vector<double> *result_x_list,
+                             std::vector<double> *result_y_list,
+                             std::vector<double> *result_s_list);
+    virtual bool osqpSmooth(const std::vector<double> &x_list,
+                            const std::vector<double> &y_list,
+                            const std::vector<double> &angle_list,
+                            const std::vector<double> &s_list,
+                            std::vector<double> *result_x_list,
+                            std::vector<double> *result_y_list,
+                            std::vector<double> *result_s_list);
+    virtual void setHessianMatrix(size_t size, Eigen::SparseMatrix<double> *matrix_h) const;
+    virtual void setConstraintMatrix(const std::vector<double> &x_list,
+                                     const std::vector<double> &y_list,
+                                     const std::vector<double> &angle_list,
+                                     const std::vector<double> &s_list,
+                                     Eigen::SparseMatrix<double> *matrix_constraints,
+                                     Eigen::VectorXd *lower_bound,
+                                     Eigen::VectorXd *upper_bound) const;
 };
 
 }

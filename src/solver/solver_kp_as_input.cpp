@@ -167,6 +167,10 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
 }
 
 bool SolverKpAsInput::solve(std::vector<PathOptimizationNS::State> *optimized_path) {
+    if (horizon_ < 5) {
+        LOG(WARNING) << "Reference is too short! quit SolverKpAsInput.";
+        return false;
+    }
     const auto &ref_states = reference_path_.getReferenceStates();
     solver_.settings()->setVerbosity(false);
     solver_.settings()->setWarmStart(true);
