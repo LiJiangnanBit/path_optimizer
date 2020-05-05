@@ -42,7 +42,8 @@ class ReferencePathSmoother {
     bool segmentRawReference(std::vector<double> *x_list,
                              std::vector<double> *y_list,
                              std::vector<double> *s_list,
-                             std::vector<double> *angle_list) const;
+                             std::vector<double> *angle_list,
+                             std::vector<double> *k_list) const;
     double getClosestPointOnSpline(const tk::spline &x_s, const tk::spline &y_s, const double max_s) const;
     const State &start_state_;
     const Map &grid_map_;

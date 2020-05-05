@@ -19,9 +19,12 @@ class FgEvalQPSmoothing : public FgEvalReferenceSmoothing {
     FgEvalQPSmoothing(const std::vector<double> &seg_x_list,
                       const std::vector<double> &seg_y_list,
                       const std::vector<double> &seg_s_list,
-                      const std::vector<double> &seg_angle_list);
+                      const std::vector<double> &seg_angle_list,
+                      const std::vector<double> &seg_k_list);
     ~FgEvalQPSmoothing() override = default;
     void operator()(ADvector &fg, const ADvector &vars) override;
+ private:
+    const std::vector<double> &seg_k_list_;
 };
 
 class QPSmoother final : public TensionSmoother {
@@ -36,6 +39,7 @@ class QPSmoother final : public TensionSmoother {
     bool ipoptSmooth(const std::vector<double> &x_list,
                      const std::vector<double> &y_list,
                      const std::vector<double> &angle_list,
+                     const std::vector<double> &k_list,
                      const std::vector<double> &s_list,
                      std::vector<double> *result_x_list,
                      std::vector<double> *result_y_list,

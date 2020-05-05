@@ -44,7 +44,8 @@ bool ReferencePathSmoother::solve(PathOptimizationNS::ReferencePath *reference_p
 bool ReferencePathSmoother::segmentRawReference(std::vector<double> *x_list,
                                                 std::vector<double> *y_list,
                                                 std::vector<double> *s_list,
-                                                std::vector<double> *angle_list) const {
+                                                std::vector<double> *angle_list,
+                                                std::vector<double> *k_list) const {
     if (s_list_.size() != x_list_.size() || s_list_.size() != y_list_.size()) {
         LOG(ERROR) << "Raw path x y and s size not equal!";
         return false;
@@ -67,8 +68,14 @@ bool ReferencePathSmoother::segmentRawReference(std::vector<double> *x_list,
     // Store reference states in vectors. They will be used later.
     for (size_t i = 0; i != point_num; ++i) {
         double length_on_ref_path = s_list->at(i);
-        double angle = atan2(y_spline.deriv(1, length_on_ref_path), x_spline.deriv(1, length_on_ref_path));
+        double dx = x_spline.deriv(1, length_on_ref_path);
+        double dy = y_spline.deriv(1, length_on_ref_path);
+        double ddx = x_spline.deriv(2, length_on_ref_path);
+        double ddy = y_spline.deriv(2, length_on_ref_path);
+        double angle = atan2(dy, dx);
         angle_list->emplace_back(angle);
+        double curvature = (dx * ddy - dy * ddx) / pow(dx * dx + dy * dy, 1.5);
+        k_list->emplace_back(curvature);
         x_list->emplace_back(x_spline(length_on_ref_path));
         y_list->emplace_back(y_spline(length_on_ref_path));
     }

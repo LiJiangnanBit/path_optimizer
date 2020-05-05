@@ -51,12 +51,19 @@ TensionSmoother::TensionSmoother(const std::vector<PathOptimizationNS::State> &i
 
 bool TensionSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path,
                              std::vector<PathOptimizationNS::State> *smoothed_path_display) {
-    std::vector<double> x_list, y_list, s_list, angle_list;
-    if (!segmentRawReference(&x_list, &y_list, &s_list, &angle_list)) return false;
+    std::vector<double> x_list, y_list, s_list, angle_list, k_list;
+    if (!segmentRawReference(&x_list, &y_list, &s_list, &angle_list, &k_list)) return false;
     std::vector<double> result_x_list, result_y_list, result_s_list;
     bool solver_ok{false};
     if (FLAGS_tension_solver == "IPOPT") {
-        solver_ok = ipoptSmooth(x_list, y_list, angle_list, s_list, &result_x_list, &result_y_list, &result_s_list);
+        solver_ok = ipoptSmooth(x_list,
+                                y_list,
+                                angle_list,
+                                k_list,
+                                s_list,
+                                &result_x_list,
+                                &result_y_list,
+                                &result_s_list);
     } else if (FLAGS_tension_solver == "OSQP") {
         solver_ok = osqpSmooth(x_list, y_list, angle_list, s_list, &result_x_list, &result_y_list, &result_s_list);
     } else {
@@ -75,7 +82,7 @@ bool TensionSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path,
     double min_dis_s = getClosestPointOnSpline(x_spline, y_spline, max_s);
     // Output. Take the closest point as s = 0.
     std::for_each(result_s_list.begin(), result_s_list.end(), [min_dis_s](double &s) {
-        s -= min_dis_s;
+      s -= min_dis_s;
     });
     x_spline.set_points(result_s_list, result_x_list);
     y_spline.set_points(result_s_list, result_y_list);
@@ -94,6 +101,7 @@ bool TensionSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path,
 bool TensionSmoother::ipoptSmooth(const std::vector<double> &x_list,
                                   const std::vector<double> &y_list,
                                   const std::vector<double> &angle_list,
+                                  const std::vector<double> &k_list,
                                   const std::vector<double> &s_list,
                                   std::vector<double> *result_x_list,
                                   std::vector<double> *result_y_list,
@@ -117,7 +125,7 @@ bool TensionSmoother::ipoptSmooth(const std::vector<double> &x_list,
     vars_lowerbound[n_vars - 1] = -0.5;
     vars_upperbound[n_vars - 1] = 0.5;
     // Get clearance for each point:
-    const double default_clearance{1};
+    static const double default_clearance{1};
     for (size_t i = 1; i != n_vars - 1; ++i) {
         double x = x_list[i];
         double y = y_list[i];
@@ -172,8 +180,9 @@ bool TensionSmoother::ipoptSmooth(const std::vector<double> &x_list,
         double tmp_y = y_list[i] + solution.x[i] * sin(new_angle);
         result_x_list->emplace_back(tmp_x);
         result_y_list->emplace_back(tmp_y);
-        if (i != 0) tmp_s += sqrt(pow(result_x_list->at(i) - result_x_list->at(i - 1), 2)
-                                      + pow(result_y_list->at(i) - result_y_list->at(i - 1), 2));
+        if (i != 0)
+            tmp_s += sqrt(pow(result_x_list->at(i) - result_x_list->at(i - 1), 2)
+                              + pow(result_y_list->at(i) - result_y_list->at(i - 1), 2));
         result_s_list->emplace_back(tmp_s);
     }
     return true;
@@ -223,8 +232,9 @@ bool TensionSmoother::osqpSmooth(const std::vector<double> &x_list,
         double tmp_y = QPSolution(point_num + i);
         result_x_list->emplace_back(tmp_x);
         result_y_list->emplace_back(tmp_y);
-        if (i != 0) tmp_s += sqrt(pow(result_x_list->at(i) - result_x_list->at(i - 1), 2)
-                                      + pow(result_y_list->at(i) - result_y_list->at(i - 1), 2));
+        if (i != 0)
+            tmp_s += sqrt(pow(result_x_list->at(i) - result_x_list->at(i - 1), 2)
+                              + pow(result_y_list->at(i) - result_y_list->at(i - 1), 2));
         result_s_list->emplace_back(tmp_s);
     }
     return true;

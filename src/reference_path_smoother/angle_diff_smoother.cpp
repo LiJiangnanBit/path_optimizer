@@ -94,7 +94,7 @@ AngleDiffSmoother::AngleDiffSmoother(const std::vector<PathOptimizationNS::State
 bool AngleDiffSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path,
                                std::vector<PathOptimizationNS::State> *smoothed_path_display) {
     std::vector<double> x_list, y_list, s_list, angle_list;
-    if (!segmentRawReference(&x_list, &y_list, &s_list, &angle_list)) return false;
+    if (!segmentRawReference(&x_list, &y_list, &s_list, &angle_list, nullptr)) return false;
     size_t N = s_list.size();
 
     typedef CPPAD_TESTVECTOR(double) Dvector;

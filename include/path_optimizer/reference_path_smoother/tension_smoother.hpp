@@ -50,6 +50,7 @@ class TensionSmoother : public ReferencePathSmoother {
     virtual bool ipoptSmooth(const std::vector<double> &x_list,
                              const std::vector<double> &y_list,
                              const std::vector<double> &angle_list,
+                             const std::vector<double> &k_list,
                              const std::vector<double> &s_list,
                              std::vector<double> *result_x_list,
                              std::vector<double> *result_y_list,
