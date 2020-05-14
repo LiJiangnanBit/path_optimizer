@@ -2,11 +2,9 @@
 // Created by ljn on 20-5-4.
 //
 
-#ifndef PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_REFERENCE_PATH_SMOOTHER_QP_SMOOTHER_HPP_
-#define PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_REFERENCE_PATH_SMOOTHER_QP_SMOOTHER_HPP_
+#ifndef PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_REFERENCE_PATH_SMOOTHER_TENSION_SMOOTHER_2_HPP_
+#define PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_REFERENCE_PATH_SMOOTHER_TENSION_SMOOTHER_2_HPP_
 #include <vector>
-#include <cppad/cppad.hpp>
-#include <cppad/ipopt/solve.hpp>
 #include <cfloat>
 #include "Eigen/Dense"
 #include "Eigen/Sparse"
@@ -27,13 +25,13 @@ class FgEvalQPSmoothing : public FgEvalReferenceSmoothing {
     const std::vector<double> &seg_k_list_;
 };
 
-class QPSmoother final : public TensionSmoother {
+class TensionSmoother2 final : public TensionSmoother {
  public:
-    QPSmoother() = delete;
-    QPSmoother(const std::vector<State> &input_points,
+    TensionSmoother2() = delete;
+    TensionSmoother2(const std::vector<State> &input_points,
                const State &start_state,
                const Map &grid_map);
-    ~QPSmoother() override = default;
+    ~TensionSmoother2() override = default;
 
  private:
     bool ipoptSmooth(const std::vector<double> &x_list,
@@ -46,4 +44,4 @@ class QPSmoother final : public TensionSmoother {
                      std::vector<double> *result_s_list) override;
 };
 }
-#endif //PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_REFERENCE_PATH_SMOOTHER_QP_SMOOTHER_HPP_
+#endif //PATH_OPTIMIZER_INCLUDE_PATH_OPTIMIZER_REFERENCE_PATH_SMOOTHER_TENSION_SMOOTHER_2_HPP_

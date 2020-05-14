@@ -45,10 +45,10 @@ DEFINE_double(max_curvature_rate, 0.1, "max derivative of curvature");
 
 ///// Smoothing related.
 /////
-DEFINE_string(smoothing_method, "TENSION", "rReference smoothing method");
+DEFINE_string(smoothing_method, "TENSION2", "rReference smoothing method");
 bool ValidateSmoothingnMethod(const char *flagname, const std::string &value)
 {
-    return value == "ANGLE_DIFF" || value == "TENSION";
+    return value == "ANGLE_DIFF" || value == "TENSION" || value == "TENSION2";
 }
 bool isSmoothingMethodValid = google::RegisterFlagValidator(&FLAGS_smoothing_method, ValidateSmoothingnMethod);
 
@@ -62,6 +62,7 @@ DEFINE_double(search_longitudial_spacing, 1.5, "longitudinal spacing when search
 
 DEFINE_double(search_lateral_spacing, 0.6, "lateral spacing when searching");
 
+// TODO: change names!
 DEFINE_double(frenet_angle_diff_weight, 1500, "frenet smoothing angle difference weight");
 
 DEFINE_double(frenet_angle_diff_diff_weight, 200, "frenet smoothing angle diff diff weight");
@@ -73,6 +74,12 @@ DEFINE_double(cartesian_curvature_weight, 1, "");
 DEFINE_double(cartesian_curvature_rate_weight, 50, "");
 
 DEFINE_double(cartesian_deviation_weight, 0.0, "");
+
+DEFINE_double(tension_2_deviation_weight, 0.001, "");
+
+DEFINE_double(tension_2_curvature_weight, 1, "");
+
+DEFINE_double(tension_2_curvature_rate_weight, 10, "");
 
 DEFINE_bool(enable_simple_boundary_decision, true, "faster, but may go wrong sometimes");
 
