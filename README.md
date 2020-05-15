@@ -58,14 +58,15 @@ Refer to [demo.cpp](https://github.com/LiJiangnanBit/path_optimizer/blob/master/
 The parameters that you can change can be found in `planning_flags.cpp`.  
 
 ## How it works
-1. Take inputs (red dots):
+### Refer [here](https://github.com/LiJiangnanBit/path_optimizer/wiki).
+1. Take inputs (red dots):  
 ![2020-02-13 16-27-46屏幕截图.png](https://i.loli.net/2020/02/13/rRdA7ZGmjfObzNV.png)  
 2. (Optional) Use B spline curve fitting to make the path continuous and then search around it for a more reasonable reference path (yellow dots). 
-This step can be skipped by changing settings. 
+This step can be skipped by changing settings.    
 ![2020-02-13 16-27-56屏幕截图.png](https://i.loli.net/2020/02/13/GJEbrUIXwScKmWT.png)    
-3. Smooth the reference path using IPOPT (yellow curve).   
+3. Smooth the reference path using IPOPT (yellow curve).    
 ![2020-02-13 16-28-05屏幕截图.png](https://i.loli.net/2020/02/13/Meqi3m7CXzZFIxJ.png)  
-4. Represent the path planning problem as a QP and solve it using OSQP.  
+4. Represent the path planning problem as a QP and solve it using OSQP.   
 ![2020-02-13 16-28-19屏幕截图.png](https://i.loli.net/2020/02/13/HaMpYKcZLxTdtAs.png)
 
 
