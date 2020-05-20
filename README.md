@@ -1,6 +1,7 @@
-# path_optimizer
+# path_optimizer  
+![](https://img.shields.io/badge/ROS-Kinetic-orange)  ![](https://img.shields.io/github/last-commit/LijiangnanBit/path_optimizer)  
 **This ROS package generates feasible paths for non-holonomic vehicles according to some given reference paths (discrete points).**  
-![2020-03-19 19-24-35屏幕截图.png](https://i.loli.net/2020/03/19/ZQyMPqFIxnK6Eif.png)    
+![2020-05-20 09-31-48屏幕截图.png](https://i.loli.net/2020/05/20/QZzNlAOMqH5o1re.png)    
 
 ## Run demos 
 ### 0. Install dependencies and build  
@@ -27,9 +28,7 @@ These dependencies include:
 - [tinyspline_ros](https://github.com/qutas/tinyspline_ros).  
 
 ### 1. Demo
-A png image is loaded as the grid map. You can click to choose the global reference path and the start/goal state of the vehicle. 
-You can replace `gridmap.png` with other black and white images. Note that the resolution in `demo.cpp` is set to 0.2m, whick means that 
-the length of one pixel is 0.2m on the map.
+A png image is loaded as the grid map. You can click to specify the global reference path and the start/goal state of the vehicle.  
 ~~~
 roslaunch path_optimizer demo.launch
 ~~~
@@ -37,11 +36,13 @@ roslaunch path_optimizer demo.launch
 - Pick at least six points.  
 - There are no hard and fast rules about the spacing of the points.  
 - If you want to abandon the chosen points, just double click anywhere when using the "Publish Point" tool.  
+- You can replace `gridmap.png` with other black and white images. Note that the resolution in `demo.cpp` is set to 0.2m, whick means that the length of one pixel is 0.2m on the map.  
 - In application, the reference path is given by a global path or by a search algorithm like A*.  
 
 ![选点.gif](https://i.loli.net/2020/04/12/kRItwQTh5GJWHxV.gif)  
 #### (2) Pick start state using "2D Pose Estimate" tool and pick goal state using "2D Nav Goal" tool.  
-Currently, it's not strictly required to reach the goal state. But this can be changed.    
+- Currently, it's not strictly required to reach the goal state. But this can be changed.    
+- The start state must be ahead of the first reference point.
 ![规划.gif](https://i.loli.net/2020/04/12/XmxgwTGRI1MtoVK.gif)  
 
 ### 2. Benchmark test  
