@@ -65,7 +65,14 @@ bool TensionSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path,
                                 &result_y_list,
                                 &result_s_list);
     } else if (FLAGS_tension_solver == "OSQP") {
-        solver_ok = osqpSmooth(x_list, y_list, angle_list, s_list, &result_x_list, &result_y_list, &result_s_list);
+        solver_ok = osqpSmooth(x_list,
+                               y_list,
+                               angle_list,
+                               k_list,
+                               s_list,
+                               &result_x_list,
+                               &result_y_list,
+                               &result_s_list);
     } else {
         LOG(ERROR) << "No such solver for tension smoother!";
         return false;
@@ -191,6 +198,7 @@ bool TensionSmoother::ipoptSmooth(const std::vector<double> &x_list,
 bool TensionSmoother::osqpSmooth(const std::vector<double> &x_list,
                                  const std::vector<double> &y_list,
                                  const std::vector<double> &angle_list,
+                                 const std::vector<double> &k_list,
                                  const std::vector<double> &s_list,
                                  std::vector<double> *result_x_list,
                                  std::vector<double> *result_y_list,
@@ -199,11 +207,11 @@ bool TensionSmoother::osqpSmooth(const std::vector<double> &x_list,
     CHECK_EQ(y_list.size(), angle_list.size());
     CHECK_EQ(angle_list.size(), s_list.size());
     auto point_num = x_list.size();
-    OsqpEigen::Solver solver_;
-    solver_.settings()->setVerbosity(false);
-    solver_.settings()->setWarmStart(true);
-    solver_.data()->setNumberOfVariables(3 * point_num);
-    solver_.data()->setNumberOfConstraints(3 * point_num);
+    OsqpEigen::Solver solver;
+    solver.settings()->setVerbosity(false);
+    solver.settings()->setWarmStart(true);
+    solver.data()->setNumberOfVariables(3 * point_num);
+    solver.data()->setNumberOfConstraints(3 * point_num);
     // Allocate QP problem matrices and vectors.
     Eigen::SparseMatrix<double> hessian;
     Eigen::VectorXd gradient = Eigen::VectorXd::Zero(3 * point_num);
@@ -211,17 +219,17 @@ bool TensionSmoother::osqpSmooth(const std::vector<double> &x_list,
     Eigen::VectorXd lowerBound;
     Eigen::VectorXd upperBound;
     setHessianMatrix(point_num, &hessian);
-    setConstraintMatrix(x_list, y_list, angle_list, s_list, &linearMatrix, &lowerBound, &upperBound);
+    setConstraintMatrix(x_list, y_list, angle_list, k_list, s_list, &linearMatrix, &lowerBound, &upperBound);
     // Input to solver.
-    if (!solver_.data()->setHessianMatrix(hessian)) return false;
-    if (!solver_.data()->setGradient(gradient)) return false;
-    if (!solver_.data()->setLinearConstraintsMatrix(linearMatrix)) return false;
-    if (!solver_.data()->setLowerBound(lowerBound)) return false;
-    if (!solver_.data()->setUpperBound(upperBound)) return false;
+    if (!solver.data()->setHessianMatrix(hessian)) return false;
+    if (!solver.data()->setGradient(gradient)) return false;
+    if (!solver.data()->setLinearConstraintsMatrix(linearMatrix)) return false;
+    if (!solver.data()->setLowerBound(lowerBound)) return false;
+    if (!solver.data()->setUpperBound(upperBound)) return false;
     // Solve.
-    if (!solver_.initSolver()) return false;
-    if (!solver_.solve()) return false;
-    const auto &QPSolution{solver_.getSolution()};
+    if (!solver.initSolver()) return false;
+    if (!solver.solve()) return false;
+    const auto &QPSolution{solver.getSolution()};
     // Output.
     result_s_list->clear();
     result_x_list->clear();
@@ -269,6 +277,7 @@ void TensionSmoother::setHessianMatrix(size_t size, Eigen::SparseMatrix<double> 
 void TensionSmoother::setConstraintMatrix(const std::vector<double> &x_list,
                                           const std::vector<double> &y_list,
                                           const std::vector<double> &angle_list,
+                                          const std::vector<double> &k_list,
                                           const std::vector<double> &s_list,
                                           Eigen::SparseMatrix<double> *matrix_constraints,
                                           Eigen::VectorXd *lower_bound,

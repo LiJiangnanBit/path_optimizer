@@ -76,3 +76,25 @@ add_executable(${PROJECT_NAME}_demo
 target_link_libraries(${PROJECT_NAME}_demo
         ${PROJECT_NAME} ${OpenCV_LIBRARIES}
         )
+
+install(
+        TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_benchmark ${PROJECT_NAME}_demo
+        EXPORT ${PROJECT_NAME}Export
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+
+install(DIRECTORY include/${PROJECT_NAME}/
+        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+        )
+
+install(DIRECTORY
+        config launch
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+        )
+
+install(FILES
+        obstacles_for_benchmark.png gridmap.png
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+        )
