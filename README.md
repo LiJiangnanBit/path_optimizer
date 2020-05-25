@@ -42,7 +42,8 @@ roslaunch path_optimizer demo.launch
 ![选点.gif](https://i.loli.net/2020/04/12/kRItwQTh5GJWHxV.gif)  
 #### (2) Pick start state using "2D Pose Estimate" tool and pick goal state using "2D Nav Goal" tool.  
 - Currently, it's not strictly required to reach the goal state. But this can be changed.    
-- The start state must be ahead of the first reference point.
+- The start state must be ahead of the first reference point.  
+
 ![规划.gif](https://i.loli.net/2020/04/12/XmxgwTGRI1MtoVK.gif)  
 
 ### 2. Benchmark test  
