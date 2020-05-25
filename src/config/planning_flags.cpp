@@ -75,7 +75,7 @@ DEFINE_double(cartesian_curvature_rate_weight, 50, "");
 
 DEFINE_double(cartesian_deviation_weight, 0.0, "");
 
-DEFINE_double(tension_2_deviation_weight, 0.001, "");
+DEFINE_double(tension_2_deviation_weight, 0.005, "");
 
 DEFINE_double(tension_2_curvature_weight, 1, "");
 
