@@ -43,7 +43,7 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
 
     auto t1 = std::clock();
     if (reference_points.empty()) {
-        LOG(WARNING) << "Empty input, quit path optimization";
+        LOG(ERROR) << "Empty input, quit path optimization";
         return false;
     }
     reference_path_->clear();
@@ -56,14 +56,14 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
     bool smoothing_ok = reference_path_smoother->solve(reference_path_, &smoothed_path_);
     reference_searching_display_ = reference_path_smoother->display();
     if (!smoothing_ok) {
-        LOG(WARNING) << "Path optimization FAILED!";
+        LOG(ERROR) << "Path optimization FAILED!";
         return false;
     }
 
     auto t2 = std::clock();
     // Divide reference path into segments;
     if (!segmentSmoothedPath()) {
-        LOG(WARNING) << "Path optimization FAILED!";
+        LOG(ERROR) << "Path optimization FAILED!";
         return false;
     }
 
@@ -80,7 +80,7 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
         LOG(INFO) << "Path optimization SUCCEEDED! Total time cost: " << time_s(t1, t4) << " s";
         return true;
     } else {
-        LOG(WARNING) << "Path optimization FAILED!";
+        LOG(ERROR) << "Path optimization FAILED!";
         return false;
     }
 }
@@ -92,7 +92,7 @@ bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::
     CHECK_NOTNULL(final_path);
     auto t1 = std::clock();
     if (reference_points.empty()) {
-        LOG(WARNING) << "Empty input, quit path optimization!";
+        LOG(ERROR) << "Empty input, quit path optimization!";
         return false;
     }
     vehicle_state_->setInitError(0, 0);
@@ -112,14 +112,14 @@ bool PathOptimizer::solveWithoutSmoothing(const std::vector<PathOptimizationNS::
                   << time_s(t1, t2) << " s";
         return true;
     } else {
-        LOG(WARNING) << "Path optimization without smoothing FAILED!";
+        LOG(ERROR) << "Path optimization without smoothing FAILED!";
         return false;
     }
 }
 
 bool PathOptimizer::segmentSmoothedPath() {
     if (reference_path_->getLength() == 0) {
-        LOG(WARNING) << "Smoothed path is empty!";
+        LOG(ERROR) << "Smoothed path is empty!";
         return false;
     }
 
@@ -136,7 +136,7 @@ bool PathOptimizer::segmentSmoothedPath() {
     double initial_heading_error = constraintAngle(vehicle_state_->getStartState().z - first_point.z);
     // If the start heading differs a lot with the ref path, quit.
     if (fabs(initial_heading_error) > 75 * M_PI / 180) {
-        LOG(WARNING) << "Initial psi error is larger than 75°, quit path optimization!";
+        LOG(ERROR) << "Initial psi error is larger than 75°, quit path optimization!";
         return false;
     }
     vehicle_state_->setInitError(initial_offset, initial_heading_error);
@@ -183,7 +183,7 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
     // Solve problem.
     auto solver = OsqpSolver::create(FLAGS_optimization_method, *reference_path_, *vehicle_state_, size_);
     if (solver && !solver->solve(final_path)) {
-        LOG(WARNING) << "QP failed.";
+        LOG(ERROR) << "QP failed.";
         return false;
     }
     LOG(INFO) << "QP succeeded.";
@@ -198,7 +198,7 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
             iter->s = s;
             if (FLAGS_enable_collision_check && !collision_checker_->isSingleStateCollisionFreeImproved(*iter)) {
                 final_path->erase(iter, final_path->end());
-                LOG(WARNING) << "collision check failed at " << final_path->back().s << "m.";
+                LOG(ERROR) << "collision check failed at " << final_path->back().s << "m.";
                 return final_path->back().s >= 20;
             }
         }
@@ -224,7 +224,7 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
                             getCurvature(x_s, y_s, tmp_s),
                             tmp_s};
             if (FLAGS_enable_collision_check && !collision_checker_->isSingleStateCollisionFreeImproved(tmp_state)) {
-                LOG(WARNING) << "[PathOptimizer] collision check failed at " << final_path->back().s << "m.";
+                LOG(ERROR) << "[PathOptimizer] collision check failed at " << final_path->back().s << "m.";
                 return final_path->back().s >= 20;
             }
             final_path->emplace_back(tmp_state);

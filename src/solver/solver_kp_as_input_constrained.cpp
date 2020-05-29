@@ -19,7 +19,27 @@ SolverKpAsInputConstrained::SolverKpAsInputConstrained(const ReferencePath &refe
     state_size_(3 * horizon_),
     control_size_(control_horizon_),
     slack_size_(3 * horizon_) {
-    LOG(INFO) << "KPC: control horizon is " << control_horizon_;
+    num_of_variables_ = state_size_ + control_size_ + slack_size_;
+    num_of_constraints_ = 12 * horizon_ + 3 * control_horizon_ + 2;
+}
+
+void SolverKpAsInputConstrained::getOptimizedPath(const Eigen::VectorXd &optimization_result,
+                                                  std::vector<PathOptimizationNS::State> *optimized_path) const {
+    CHECK_EQ(optimization_result.size(), num_of_variables_);
+    const auto &ref_states = reference_path_.getReferenceStates();
+    optimized_path->clear();
+    double tmp_s = 0;
+    for (size_t i = 0; i != horizon_; ++i) {
+        double angle = ref_states[i].z;
+        double new_angle = constraintAngle(angle + M_PI_2);
+        double tmp_x = ref_states[i].x + optimization_result(3 * i) * cos(new_angle);
+        double tmp_y = ref_states[i].y + optimization_result(3 * i) * sin(new_angle);
+        double k = optimization_result(3 * i + 2);
+        if (i != 0) {
+            tmp_s += sqrt(pow(tmp_x - optimized_path->back().x, 2) + pow(tmp_y - optimized_path->back().y, 2));
+        }
+        optimized_path->emplace_back(tmp_x, tmp_y, angle + optimization_result(3 * i + 1), k, tmp_s);
+    }
 }
 
 void SolverKpAsInputConstrained::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const {
@@ -39,7 +59,8 @@ void SolverKpAsInputConstrained::setHessianMatrix(Eigen::SparseMatrix<double> *m
     }
     for (size_t i = 0; i != control_horizon_; ++i) {
         hessian(state_size_ + i, state_size_ + i) += keep_control_steps_ * w_cr;
-        hessian(state_size_ + control_size_ + 2 * horizon_ + i, state_size_ + control_size_ + 2 * horizon_ + i) += w_kp_slack * keep_control_steps_;
+        hessian(state_size_ + control_size_ + 2 * horizon_ + i, state_size_ + control_size_ + 2 * horizon_ + i) +=
+            w_kp_slack * keep_control_steps_;
     }
     *matrix_h = hessian.sparseView();
 }
@@ -56,7 +77,8 @@ void SolverKpAsInputConstrained::setConstraintMatrix(Eigen::SparseMatrix<double>
     const size_t slack_range_begin{kpu_range_begin + control_horizon_};
     const size_t collision_range_begin{slack_range_begin + 2 * horizon_ + control_horizon_};
     const size_t end_state_range_begin{collision_range_begin + 5 * horizon_};
-    Eigen::MatrixXd cons = Eigen::MatrixXd::Zero(12 * horizon_ + 3 * control_horizon_ + 2, state_size_ + control_size_ + slack_size_);
+    Eigen::MatrixXd cons =
+        Eigen::MatrixXd::Zero(12 * horizon_ + 3 * control_horizon_ + 2, state_size_ + control_size_ + slack_size_);
     // Set transition part.
     for (size_t i = 0; i != state_size_; ++i) {
         cons(i, i) = -1;
@@ -196,54 +218,6 @@ void SolverKpAsInputConstrained::setConstraintMatrix(Eigen::SparseMatrix<double>
         }
     }
 
-}
-
-bool SolverKpAsInputConstrained::solve(std::vector<PathOptimizationNS::State> *optimized_path) {
-    const auto &ref_states = reference_path_.getReferenceStates();
-    solver_.settings()->setVerbosity(false);
-    solver_.settings()->setWarmStart(true);
-    solver_.data()->setNumberOfVariables(state_size_ + control_size_ + slack_size_);
-    solver_.data()->setNumberOfConstraints(12 * horizon_ + 3 * control_horizon_ + 2);
-    // Allocate QP problem matrices and vectors.
-    Eigen::SparseMatrix<double> hessian;
-    Eigen::VectorXd gradient = Eigen::VectorXd::Zero(state_size_ + control_size_ + slack_size_);
-    Eigen::SparseMatrix<double> linearMatrix;
-    Eigen::VectorXd lowerBound;
-    Eigen::VectorXd upperBound;
-    // Set Hessian matrix.
-    setHessianMatrix(&hessian);
-    // Set state transition matrix, constraint matrix and bound vector.
-    setConstraintMatrix(
-        &linearMatrix,
-        &lowerBound,
-        &upperBound);
-    // Input to solver.
-    if (!solver_.data()->setHessianMatrix(hessian)) return false;
-    if (!solver_.data()->setGradient(gradient)) return false;
-    if (!solver_.data()->setLinearConstraintsMatrix(linearMatrix)) return false;
-    if (!solver_.data()->setLowerBound(lowerBound)) return false;
-    if (!solver_.data()->setUpperBound(upperBound)) return false;
-    // Solve.
-    if (!solver_.initSolver()) return false;
-    if (!solver_.solve()) return false;
-    const auto &QPSolution = solver_.getSolution();
-    optimized_path->clear();
-    double tmp_s = 0;
-    for (size_t i = 0; i != horizon_; ++i) {
-//        std::cout << "k: " << QPSolution(3 * i + 2) << ", limit: " << reference_path_.max_k_list[i] << std::endl;
-//        std::cout << "k slack: " << QPSolution(state_size_ + control_size_ + horizon_ + i) << std::endl;
-//        std::cout << "kp slack: " << QPSolution(state_size_ + control_size_ + 2 * horizon_ + i) << std::endl;
-        double angle = ref_states[i].z;
-        double new_angle = constraintAngle(angle + M_PI_2);
-        double tmp_x = ref_states[i].x + QPSolution(3 * i) * cos(new_angle);
-        double tmp_y = ref_states[i].y + QPSolution(3 * i) * sin(new_angle);
-        double k = QPSolution(3 * i + 2);
-        if (i != 0) {
-            tmp_s += sqrt(pow(tmp_x - optimized_path->back().x, 2) + pow(tmp_y - optimized_path->back().y, 2));
-        }
-        optimized_path->emplace_back(tmp_x, tmp_y, angle + QPSolution(3 * i + 1), k, tmp_s);
-    }
-    return true;
 }
 
 }

@@ -191,6 +191,7 @@ int main(int argc, char **argv) {
 //            FLAGS_enable_dynamic_segmentation = false;
 //            FLAGS_enable_raw_output = false;
 //            FLAGS_output_spacing = 0.3;
+            FLAGS_optimization_method = "KP";
             if (path_optimizer.solve(reference_path, &result_path)) {
                 std::cout << "ok!" << std::endl;
                 // Test solveWithoutSmoothing:

@@ -152,7 +152,7 @@ bool AngleDiffSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path
                                                      fg_eval_frenet, solution);
     // Check if it works
     if (solution.status != CppAD::ipopt::solve_result<Dvector>::success) {
-        LOG(WARNING) << "Angle diff smoother failed!";
+        LOG(ERROR) << "Angle diff smoother failed!";
         return false;
     }
     // output

@@ -15,56 +15,32 @@ SolverKAsInput::SolverKAsInput(const ReferencePath &reference_path,
                                const VehicleState &vehicle_state,
                                const size_t &horizon) :
     OsqpSolver(reference_path, vehicle_state, horizon) {
+    num_of_variables_ = 4 * horizon_ - 1;
+    num_of_constraints_ = 11 * horizon_ - 1;
 }
 
-bool SolverKAsInput::solve(std::vector<State> *optimized_path) {
-    const auto &ref_states = reference_path_.getReferenceStates();
-    solver_.settings()->setVerbosity(false);
-    solver_.settings()->setWarmStart(true);
-    solver_.data()->setNumberOfVariables(4 * horizon_ - 1);
-    solver_.data()->setNumberOfConstraints(11 * horizon_ - 1);
-    // Allocate QP problem matrices and vectors.
-    Eigen::SparseMatrix<double> hessian;
-    Eigen::VectorXd gradient = Eigen::VectorXd::Zero(4 * horizon_ - 1);
-    Eigen::SparseMatrix<double> linearMatrix;
-    Eigen::VectorXd lowerBound;
-    Eigen::VectorXd upperBound;
-    // Set Hessian matrix.
-    setHessianMatrix(&hessian);
-    // Set state transition matrix, constraint matrix and bound vector.
-    setConstraintMatrix(
-        &linearMatrix,
-        &lowerBound,
-        &upperBound);
-    // Input to solver.
-    if (!solver_.data()->setHessianMatrix(hessian)) return false;
-    if (!solver_.data()->setGradient(gradient)) return false;
-    if (!solver_.data()->setLinearConstraintsMatrix(linearMatrix)) return false;
-    if (!solver_.data()->setLowerBound(lowerBound)) return false;
-    if (!solver_.data()->setUpperBound(upperBound)) return false;
-    // Solve.
-    if (!solver_.initSolver()) return false;
-    if (!solver_.solve()) return false;
-    const auto &QPSolution = solver_.getSolution();
+void SolverKAsInput::getOptimizedPath(const Eigen::VectorXd &optimization_result,
+                                      std::vector<PathOptimizationNS::State> *optimized_path) const {
+    CHECK_EQ(optimization_result.size(), num_of_variables_);
     optimized_path->clear();
+    const auto &ref_states = reference_path_.getReferenceStates();
     double tmp_s = 0;
     for (size_t i = 0; i != horizon_; ++i) {
         double angle = ref_states[i].z;
         double new_angle = constraintAngle(angle + M_PI_2);
-        double tmp_x = ref_states[i].x + QPSolution(2 * i + 1) * cos(new_angle);
-        double tmp_y = ref_states[i].y + QPSolution(2 * i + 1) * sin(new_angle);
+        double tmp_x = ref_states[i].x + optimization_result(2 * i + 1) * cos(new_angle);
+        double tmp_y = ref_states[i].y + optimization_result(2 * i + 1) * sin(new_angle);
         double k = 0;
         if (i != horizon_ - 1) {
-            k = QPSolution(2 * horizon_ + i);
+            k = optimization_result(2 * horizon_ + i);
         } else {
-            k = QPSolution(3 * horizon_ - 2);
+            k = optimization_result(3 * horizon_ - 2);
         }
         if (i != 0) {
             tmp_s += sqrt(pow(tmp_x - optimized_path->back().x, 2) + pow(tmp_y - optimized_path->back().y, 2));
         }
-        optimized_path->emplace_back(tmp_x, tmp_y, angle + QPSolution(2 * i), k, tmp_s);
+        optimized_path->emplace_back(tmp_x, tmp_y, angle + optimization_result(2 * i), k, tmp_s);
     }
-    return true;
 }
 
 void SolverKAsInput::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const {

@@ -208,7 +208,7 @@ bool ReferencePathSmoother::modifyInputPoints() {
     // Search.
     while (true) {
         if (open_set_.empty()) {
-            LOG(WARNING) << "Lattice search failed!";
+            LOG(ERROR) << "Lattice search failed!";
             return false;
         }
         auto tmp_point_ptr = open_set_.top();
@@ -259,7 +259,7 @@ bool ReferencePathSmoother::modifyInputPoints() {
     int control_points_num = (a_x_list.size() - 1) / n + 1;
     int degree = 3;
     if (control_points_num <= degree) {
-        LOG(WARNING) << "Reference path is too short for BSpline!";
+        LOG(ERROR) << "Reference path is too short for BSpline!";
         return false;
     }
     // Fit.

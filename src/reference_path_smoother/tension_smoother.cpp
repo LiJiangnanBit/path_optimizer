@@ -173,7 +173,7 @@ bool TensionSmoother::ipoptSmooth(const std::vector<double> &x_list,
     // Check if it works
     bool ok = solution.status == CppAD::ipopt::solve_result<Dvector>::success;
     if (!ok) {
-        LOG(WARNING) << "Tension smoothing ipopt solver failed!";
+        LOG(ERROR) << "Tension smoothing ipopt solver failed!";
         return false;
     }
     // output
