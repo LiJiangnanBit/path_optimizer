@@ -33,7 +33,7 @@ std::unique_ptr<ReferencePathSmoother> ReferencePathSmoother::create(const std::
 bool ReferencePathSmoother::solve(PathOptimizationNS::ReferencePath *reference_path,
                                   std::vector<PathOptimizationNS::State> *smoothed_path_display) {
     bSpline();
-    if (FLAGS_enable_searching && modifyInputPoints()) {
+    if (FLAGS_enable_searching && graphSearch()) {
         // If searching process succeeded, add the searched result into reference_path.
         tk::spline searched_xs, searched_ys;
         searched_xs.set_points(s_list_, x_list_);
@@ -141,7 +141,7 @@ double ReferencePathSmoother::getG(const PathOptimizationNS::APoint &point,
     return parent.g + offset_cost + obstacle_cost;
 }
 
-bool ReferencePathSmoother::modifyInputPoints() {
+bool ReferencePathSmoother::graphSearch() {
     auto t1 = std::clock();
     if (x_list_.empty() || y_list_.empty() || s_list_.empty()) return false;
     tk::spline x_s, y_s;

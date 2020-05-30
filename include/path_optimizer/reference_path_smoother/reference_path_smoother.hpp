@@ -55,7 +55,7 @@ class ReferencePathSmoother {
                         std::vector<State> *smoothed_path_display) = 0;
     void bSpline();
     // search.
-    bool modifyInputPoints();
+    bool graphSearch();
     inline bool checkExistenceInClosedSet(const APoint &point) const;
     inline double getG(const APoint &point, const APoint &parent) const;
     inline double getH(const APoint &p) const;
