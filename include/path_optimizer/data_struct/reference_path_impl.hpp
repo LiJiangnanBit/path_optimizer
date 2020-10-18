@@ -46,6 +46,7 @@ class ReferencePathImpl {
     void setReference(const std::vector<State> &&reference);
     // Calculate upper and lower bounds for each covering circle.
     void updateBounds(const Map &map);
+    void updateBoundsImproved(const Map &map);
     // If the reference_states_ have speed and acceleration information, call this func to calculate
     // curvature and curvature rate bounds.
     void updateLimits();
@@ -55,6 +56,7 @@ class ReferencePathImpl {
  private:
     std::vector<double> getClearanceWithDirectionStrict(const PathOptimizationNS::State &state,
                                                         const PathOptimizationNS::Map &map);
+    State getApproxState(const State &original_state, const State &actual_state, double len) const;
     bool use_spline_{true};
     // Reference path spline representation.
     tk::spline *x_s_;

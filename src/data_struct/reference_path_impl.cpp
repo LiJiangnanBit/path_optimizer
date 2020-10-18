@@ -118,6 +118,89 @@ std::vector<std::tuple<State, double, double>> ReferencePathImpl::display_abnorm
     return display_set_;
 }
 
+State ReferencePathImpl::getApproxState(const State &original_state, const State &actual_state, double len) const {
+    // Point on refrence.
+    double x = (*x_s_)(original_state.s + len);
+    double y = (*y_s_)(original_state.s + len);
+    //
+    State v1, v2;
+    v1.x = actual_state.x - original_state.x;
+    v1.y = actual_state.y - original_state.y;
+    v2.x = x - original_state.x;
+    v2.y = y - original_state.y;
+    double proj = (v1.x*v2.x + v1.y*v2.y) / std::max(0.001, sqrt(pow(v1.x,2) + pow(v1.y,2)));
+    double move_dis = fabs(len) - proj;
+    // Move.
+    State ret;
+    int sign = len >= 0 ? 1 : -1;
+    ret.x = x + sign * move_dis * cos(original_state.z);
+    ret.y = y + sign * move_dis * sin(original_state.z);
+    ret.z = original_state.z;
+    return ret;
+}
+
+void ReferencePathImpl::updateBoundsImproved(const PathOptimizationNS::Map &map) {
+    if (reference_states_.empty()) {
+        LOG(WARNING) << "Empty reference, updateBounds fail!";
+        return;
+    }
+    bounds_.clear();
+    for (const auto &state : reference_states_) {
+        // Circle centers.
+        State
+            c0(state.x + FLAGS_d1 * cos(state.z),
+               state.y + FLAGS_d1 * sin(state.z),
+               state.z),
+            c1(state.x + FLAGS_d2 * cos(state.z),
+               state.y + FLAGS_d2 * sin(state.z),
+               state.z),
+            c2(state.x + FLAGS_d3 * cos(state.z),
+               state.y + FLAGS_d3 * sin(state.z),
+               state.z),
+            c3(state.x + FLAGS_d4 * cos(state.z),
+               state.y + FLAGS_d4 * sin(state.z),
+               state.z);
+        auto c00 = getApproxState(state, c0, FLAGS_d1);
+        auto c11 = getApproxState(state, c1, FLAGS_d2);
+        auto c22 = getApproxState(state, c2, FLAGS_d3);
+        auto c33 = getApproxState(state, c3, FLAGS_d4);
+        // Calculate boundaries.
+        auto clearance_0 = getClearanceWithDirectionStrict(c00, map);
+        auto offset_0 = global2Local(c0, c00).y;
+        clearance_0[0] += offset_0; clearance_0[1] += offset_0;
+
+        auto clearance_1 = getClearanceWithDirectionStrict(c11, map);
+        auto offset_1 = global2Local(c1, c11).y;
+        clearance_1[0] += offset_1; clearance_1[1] += offset_1;
+
+        auto clearance_2 = getClearanceWithDirectionStrict(c22, map);
+        auto offset_2 = global2Local(c2, c22).y;
+        clearance_2[0] += offset_2; clearance_2[1] += offset_2;
+
+        auto clearance_3 = getClearanceWithDirectionStrict(c33, map);
+        auto offset_3 = global2Local(c3, c33).y;
+        clearance_3[0] += offset_3; clearance_3[1] += offset_3;
+
+        if (isEqual(clearance_0[0], clearance_0[1]) ||
+            isEqual(clearance_1[0], clearance_1[1]) ||
+            isEqual(clearance_2[0], clearance_2[1]) ||
+            isEqual(clearance_3[0], clearance_3[1])) {
+            LOG(INFO) << "Path is blocked at s: " << state.s;
+            break;
+        }
+        CoveringCircleBounds covering_circle_bounds;
+        covering_circle_bounds.c0 = clearance_0;
+        covering_circle_bounds.c1 = clearance_1;
+        covering_circle_bounds.c2 = clearance_2;
+        covering_circle_bounds.c3 = clearance_3;
+        bounds_.emplace_back(covering_circle_bounds);
+    }
+    if (reference_states_.size() != bounds_.size()) {
+        reference_states_.resize(bounds_.size());
+    }
+    LOG(INFO) << "Boundary updated. (Improved)";
+}
+
 void ReferencePathImpl::updateLimits() {
     if (reference_states_.empty()) {
         LOG(WARNING) << "Empty reference, updateLimits() fail!";
