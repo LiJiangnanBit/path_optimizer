@@ -75,7 +75,7 @@ void ReferencePath::setReference(const std::vector<PathOptimizationNS::State> &&
 }
 
 void ReferencePath::updateBounds(const Map &map) {
-    reference_path_impl_->updateBounds(map);
+    reference_path_impl_->updateBoundsImproved(map);
 }
 
 void ReferencePath::updateLimits() {
