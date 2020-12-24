@@ -32,7 +32,7 @@ catkin_package(
         INCLUDE_DIRS include
         LIBRARIES ${PROJECT_NAME}
         CATKIN_DEPENDS ${catkin_deps}
-        DEPENDS OpenCV OsqpEigen
+        DEPENDS OpenCV
 )
 
 include_directories(

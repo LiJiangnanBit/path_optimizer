@@ -53,8 +53,7 @@ bool PathOptimizer::solve(const std::vector<State> &reference_points, std::vecto
                                                                  reference_points,
                                                                  vehicle_state_->getStartState(),
                                                                  *grid_map_);
-    bool smoothing_ok = reference_path_smoother->solve(reference_path_, &smoothed_path_);
-    reference_searching_display_ = reference_path_smoother->display();
+    bool smoothing_ok = reference_path_smoother->solve(reference_path_);
     if (!smoothing_ok) {
         LOG(ERROR) << "Path optimization FAILED!";
         return false;
@@ -175,7 +174,6 @@ bool PathOptimizer::segmentSmoothedPath() {
     reference_path_->updateBounds(*grid_map_);
     reference_path_->updateLimits();
     size_ = reference_path_->getSize();
-    LOG(INFO) << "Reference path segmentation succeeded. Size: " << size_;
     return true;
 }
 
@@ -186,7 +184,6 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
         LOG(ERROR) << "QP failed.";
         return false;
     }
-    LOG(INFO) << "QP succeeded.";
 
     // Output. Choose from:
     // 1. set the interval smaller and output the result directly.
@@ -202,7 +199,6 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
                 return final_path->back().s >= 20;
             }
         }
-        LOG(INFO) << "Output raw result.";
         return true;
     } else {
         std::vector<double> result_x, result_y, result_s;
@@ -234,16 +230,11 @@ bool PathOptimizer::optimizePath(std::vector<State> *final_path) {
     }
 }
 
-const std::vector<State> &PathOptimizer::getSmoothedPath() const {
-    return this->smoothed_path_;
-}
-
 std::vector<std::tuple<State, double, double>> PathOptimizer::display_abnormal_bounds() const {
     return this->reference_path_->display_abnormal_bounds();
 }
 
-const std::vector<std::vector<double>> &PathOptimizer::getSearchResult() const {
-    return this->reference_searching_display_;
+const ReferencePath& PathOptimizer::getReferencePath() const {
+    return *reference_path_;
 }
-
 }

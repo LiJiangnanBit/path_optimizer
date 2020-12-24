@@ -36,9 +36,8 @@ public:
     bool solveWithoutSmoothing(const std::vector<State> &reference_points, std::vector<State> *final_path);
 
     // Only for visualization purpose.
-    const std::vector<State> &getSmoothedPath() const;
-    const std::vector<std::vector<double>> &getSearchResult() const;
     std::vector<std::tuple<State, double, double>> display_abnormal_bounds() const;
+    const ReferencePath &getReferencePath() const;
 
 private:
     // Core function.
@@ -53,9 +52,6 @@ private:
     VehicleState *vehicle_state_;
     size_t size_{};
 
-    // For visualization purpose.
-    std::vector<State> smoothed_path_;
-    std::vector<std::vector<double>> reference_searching_display_;
 };
 }
 

@@ -18,7 +18,6 @@ OsqpSolver::OsqpSolver(const ReferencePath &reference_path,
     reference_path_(reference_path),
     vehicle_state_(vehicle_state),
     reference_interval_(0) {
-    LOG(INFO) << "Optimization horizon: " << horizon;
     // Check some of the reference states to get the interval.
     const int check_num = 10;
     for (int i = 1; i < reference_path_.getSize() && i < check_num; ++i) {

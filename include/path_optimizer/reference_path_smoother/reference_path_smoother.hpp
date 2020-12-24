@@ -7,12 +7,15 @@
 #include <iostream>
 #include <memory>
 #include <vector>
-#include <set>
+#include <unordered_set>
+#include "Eigen/Dense"
+#include "Eigen/Sparse"
 #include <string>
 #include <queue>
 #include <ctime>
 #include <tinyspline_ros/tinysplinecpp.h>
 #include <path_optimizer/tools/spline.h>
+#include <bits/unordered_set.h>
 #include "../data_struct/data_struct.hpp"
 
 namespace PathOptimizationNS {
@@ -35,7 +38,7 @@ class ReferencePathSmoother {
                                                          const State &start_state,
                                                          const Map &grid_map);
 
-    bool solve(ReferencePath *reference_path, std::vector<State> *smoothed_path_display = nullptr);
+    bool solve(PathOptimizationNS::ReferencePath *reference_path);
     std::vector<std::vector<double>> display() const;
 
  protected:
@@ -51,11 +54,15 @@ class ReferencePathSmoother {
     std::vector<double> x_list_, y_list_, s_list_;
 
  private:
-    virtual bool smooth(PathOptimizationNS::ReferencePath *reference_path,
-                        std::vector<State> *smoothed_path_display) = 0;
+    virtual bool smooth(PathOptimizationNS::ReferencePath *reference_path) = 0;
     void bSpline();
+    bool postSmooth(PathOptimizationNS::ReferencePath *reference_path);
+    void setPostHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) const;
+    void setPostConstraintMatrix(Eigen::SparseMatrix<double> *matrix_constraints,
+                                 Eigen::VectorXd *lower_bound,
+                                 Eigen::VectorXd *upper_bound) const;
     // search.
-    bool graphSearch();
+    bool graphSearch(ReferencePath *reference);
     inline bool checkExistenceInClosedSet(const APoint &point) const;
     inline double getG(const APoint &point, const APoint &parent) const;
     inline double getH(const APoint &p) const;
@@ -64,7 +71,10 @@ class ReferencePathSmoother {
     std::vector<std::vector<APoint>> sampled_points_;
     double target_s_{};
     std::priority_queue<APoint *, std::vector<APoint *>, PointComparator> open_set_;
-    std::set<const APoint *> closed_set_;
+    std::unordered_set<const APoint *> closed_set_;
+    std::vector<double> layers_s_list_;
+    std::vector<std::pair<double, double>> layers_bounds_;
+    double vehicle_l_wrt_smoothed_ref_;
 
 };
 }

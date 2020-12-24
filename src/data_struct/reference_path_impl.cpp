@@ -198,7 +198,6 @@ void ReferencePathImpl::updateBoundsImproved(const PathOptimizationNS::Map &map)
     if (reference_states_.size() != bounds_.size()) {
         reference_states_.resize(bounds_.size());
     }
-    LOG(INFO) << "Boundary updated. (Improved)";
 }
 
 void ReferencePathImpl::updateLimits() {
@@ -208,7 +207,6 @@ void ReferencePathImpl::updateLimits() {
     }
     if (FLAGS_optimization_method != "KPC") {
         // curvature and curvature rate can only be limited in KPC method.
-        LOG(INFO) << "Solver is K or KP; skip updateLimits().";
         return;
     }
     max_k_list_.clear();
@@ -497,7 +495,6 @@ bool ReferencePathImpl::buildReferenceFromSpline(double delta_s_smaller, double 
         } else tmp_s += delta_s_larger;
     }
     use_spline_ = true;
-    LOG(INFO) << "Reference states are built from spline.";
     return true;
 }
 

@@ -46,8 +46,7 @@ class AngleDiffSmoother final : public ReferencePathSmoother {
     ~AngleDiffSmoother() override = default;
 
  private:
-    bool smooth(PathOptimizationNS::ReferencePath *reference_path,
-                std::vector<State> *smoothed_path_display) override;
+    bool smooth(PathOptimizationNS::ReferencePath *reference_path) override;
 };
 
 }

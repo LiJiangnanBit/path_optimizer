@@ -28,6 +28,8 @@
 #include "path_optimizer/tools/eigen2cv.hpp"
 #include "path_optimizer/data_struct/data_struct.hpp"
 #include "path_optimizer/tools/tools.hpp"
+#include "path_optimizer/data_struct/reference_path.hpp"
+#include "path_optimizer/tools/spline.h"
 
 PathOptimizationNS::State start_state, end_state;
 std::vector<PathOptimizationNS::State> reference_path;
@@ -107,6 +109,7 @@ int main(int argc, char **argv) {
                           CV_DIST_L2, CV_DIST_MASK_PRECISE);
     grid_map.get("distance") *= resolution;
     grid_map.setFrameId("/map");
+//    cv::imwrite("/home/ljn/桌面/map1.png", eigen2cv(grid_map.get("obstacle")));
 
     // Set publishers.
     ros::Publisher map_publisher =
@@ -182,37 +185,55 @@ int main(int argc, char **argv) {
         markers.append(end_marker);
 
         // Calculate.
-        std::vector<PathOptimizationNS::State> result_path, smoothed_reference_path;
+        std::vector<PathOptimizationNS::State> result_path, smoothed_reference_path, result_path_by_boxes;
         std::vector<std::vector<double>> a_star_display(3);
         if (reference_rcv && start_state_rcv && end_state_rcv) {
-            FLAGS_enable_searching = true;
+//            FLAGS_enable_searching = true;
+//            FLAGS_expected_safety_margin = 1.8;
             FLAGS_optimization_method = "KP";
+            FLAGS_enable_computation_time_output = false;
+            FLAGS_enable_raw_output = true; // Set this to false will make it much faster.
+//            FLAGS_expected_safety_margin = 1.8; // Expected, not mandatory.
+            FLAGS_safety_margin = 0.0; // Mandatory safety margin.
+//            FLAGS_enable_simple_boundary_decision = true;
+            FLAGS_enable_collision_check = true;
+//            FLAGS_car_length = 4.13;
+//            FLAGS_car_width = 2.1;
+//            FLAGS_rear_axle_to_center = 1.9;
+//            FLAGS_car_length = 4.9;
+//            FLAGS_car_width = 2.0;
+//            FLAGS_rear_axle_to_center = 1.45;
+//            FLAGS_constraint_end_heading = false;
+//            FLAGS_smoothing_method = "ANGLE_DIFF";
             PathOptimizationNS::PathOptimizer path_optimizer(start_state, end_state, grid_map);
 //            FLAGS_enable_dynamic_segmentation = false;
 //            FLAGS_enable_raw_output = false;
 //            FLAGS_output_spacing = 0.3;
-            FLAGS_optimization_method = "KP";
             if (path_optimizer.solve(reference_path, &result_path)) {
                 std::cout << "ok!" << std::endl;
-                // Test solveWithoutSmoothing:
-//                path_optimizer.solveWithoutSmoothing(result_path, &result_path);
+                
+                smoothed_reference_path.clear();
+                const auto &reference = path_optimizer.getReferencePath();
+                double s = 0;
+                while (s < reference.getLength()) {
+                    smoothed_reference_path.emplace_back(reference.getXS()(s), reference.getYS()(s));
+                    s += 0.5;
+                }
             }
-            smoothed_reference_path = path_optimizer.getSmoothedPath();
             abnormal_bounds = path_optimizer.display_abnormal_bounds();
-            a_star_display = path_optimizer.getSearchResult();
         }
 
         // Visualize a-star.
-        visualization_msgs::Marker a_star_marker =
-            markers.newSphereList(0.3, "a_star point", id++, ros_viz_tools::YELLOW, marker_frame_id);
-        for (size_t i = 0; i != a_star_display[0].size(); ++i) {
-            geometry_msgs::Point p;
-            p.x = a_star_display[0][i];
-            p.y = a_star_display[1][i];
-            p.z = 1.0;
-            a_star_marker.points.push_back(p);
-        }
-        markers.append(a_star_marker);
+//        visualization_msgs::Marker a_star_marker =
+//            markers.newSphereList(0.3, "a_star point", id++, ros_viz_tools::YELLOW, marker_frame_id);
+//        for (size_t i = 0; i != a_star_display[0].size(); ++i) {
+//            geometry_msgs::Point p;
+//            p.x = a_star_display[0][i];
+//            p.y = a_star_display[1][i];
+//            p.z = 1.0;
+//            a_star_marker.points.push_back(p);
+//        }
+//        markers.append(a_star_marker);
 
         // Visualize abnormal bounds.
         visualization_msgs::Marker abnormal_bounds_marker =
@@ -246,6 +267,19 @@ int main(int argc, char **argv) {
             result_marker.points.push_back(p);
         }
         markers.append(result_marker);
+
+        // Visualize result path.
+        visualization_msgs::Marker result_boxes_marker =
+            markers.newLineStrip(0.15, "optimized path by boxes", id++, ros_viz_tools::BLACK, marker_frame_id);
+        for (size_t i = 0; i != result_path_by_boxes.size(); ++i) {
+            geometry_msgs::Point p;
+            p.x = result_path_by_boxes[i].x;
+            p.y = result_path_by_boxes[i].y;
+            p.z = 1.0;
+            result_boxes_marker.points.push_back(p);
+        }
+        markers.append(result_boxes_marker);
+
         // Visualize smoothed reference path.
         visualization_msgs::Marker smoothed_reference_marker =
             markers.newLineStrip(0.07,

@@ -45,8 +45,7 @@ class TensionSmoother : public ReferencePathSmoother {
     ~TensionSmoother() override = default;
 
  private:
-    bool smooth(PathOptimizationNS::ReferencePath *reference_path,
-                std::vector<State> *smoothed_path_display) override;
+    bool smooth(PathOptimizationNS::ReferencePath *reference_path) override;
     virtual bool ipoptSmooth(const std::vector<double> &x_list,
                              const std::vector<double> &y_list,
                              const std::vector<double> &angle_list,

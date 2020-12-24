@@ -91,8 +91,7 @@ AngleDiffSmoother::AngleDiffSmoother(const std::vector<PathOptimizationNS::State
                                      const PathOptimizationNS::Map &grid_map)
     : ReferencePathSmoother(input_points, start_state, grid_map) {}
 
-bool AngleDiffSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path,
-                               std::vector<PathOptimizationNS::State> *smoothed_path_display) {
+bool AngleDiffSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path) {
     std::vector<double> x_list, y_list, s_list, angle_list;
     if (!segmentRawReference(&x_list, &y_list, &s_list, &angle_list, nullptr)) return false;
     size_t N = s_list.size();
@@ -176,26 +175,14 @@ bool AngleDiffSmoother::smooth(PathOptimizationNS::ReferencePath *reference_path
     }
 
     tk::spline x_spline, y_spline;
-    double max_s = result_s_list.back();
-    x_spline.set_points(result_s_list, result_x_list);
-    y_spline.set_points(result_s_list, result_y_list);
-    // Find the closest point to the vehicle.
-    double min_dis_s = getClosestPointOnSpline(x_spline, y_spline, max_s);
-    // Output. Take the closest point as s = 0.
-    std::for_each(result_s_list.begin(), result_s_list.end(), [min_dis_s](double &s) {
-      s -= min_dis_s;
-    });
     x_spline.set_points(result_s_list, result_x_list);
     y_spline.set_points(result_s_list, result_y_list);
     double max_s_result{result_s_list.back() + 3};
     reference_path->setSpline(x_spline, y_spline, max_s_result);
-    LOG(INFO) << "Angle diff smoother succeeded!";
-    if (smoothed_path_display) {
-        smoothed_path_display->clear();
-        for (int i = 0; i != result_x_list.size(); ++i) {
-            smoothed_path_display->emplace_back(result_x_list[i], result_y_list[i]);
-        }
-    }
+
+    x_list_ = std::move(result_x_list);
+    y_list_ = std::move(result_y_list);
+    s_list_ = std::move(result_s_list);
     return true;
 }
 
