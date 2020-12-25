@@ -18,9 +18,9 @@ SolverKpAsInput::SolverKpAsInput(const ReferencePath &reference_path,
     control_horizon_((horizon_ + keep_control_steps_ - 2) / keep_control_steps_),
     state_size_(3 * horizon_),
     control_size_(control_horizon_),
-    slack_size_(horizon_) {
+    slack_size_(2 * horizon_) {
     num_of_variables_ = state_size_ + control_size_ + slack_size_;
-    num_of_constraints_ = 10 * horizon_ + control_horizon_ + 2;
+    num_of_constraints_ = 11 * horizon_ + control_horizon_ + 2;
 }
 
 void SolverKpAsInput::getOptimizedPath(const Eigen::VectorXd &optimization_result,
@@ -53,6 +53,8 @@ void SolverKpAsInput::setHessianMatrix(Eigen::SparseMatrix<double> *matrix_h) co
         hessian(3 * i, 3 * i) += w_pq;
         hessian(3 * i + 2, 3 * i + 2) += w_c;
         hessian(state_size_ + control_size_ + i, state_size_ + control_size_ + i) += w_collision_slack;
+        hessian(state_size_ + control_size_ + horizon_ + i, state_size_ + control_size_ + horizon_ + i)
+            += w_collision_slack;
     }
     for (size_t i = 0; i != control_horizon_; ++i) {
         hessian(state_size_ + i, state_size_ + i) += keep_control_steps_ * w_cr;
@@ -67,8 +69,8 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
     const size_t trans_range_begin{0};
     const size_t vars_range_begin{trans_range_begin + 3 * horizon_};
     const size_t collision_range_begin{vars_range_begin + 2 * horizon_ + control_horizon_};
-    const size_t end_state_range_begin{collision_range_begin + 5 * horizon_};
-    Eigen::MatrixXd cons = Eigen::MatrixXd::Zero(10 * horizon_ + control_horizon_ + 2, 4 * horizon_ + control_horizon_);
+    const size_t end_state_range_begin{collision_range_begin + 6 * horizon_};
+    Eigen::MatrixXd cons = Eigen::MatrixXd::Zero(num_of_constraints_, num_of_variables_);
     // Set transition part.
     for (size_t i = 0; i != state_size_; ++i) {
         cons(i, i) = -1;
@@ -105,21 +107,29 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
     }
 
     // Set collision part.
-    Eigen::Matrix<double, 3, 2> collision;
+    Eigen::Matrix<double, 2, 2> collision;
     collision << 1, FLAGS_d1,
-        1, FLAGS_d2,
-//        1, FLAGS_d3,
-        1, FLAGS_d4;
+//        1, FLAGS_d2,
+        1, FLAGS_d3;
+//        1, FLAGS_d4;
     for (size_t i = 0; i != horizon_; ++i) {
-        cons.block(collision_range_begin + 3 * i, 3 * i, 3, 2) = collision;
+        cons.block(collision_range_begin + 2 * i, 3 * i, 2, 2) = collision;
     }
     Eigen::Matrix<double, 1, 2> collision1;
-    collision1 << 1, FLAGS_d3;
+    collision1 << 1, FLAGS_d4;
     for (size_t i = 0; i != horizon_; ++i) {
+        cons.block(collision_range_begin + 2 * horizon_ + i, 3 * i, 1, 2) = collision1;
+        cons(collision_range_begin + 2 * horizon_ + i, state_size_ + control_size_ + i) = -1;
         cons.block(collision_range_begin + 3 * horizon_ + i, 3 * i, 1, 2) = collision1;
-        cons(collision_range_begin + 3 * horizon_ + i, state_size_ + control_size_ + i) = -1;
-        cons.block(collision_range_begin + 4 * horizon_ + i, 3 * i, 1, 2) = collision1;
-        cons(collision_range_begin + 4 * horizon_ + i, state_size_ + control_size_ + i) = 1;
+        cons(collision_range_begin + 3 * horizon_ + i, state_size_ + control_size_ + i) = 1;
+    }
+    Eigen::Matrix<double, 1, 2> collision2;
+    collision2 << 1, FLAGS_d2;
+    for (size_t i = 0; i != horizon_; ++i) {
+        cons.block(collision_range_begin + 4 * horizon_ + i, 3 * i, 1, 2) = collision2;
+        cons(collision_range_begin + 4 * horizon_ + i, state_size_ + control_size_ + i) = -1;
+        cons.block(collision_range_begin + 5 * horizon_ + i, 3 * i, 1, 2) = collision2;
+        cons(collision_range_begin + 5 * horizon_ + i, state_size_ + control_size_ + i) = 1;
     }
 
     // End state.
@@ -128,8 +138,8 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
     *matrix_constraints = cons.sparseView();
 
     // Set bounds.
-    *lower_bound = Eigen::MatrixXd::Zero(10 * horizon_ + control_horizon_ + 2, 1);
-    *upper_bound = Eigen::MatrixXd::Zero(10 * horizon_ + control_horizon_ + 2, 1);
+    *lower_bound = Eigen::MatrixXd::Zero(num_of_constraints_, 1);
+    *upper_bound = Eigen::MatrixXd::Zero(num_of_constraints_, 1);
     Eigen::Matrix<double, 3, 1> x0;
     const auto init_error = vehicle_state_.getInitError();
     x0 << init_error[0], init_error[1], vehicle_state_.getStartState().k;
@@ -155,25 +165,31 @@ void SolverKpAsInput::setConstraintMatrix(Eigen::SparseMatrix<double> *matrix_co
     // Collision bound.
     const auto &bounds = reference_path_.getBounds();
     for (size_t i = 0; i != horizon_; ++i) {
-        Eigen::Vector3d ld, ud;
+        Eigen::Vector2d ld, ud;
         ud
-            << bounds[i].c0.ub, bounds[i].c1.ub, bounds[i].c3.ub;
+            << bounds[i].c0.ub, /*bounds[i].c1.ub,*/ bounds[i].c2.ub;
         ld
-            << bounds[i].c0.lb, bounds[i].c1.lb, bounds[i].c3.lb;
-        lower_bound->block(collision_range_begin + 3 * i, 0, 3, 1) = ld;
-        upper_bound->block(collision_range_begin + 3 * i, 0, 3, 1) = ud;
-        double uds = bounds[i].c2.ub - FLAGS_expected_safety_margin;
-        double lds = bounds[i].c2.lb + FLAGS_expected_safety_margin;
-        (*upper_bound)(collision_range_begin + 3 * horizon_ + i, 0) = uds;
-        (*lower_bound)(collision_range_begin + 3 * horizon_ + i, 0) = -OsqpEigen::INFTY;
-        (*lower_bound)(collision_range_begin + 4 * horizon_ + i, 0) = lds;
-        (*upper_bound)(collision_range_begin + 4 * horizon_ + i, 0) = OsqpEigen::INFTY;
+            << bounds[i].c0.lb, /*bounds[i].c1.lb,*/ bounds[i].c2.lb;
+        lower_bound->block(collision_range_begin + 2 * i, 0, 2, 1) = ld;
+        upper_bound->block(collision_range_begin + 2 * i, 0, 2, 1) = ud;
+        double uds1 = bounds[i].c3.ub - FLAGS_expected_safety_margin;
+        double lds1 = bounds[i].c3.lb + FLAGS_expected_safety_margin;
+        (*upper_bound)(collision_range_begin + 2 * horizon_ + i, 0) = uds1;
+        (*lower_bound)(collision_range_begin + 2 * horizon_ + i, 0) = -OsqpEigen::INFTY;
+        (*lower_bound)(collision_range_begin + 3 * horizon_ + i, 0) = lds1;
+        (*upper_bound)(collision_range_begin + 3 * horizon_ + i, 0) = OsqpEigen::INFTY;
+        double uds2 = bounds[i].c1.ub - FLAGS_expected_safety_margin;
+        double lds2 = bounds[i].c1.lb + FLAGS_expected_safety_margin;
+        (*upper_bound)(collision_range_begin + 4 * horizon_ + i, 0) = uds2;
+        (*lower_bound)(collision_range_begin + 4 * horizon_ + i, 0) = -OsqpEigen::INFTY;
+        (*lower_bound)(collision_range_begin + 5 * horizon_ + i, 0) = lds2;
+        (*upper_bound)(collision_range_begin + 5 * horizon_ + i, 0) = OsqpEigen::INFTY;
     }
 
     // End state.
     // End ey is not constrained.
-    (*lower_bound)(end_state_range_begin) = -OsqpEigen::INFTY;
-    (*upper_bound)(end_state_range_begin) = OsqpEigen::INFTY;
+    (*lower_bound)(end_state_range_begin) = -1; //-OsqpEigen::INFTY;
+    (*upper_bound)(end_state_range_begin) = 1; //OsqpEigen::INFTY;
     (*lower_bound)(end_state_range_begin + 1) = -OsqpEigen::INFTY;
     (*upper_bound)(end_state_range_begin + 1) = OsqpEigen::INFTY;
     if (FLAGS_constraint_end_heading) {
