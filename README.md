@@ -1,8 +1,7 @@
 # path_optimizer  
 ![](https://img.shields.io/badge/ROS-Kinetic-orange)  ![](https://img.shields.io/github/last-commit/LijiangnanBit/path_optimizer)  
-**This ROS package generates feasible paths for non-holonomic vehicles according to some given reference paths (discrete points).**  
-![2020-05-20 09-31-48屏幕截图.png](https://i.loli.net/2020/05/20/QZzNlAOMqH5o1re.png)    
-
+**This ROS package generates feasible paths for non-holonomic vehicles.**  
+![2021-01-07 01-19-29屏幕截图.png](https://i.loli.net/2021/01/07/W9PHE2h5DUtsTi1.png)  
 ## Run demos 
 ### 0. Install dependencies and build  
 - ROS kinetic on Ubuntu 16.04 
