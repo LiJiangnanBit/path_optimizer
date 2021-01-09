@@ -33,20 +33,18 @@ std::unique_ptr<ReferencePathSmoother> ReferencePathSmoother::create(const std::
 
 bool ReferencePathSmoother::solve(PathOptimizationNS::ReferencePath *reference_path) {
     // TODO: deal with short reference path.
-    if (input_points_.size() < 6) {
+    if (input_points_.size() < 4) {
         LOG(ERROR) << "Few reference points.";
         return false;
     }
 
     bSpline();
 
-    if (!smooth(reference_path)) {
-        return false;
-    }
+    if (!smooth(reference_path)) return false;
 
-    graphSearch(reference_path);
-    postSmooth(reference_path);
-    return true;
+    if (!graphSearchDp(reference_path)) return false;
+
+    return postSmooth(reference_path);
 }
 
 bool ReferencePathSmoother::segmentRawReference(std::vector<double> *x_list,
@@ -59,7 +57,6 @@ bool ReferencePathSmoother::segmentRawReference(std::vector<double> *x_list,
         return false;
     }
     double max_s = s_list_.back();
-    LOG(INFO) << "ref path length: " << max_s;
     tk::spline x_spline, y_spline;
     x_spline.set_points(s_list_, x_list_);
     y_spline.set_points(s_list_, y_list_);
@@ -147,6 +144,199 @@ double ReferencePathSmoother::getG(const PathOptimizationNS::APoint &point,
     return parent.g + offset_cost + obstacle_cost;
 }
 
+void ReferencePathSmoother::calculateCostAt(std::vector<std::vector<DpPoint>> &samples,
+                                            int layer_index,
+                                            int lateral_index) const {
+    if (layer_index == 0) return;
+    if (!samples[layer_index][lateral_index].is_feasible_) return;
+
+    static const double weight_ref_offset = 1.0;
+    static const double weight_obstacle = 0.5;
+    static const double weight_angle_change = 16.0;
+    static const double weight_ref_angle_diff = 0.5;
+    static const double safe_distance = 3.0;
+
+    auto &point = samples[layer_index][lateral_index];
+    double self_cost = 0;
+    if (point.dis_to_obs_ < safe_distance) self_cost += (safe_distance - point.dis_to_obs_) / safe_distance * weight_obstacle;
+    self_cost += fabs(point.l_) / FLAGS_search_lateral_range * weight_ref_offset;
+
+    auto min_cost = DBL_MAX;
+    for (const auto &pre_point : samples[layer_index - 1]) {
+        if (!pre_point.is_feasible_) continue;
+        if (fabs(pre_point.l_ - point.l_) > (point.s_ - pre_point.s_)) continue;
+        double direction = atan2(point.y_ - pre_point.y_, point.x_ - pre_point.x_);
+        double edge_cost = fabs(constraintAngle(direction - pre_point.dir_)) / M_PI_2 * weight_angle_change
+            + fabs(constraintAngle(direction - point.heading_)) / M_PI_2 * weight_ref_angle_diff;
+        double total_cost = self_cost + edge_cost + pre_point.cost_;
+        if (total_cost < min_cost) {
+            min_cost = total_cost;
+            point.parent_ = &pre_point;
+            point.dir_ = direction;
+        }
+    }
+
+    if (point.parent_) point.cost_ = min_cost;
+}
+
+bool ReferencePathSmoother::graphSearchDp(PathOptimizationNS::ReferencePath *reference) {
+    auto t1 = std::clock();
+
+    const tk::spline &x_s = reference->getXS();
+    const tk::spline &y_s = reference->getYS();
+    // Sampling interval.
+    double tmp_s = getClosestPointOnSpline(x_s, y_s, reference->getLength());
+    layers_s_list_.clear();
+    layers_bounds_.clear();
+    double search_ds = reference->getLength() > 6 ? FLAGS_search_longitudial_spacing : 0.5;
+    while (tmp_s < reference->getLength()) {
+        layers_s_list_.emplace_back(tmp_s);
+        tmp_s += search_ds;
+    }
+    layers_s_list_.emplace_back(reference->getLength());
+    if (layers_s_list_.empty()) return false;
+    target_s_ = layers_s_list_.back();
+
+    double vehicle_s = layers_s_list_.front();
+    State proj_point(x_s(vehicle_s), y_s(vehicle_s), getHeading(x_s, y_s, vehicle_s));
+    auto vehicle_local = global2Local(proj_point, start_state_);
+    vehicle_l_wrt_smoothed_ref_ = vehicle_local.y;
+    if (fabs(vehicle_local.y) > FLAGS_search_lateral_range) {
+        LOG(INFO) << "Vehicle far from ref, quit graph search.";
+        return false;
+    }
+    int start_lateral_index =
+        static_cast<int>((FLAGS_search_lateral_range + vehicle_local.y) / FLAGS_search_lateral_spacing);
+
+    std::vector<std::vector<DpPoint>> samples;
+    samples.reserve(layers_s_list_.size());
+    static const double search_threshold = 1.45;
+    // Sample nodes.
+    for (int i = 0; i < layers_s_list_.size(); ++i) {
+        samples.emplace_back(std::vector<DpPoint>());
+        double cur_s = layers_s_list_[i];
+        double ref_x = x_s(cur_s);
+        double ref_y = y_s(cur_s);
+        double ref_heading = getHeading(x_s, y_s, cur_s);
+        double ref_curvature = getCurvature(x_s, y_s, cur_s);
+        double ref_r = 1 / ref_curvature;
+        double cur_l = -FLAGS_search_lateral_range;
+        int lateral_index = 0;
+        while (cur_l <= FLAGS_search_lateral_range) {
+            DpPoint dp_point;
+            dp_point.x_ = ref_x + cur_l * cos(ref_heading + M_PI_2);
+            dp_point.y_ = ref_y + cur_l * sin(ref_heading + M_PI_2);
+            dp_point.heading_ = ref_heading;
+            dp_point.s_ = cur_s;
+            dp_point.l_ = cur_l;
+            dp_point.layer_index_ = i;
+            dp_point.lateral_index_ = lateral_index;
+            grid_map::Position node_pose(dp_point.x_, dp_point.y_);
+            dp_point.dis_to_obs_ = grid_map_.isInside(node_pose) ? grid_map_.getObstacleDistance(node_pose) : -1;
+            if ((ref_curvature < 0 && cur_l < ref_r) || (ref_curvature > 0 && cur_l > ref_r)
+                || dp_point.dis_to_obs_ < search_threshold) {
+                dp_point.is_feasible_ = false;
+            }
+            if (i == 0 && dp_point.lateral_index_ != start_lateral_index) dp_point.is_feasible_ = false;
+            if (i == 0 && dp_point.lateral_index_ == start_lateral_index) {
+                dp_point.is_feasible_ = true;
+                dp_point.dir_ = start_state_.z;
+                dp_point.cost_ = 0.0;
+            }
+            samples.back().emplace_back(dp_point);
+            cur_l += FLAGS_search_lateral_spacing;
+            ++lateral_index;
+        }
+        // Get rough bounds.
+        auto &point_set = samples.back();
+        for (int j = 0; j < point_set.size(); ++j) {
+            if (j == 0 || !point_set[j - 1].is_feasible_ || !point_set[j].is_feasible_) {
+                point_set[j].rough_lower_bound = point_set[j].l_;
+            } else {
+                point_set[j].rough_lower_bound = point_set[j - 1].rough_lower_bound;
+            }
+        }
+        for (int j = point_set.size() - 1; j >= 0; --j) {
+            if (j == point_set.size() - 1 || !point_set[j + 1].is_feasible_ || !point_set[j].is_feasible_) {
+                point_set[j].rough_upper_bound = point_set[j].l_;
+            } else {
+                point_set[j].rough_upper_bound = point_set[j + 1].rough_upper_bound;
+            }
+        }
+    }
+
+    // Calculate cost.
+    int max_layer_reached = 0;
+    for (const auto &layer : samples) {
+        bool is_layer_feasible = false;
+        for (const auto &point : layer) {
+            calculateCostAt(samples, point.layer_index_, point.lateral_index_);
+            if (point.parent_) is_layer_feasible = true;
+        }
+        if (layer.front().layer_index_ != 0 && !is_layer_feasible) break;
+        max_layer_reached = layer.front().layer_index_;
+    }
+
+    // Retrieve path.
+    const DpPoint *ptr = nullptr;
+    auto min_cost = DBL_MAX;
+    for (const auto &point : samples[max_layer_reached]) {
+        if (point.cost_ < min_cost) {
+            ptr = &point;
+            min_cost = point.cost_;
+        }
+    }
+
+    while (ptr) {
+        if (ptr->layer_index_ == 0) {
+            layers_bounds_.emplace_back(-10, 10);
+        } else {
+            static const double check_s = 0.2;
+            double upper_bound = check_s + ptr->rough_upper_bound;
+            double lower_bound = -check_s + ptr->rough_lower_bound;
+            static const double check_limit = 6.0;
+            double ref_x = x_s(ptr->s_);
+            double ref_y = y_s(ptr->s_);
+            while (upper_bound < check_limit) {
+                grid_map::Position pos;
+                pos(0) = ref_x + upper_bound * cos(ptr->heading_ + M_PI_2);
+                pos(1) = ref_y + upper_bound * sin(ptr->heading_ + M_PI_2);
+                if (grid_map_.isInside(pos)
+                    && grid_map_.getObstacleDistance(pos) > search_threshold) {
+                    upper_bound += check_s;
+                } else {
+                    upper_bound -= check_s;
+                    break;
+                }
+            }
+            while (lower_bound > -check_limit) {
+                grid_map::Position pos;
+                pos(0) = ref_x + lower_bound * cos(ptr->heading_ + M_PI_2);
+                pos(1) = ref_y + lower_bound * sin(ptr->heading_ + M_PI_2);
+                if (grid_map_.isInside(pos)
+                    && grid_map_.getObstacleDistance(pos) > search_threshold) {
+                    lower_bound -= check_s;
+                } else {
+                    lower_bound += check_s;
+                    break;
+                }
+            }
+            layers_bounds_.emplace_back(lower_bound, upper_bound);
+        }
+        ptr = ptr->parent_;
+    }
+
+    std::reverse(layers_bounds_.begin(), layers_bounds_.end());
+    layers_s_list_.resize(layers_bounds_.size());
+
+    auto t2 = std::clock();
+    if (FLAGS_enable_computation_time_output) {
+        time_ms_out(t1, t2, "Search");
+    }
+    return true;
+
+}
+
 bool ReferencePathSmoother::graphSearch(ReferencePath *reference) {
     auto t1 = std::clock();
     tk::spline x_s = reference->getXS();
@@ -163,13 +353,13 @@ bool ReferencePathSmoother::graphSearch(ReferencePath *reference) {
     layers_s_list_.emplace_back(reference->getLength());
     target_s_ = layers_s_list_.back();
 
-
     double vehicle_s = layers_s_list_.front();
     State proj_point(x_s(vehicle_s), y_s(vehicle_s), getHeading(x_s, y_s, vehicle_s));
     auto vehicle_local = global2Local(proj_point, start_state_);
     vehicle_l_wrt_smoothed_ref_ = vehicle_local.y;
 
     // Sample points.
+    static const double search_k = 1.2;
     APoint start_point;
     start_point.x = start_state_.x;
     start_point.y = start_state_.y;
@@ -180,7 +370,6 @@ bool ReferencePathSmoother::graphSearch(ReferencePath *reference) {
     start_point.g = 0;
     start_point.h = getH(start_point);
     sampled_points_.emplace_back(std::vector<APoint>{start_point});
-
     for (size_t i = 1; i != layers_s_list_.size(); ++i) {
         double sr = layers_s_list_[i];
         double xr = x_s(sr);
@@ -209,7 +398,7 @@ bool ReferencePathSmoother::graphSearch(ReferencePath *reference) {
             point.offset_idx = offset_idx;
             grid_map::Position position(point.x, point.y);
             if (grid_map_.isInside(position)
-                && grid_map_.getObstacleDistance(position) > 1.3 * FLAGS_circle_radius) {
+                && grid_map_.getObstacleDistance(position) > search_k * FLAGS_circle_radius) {
                 point_set.emplace_back(point);
             }
             offset += FLAGS_search_lateral_spacing;
@@ -281,6 +470,7 @@ bool ReferencePathSmoother::graphSearch(ReferencePath *reference) {
     if (open_set_.empty()) {
         auto min_cost = DBL_MAX;
         for (int i = 0; i < sampled_points_[max_layer_reached].size(); ++i) {
+            if (sampled_points_[max_layer_reached][i].parent == nullptr) continue;
             if (sampled_points_[max_layer_reached][i].f() < min_cost) {
                 ptr = &sampled_points_[max_layer_reached][i];
                 min_cost = ptr->f();
@@ -317,7 +507,7 @@ bool ReferencePathSmoother::graphSearch(ReferencePath *reference) {
                 pos(0) = ref_x + lower_bound * cos(ptr->dir + M_PI_2);
                 pos(1) = ref_y + lower_bound * sin(ptr->dir + M_PI_2);
                 if (grid_map_.isInside(pos)
-                    && grid_map_.getObstacleDistance(pos) > 1.3 * FLAGS_circle_radius) {
+                    && grid_map_.getObstacleDistance(pos) > search_k * FLAGS_circle_radius) {
                     lower_bound -= check_s;
                 } else {
                     lower_bound += check_s;
@@ -381,7 +571,7 @@ void ReferencePathSmoother::bSpline() {
 bool ReferencePathSmoother::postSmooth(PathOptimizationNS::ReferencePath *reference_path) {
     auto point_num = layers_s_list_.size();
     if (point_num < 4) {
-        LOG(INFO) << "Ref is short, quit POST SMOOTHING.";
+        LOG(WARNING) << "Ref is short: " << point_num << ", quit POST SMOOTHING.";
         return false;
     }
 
@@ -407,7 +597,7 @@ bool ReferencePathSmoother::postSmooth(PathOptimizationNS::ReferencePath *refere
     // Solve.
     if (!solver.initSolver()) return false;
     if (!solver.solve()) {
-        LOG(INFO) << "Post smoothing QP failed!";
+        LOG(ERROR) << "Post smoothing QP failed!";
         return false;
     }
     const auto &QPSolution = solver.getSolution();

@@ -63,6 +63,8 @@ class ReferencePathSmoother {
                                  Eigen::VectorXd *upper_bound) const;
     // search.
     bool graphSearch(ReferencePath *reference);
+    bool graphSearchDp(ReferencePath *reference);
+    void calculateCostAt(std::vector<std::vector<DpPoint>> &samples, int layer_index, int lateral_index) const;
     inline bool checkExistenceInClosedSet(const APoint &point) const;
     inline double getG(const APoint &point, const APoint &parent) const;
     inline double getH(const APoint &p) const;
