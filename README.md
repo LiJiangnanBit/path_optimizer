@@ -51,8 +51,10 @@ This is a computation time test.
 ```
 rosrun path_optimizer path_optimizer_benchmark
 ```   
-### 3. [Simulation video](https://vimeo.com/498591477)
-[![simulation](https://i.loli.net/2021/01/09/fkjmlpRXFxA9a2J.png)](https://vimeo.com/498591477)
+### 3. Simulation videos
+#### (1) [Simulation in dynamic environment](https://vimeo.com/498950818)  
+#### (2) [Simulation with complex static obstacles](https://vimeo.com/498591477)  
+![simulation](https://i.loli.net/2021/01/09/fkjmlpRXFxA9a2J.png)
 
 ## Usage
 Refer to [demo.cpp](https://github.com/LiJiangnanBit/path_optimizer/blob/master/src/test/demo.cpp)  
