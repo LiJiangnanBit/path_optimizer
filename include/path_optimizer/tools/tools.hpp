@@ -62,9 +62,9 @@ State global2Local(const State &reference, const State &target);
 
 State findClosestPoint(const tk::spline &xs,
                        const tk::spline &ys,
+                       double x,
+                       double y,
                        double max_s,
-                       const State &state,
-                       double grid = 0,
                        double start_s = 0);
 
 }

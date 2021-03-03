@@ -87,33 +87,6 @@ bool ReferencePathSmoother::segmentRawReference(std::vector<double> *x_list,
     return true;
 }
 
-double ReferencePathSmoother::getClosestPointOnSpline(const PathOptimizationNS::tk::spline &x_s,
-                                                      const PathOptimizationNS::tk::spline &y_s,
-                                                      const double max_s) const {
-    // Find the closest point to the vehicle.
-    double min_dis_s = 0;
-    double start_distance =
-        sqrt(pow(start_state_.x - x_s(0), 2) +
-            pow(start_state_.y - y_s(0), 2));
-    if (!isEqual(start_distance, 0)) {
-        auto min_dis_to_vehicle = start_distance;
-        double tmp_s_1 = 0 + 0.1;
-        while (tmp_s_1 <= max_s) {
-            double x = x_s(tmp_s_1);
-            double y = y_s(tmp_s_1);
-            double dis = sqrt(pow(x - start_state_.x, 2) + pow(y - start_state_.y, 2));
-            if (dis <= min_dis_to_vehicle) {
-                min_dis_to_vehicle = dis;
-                min_dis_s = tmp_s_1;
-            } else if (dis > 15 && min_dis_to_vehicle < 15) {
-                break;
-            }
-            tmp_s_1 += 0.1;
-        }
-    }
-    return min_dis_s;
-}
-
 std::vector<std::vector<double>> ReferencePathSmoother::display() const {
     return std::vector<std::vector<double>>{x_list_, y_list_, s_list_};
 }
@@ -131,16 +104,6 @@ double ReferencePathSmoother::getG(const PathOptimizationNS::APoint &point,
     // Deviation cost.
     double offset_cost = fabs(point.l) / FLAGS_search_lateral_range * FLAGS_search_deviation_cost;
     // Smoothness cost.
-//    double smoothness_cost = 0;
-//    if (parent.parent) {
-//        Eigen::Vector2d v1(parent.x - parent.parent->x, parent.y - parent.parent->y);
-//        Eigen::Vector2d v2(point.x - parent.x, point.y - parent.y);
-//        smoothness_cost = fabs(v1(0) * v2(1) - v1(1) * v2(0)) * SMOOTHNESS_COST;
-//    }
-//    printExp(offset_cost);
-//    printExp(smoothness_cost);
-//    printExp(obstacle_cost);
-//    return parent.g + offset_cost + smoothness_cost + obstacle_cost;
     return parent.g + offset_cost + obstacle_cost;
 }
 
@@ -185,7 +148,7 @@ bool ReferencePathSmoother::graphSearchDp(PathOptimizationNS::ReferencePath *ref
     const tk::spline &x_s = reference->getXS();
     const tk::spline &y_s = reference->getYS();
     // Sampling interval.
-    double tmp_s = getClosestPointOnSpline(x_s, y_s, reference->getLength());
+    double tmp_s = findClosestPoint(x_s, y_s, start_state_.x, start_state_.y, reference->getLength()).s;
     layers_s_list_.clear();
     layers_bounds_.clear();
     double search_ds = reference->getLength() > 6 ? FLAGS_search_longitudial_spacing : 0.5;
@@ -342,7 +305,7 @@ bool ReferencePathSmoother::graphSearch(ReferencePath *reference) {
     tk::spline x_s = reference->getXS();
     tk::spline y_s = reference->getYS();
     // Sampling interval.
-    double tmp_s = getClosestPointOnSpline(x_s, y_s, reference->getLength());
+    double tmp_s = findClosestPoint(x_s, y_s, start_state_.x, start_state_.y, reference->getLength()).s;
     layers_s_list_.clear();
     layers_bounds_.clear();
     double search_ds = reference->getLength() > 6 ? FLAGS_search_longitudial_spacing : 0.5;

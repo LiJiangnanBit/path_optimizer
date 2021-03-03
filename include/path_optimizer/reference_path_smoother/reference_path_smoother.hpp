@@ -47,7 +47,6 @@ class ReferencePathSmoother {
                              std::vector<double> *s_list,
                              std::vector<double> *angle_list,
                              std::vector<double> *k_list) const;
-    double getClosestPointOnSpline(const tk::spline &x_s, const tk::spline &y_s, const double max_s) const;
     const State &start_state_;
     const Map &grid_map_;
     // Data to be passed into solvers.

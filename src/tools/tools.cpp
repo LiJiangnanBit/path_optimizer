@@ -65,25 +65,48 @@ State global2Local(const State &reference, const State &target) {
 
 State findClosestPoint(const tk::spline &xs,
                        const tk::spline &ys,
+                       double x,
+                       double y,
                        double max_s,
-                       const State &state,
-                       double grid,
                        double start_s) {
-    if (max_s < grid || max_s <= start_s || grid == 0) {
+    if (max_s <= start_s) {
         return State{xs(start_s), ys(start_s)};
     }
-    double tmp_s{start_s}, min_dis_s{start_s};
-    double min_dis{DBL_MAX};
+    static const double grid = 0.5;
+    double tmp_s = start_s, min_dis_s = start_s;
+    auto min_dis = DBL_MAX;
+    State target_state{x, y};
     while (tmp_s <= max_s) {
         State state_on_spline{xs(tmp_s), ys(tmp_s)};
-        double tmp_dis{distance(state_on_spline, state)};
+        double tmp_dis = distance(state_on_spline, target_state);
         if (tmp_dis < min_dis) {
             min_dis = tmp_dis;
             min_dis_s = tmp_s;
         }
         tmp_s += grid;
     }
-    return State{xs(min_dis_s), ys(min_dis_s)};
+    // Newton's method
+    double cur_s = min_dis_s;
+    double prev_s = min_dis_s;
+    for (int i = 0; i < 20; ++i) {
+        double path_x = xs(cur_s);
+        double path_y = ys(cur_s);
+        double dx = xs.deriv(1, cur_s);
+        double dy = ys.deriv(1, cur_s);
+        double ddx = xs.deriv(2, cur_s);
+        double ddy = ys.deriv(2, cur_s);
+        // Ignore coeff 2 in J and H.
+        double j = (path_x - x) * dx + (path_y - y) * dy;
+        double h = dx * dx + (path_x - x) * ddx + dy * dy + (path_y - y) * ddy;
+        cur_s -= j / h;
+        if (fabs(cur_s - prev_s) < 1e-5) break;
+        prev_s = cur_s;
+    }
+    
+    cur_s = std::min(cur_s, max_s);
+    State ret{xs(cur_s), ys(cur_s)};
+    ret.s = cur_s;
+    return ret;
 }
 
 }

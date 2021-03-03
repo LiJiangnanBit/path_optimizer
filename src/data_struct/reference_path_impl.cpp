@@ -324,9 +324,9 @@ std::vector<double> ReferencePathImpl::getClearanceWithDirectionStrict(const Pat
         // Use position to determine the direction.
         auto closest_point{findClosestPoint(*original_x_s_,
                                             *original_y_s_,
-                                            original_max_s_,
-                                            state,
-                                            0.5)};
+                                            state.x,
+                                            state.y,
+                                            original_max_s_)};
         auto local_view{global2Local(state, closest_point)};
         DLOG(INFO) << "closest point: " << closest_point.x << ", " << closest_point.y << "\n"
                    << "state: " << state.x << ", " << state.y;
