@@ -1,5 +1,5 @@
 # path_optimizer  
-# :bell: CHECK OUT THE NEWER VERSION [path_optimizer_2](https://github.com/LiJiangnanBit/path_optimizer_2)  
+# :bell: CHECK OUT THE NEWER VERSION [path_optimizer_2](https://github.com/LiJiangnanBit/path_optimizer_2) and [path_optimizer_ilqr](https://github.com/LiJiangnanBit/path_optimizer_ilqr)  
 ![](https://img.shields.io/badge/ROS-Kinetic-orange)  ![](https://img.shields.io/github/last-commit/LijiangnanBit/path_optimizer)  
 **This ROS package generates feasible paths for non-holonomic vehicles.**  
 ![2021-01-07 01-19-29屏幕截图.png](https://i.loli.net/2021/01/07/W9PHE2h5DUtsTi1.png)  
